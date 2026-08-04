@@ -8,7 +8,7 @@ from Clients.BaseClient import BaseClient
 
 class AnimePaheClient(BaseClient):
     def __init__(self, config, session=None):
-        self.base_url = config.get('base_url', 'https://animepahe.ru/')
+        self.base_url = config.get('base_url', 'https://animepahe.pw/')
         self.search_url = self.base_url + config.get('search_url', 'api?m=search&q=')
         self.episodes_list_url = self.base_url + config.get('episodes_list_url', 'api?m=release&sort=episode_asc&id=')
         self.download_link_url = self.base_url + config.get('download_link_url', 'api?m=links&p=kwik&id=')
@@ -16,9 +16,10 @@ class AnimePaheClient(BaseClient):
         self.anime_id = ''
         self.selector_strategy = config.get('alternate_resolution_selector', 'lowest')
         self.hls_size_accuracy = config.get('hls_size_accuracy', 0)
-        super().__init__(config['request_timeout'], session)
+        super().__init__(config.get('request_timeout', 30), session)
 
-    def _get_new_cookies(self, url, check_condition, max_retries=3, wait_time_in_secs=5):
+    def _get_new_cookies(self, url, check_condition, max_retries=3, wait_time_in_secs=5,
+                         turnstile_wait_time=15):
         driver = self._get_undetected_chrome_driver(client='AnimePaheClient')
         driver.get(url)
 
@@ -35,21 +36,66 @@ class AnimePaheClient(BaseClient):
             driver.quit()
             raise Exception(f'Failed to load site within {max_retries*wait_time_in_secs} seconds')
 
+        # Check for and attempt to resolve Turnstile/Cloudflare challenge
+        try:
+            turnstile_iframes = driver.find_elements(By.XPATH, "//iframe[contains(@src, 'turnstile') or contains(@src, 'cf-challenge')]")
+            if turnstile_iframes:
+                self.logger.warning('Cloudflare Turnstile challenge detected. Attempting to resolve...')
+
+                # Try clicking the Turnstile widget
+                try:
+                    turnstile_widget = driver.find_element(By.XPATH, "//div[@class='cf-turnstile']")
+                    driver.execute_script("arguments[0].click();", turnstile_widget)
+                except NoSuchElementException:
+                    pass
+
+                # Wait for challenge to be resolved
+                sleep(turnstile_wait_time)
+
+                # Check if cf_clearance cookie was set
+                cf_clearance = None
+                for cookie in driver.get_cookies():
+                    if cookie['name'] == 'cf_clearance':
+                        cf_clearance = cookie['value']
+                        break
+
+                if cf_clearance:
+                    self.logger.info('Turnstile challenge resolved successfully')
+                else:
+                    self.logger.warning('Turnstile challenge may not have been resolved')
+        except Exception as e:
+            self.logger.warning(f'Error while checking for Turnstile challenge: {e}')
+
         all_cookies = driver.get_cookies()
         driver.close()
         driver.quit()
 
         return {cookie['name']: cookie['value'] for cookie in all_cookies}
 
+    def _is_cloudflare_blocked(self, response_text):
+        '''Check if response indicates a Cloudflare/Turnstile block'''
+        if response_text is None:
+            return False
+        cf_indicators = [
+            'Checking your browser',
+            'cf-challenge',
+            'turnstile',
+            'Just a moment',
+            'JavaScript is required',
+            '__cf_duel',
+        ]
+        response_lower = response_text.lower() if isinstance(response_text, str) else ''
+        return any(ind.lower() in response_lower for ind in cf_indicators)
+
     def _get_site_cookies(self, url):
         cookies = self._load_scraper_cookies(client='animepahe')
 
         if cookies:
-            resp = self._send_request(url, cookies=cookies)
-            if resp is not None:
+            resp = self._send_request(url, cookies=cookies, return_type='text')
+            if resp is not None and not self._is_cloudflare_blocked(resp):
                 return cookies
 
-        cookies = self._get_new_cookies(url, '/html/body/header/nav/a/img')
+        cookies = self._get_new_cookies(url, '//body/header/nav/a/img | //body/header/a/img | //body/nav/a/img')
         self._save_scraper_cookies(client='animepahe', data=cookies)
         return cookies
 

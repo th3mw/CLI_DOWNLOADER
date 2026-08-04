@@ -514,7 +514,7 @@ class BaseClient():
         info += f' (duration: {duration})'    # get duration from any resolution dict
 
         for _res, _vals in details.items():
-            info += f' | {_res}P ({_vals["resolution_size"]})'
+            info += f' | {_res}P ({_vals.get("resolution_size", "NA")})'
             if 'filesize_mb' in _vals: info += f' [~{_vals["filesize_mb"]} MB]'
 
         self._colprint('results', info)

@@ -235,11 +235,11 @@ class KissKhClient(BaseClient):
                     qualities = dl_links['Video'].get('qualities', {})
                     m3u8_links = {}
                     for quality, quality_link in qualities.items():
-                        m3u8_links[quality] = {'file': quality_link, 'type': 'mp4' if '.mp4' in quality_link else 'hls'}
+                        m3u8_links[quality] = {'downloadLink': quality_link, 'downloadType': 'mp4' if '.mp4' in quality_link else 'hls', 'resolution_size': f'{quality}x0'}
                 else:
                     # Single quality link
                     link_type = 'mp4' if '.mp4' in link else 'hls'
-                    m3u8_links = {'720': {'file': link, 'type': link_type}}
+                    m3u8_links = {'720': {'downloadLink': link, 'downloadType': link_type, 'resolution_size': '1280x720'}}
 
                 self.logger.debug(f'Available quality options: {list(m3u8_links.keys())}')
 

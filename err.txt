@@ -1,0 +1,97 @@
+$ python scraper.py
+╔══════════════════════════════════════════════════════════════╗
+║                     🎬 MEDIA SCRAPER v1.0 🎬                    ║
+║           Download Anime, Movies & TV Shows with ease!          ║
+╚══════════════════════════════════════════════════════════════╝
+
+╭───── SELECT TYPE ─────╮
+│ 1. Anime               │
+│ 2. Movies & Shows      │
+╰─────────────────────╯
+
+Enter your choice: 1
+
+Enter series/movie name: jobless reincarnation
+
+Search Results:
+Error occurred: Message: session not created: cannot connect to chrome at 127.0.0.1:57119
+from session not created: This version of ChromeDriver only supports Chrome version 151
+Current browser version is 150.0.7871.186; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
+Stacktrace:
+#0 0x55f6114a683a <unknown>
+#1 0x55f610e19fc9 <unknown>
+#2 0x55f610e5feaf <unknown>
+#3 0x55f610e5ec70 <unknown>
+#4 0x55f610e53d6f <unknown>
+#5 0x55f610ea43be <unknown>
+#6 0x55f610ea3aac <unknown>
+#7 0x55f610e62d32 <unknown>
+#8 0x55f610e63bb1 <unknown>
+#9 0x55f61146bbc0 <unknown>
+#10 0x55f61146a23a <unknown>
+#11 0x55f611454c65 <unknown>
+#12 0x55f61146aefa <unknown>
+#13 0x55f61143cb60 <unknown>
+#14 0x55f611492218 <unknown>
+#15 0x55f6114923b5 <unknown>
+#16 0x55f6114a53ee <unknown>
+#17 0x7f9e91297fd9 <unknown>
+#18 0x7f9e9131f02c <unknown>
+. Check log for more details.
+
+Ready for one more? Start new download (y|n)? y
+╔══════════════════════════════════════════════════════════════╗
+║                     🎬 MEDIA SCRAPER v1.0 🎬                    ║
+║           Download Anime, Movies & TV Shows with ease!          ║
+╚══════════════════════════════════════════════════════════════╝
+
+╭───── SELECT TYPE ─────╮
+│ 1. Anime               │
+│ 2. Movies & Shows      │
+╰─────────────────────╯
+
+Enter your choice: 2
+
+Enter series/movie name: jobless         
+
+Search Results:
+-------------- Asian Drama --------------
+-------------- Asian Movies --------------
+-------------- Anime --------------
+1: Mushoku Tensei: Jobless Reincarnation | Country: Japan
+   | Episodes: 7 | Released: 2021 | Status: Completed
+2: Mushoku Tensei II: Isekai Ittara Honki Dasu - Mushoku Tensei: Jobless Reincarnation Season 2 | Country: Japan
+   | Episodes: 12 | Released: 2023 | Status: Completed
+3: Mushoku Tensei: Jobless Reincarnation Season 3 - Mushoku Tensei S3 | Country: Japan
+   | Episodes: 6 | Released: 2026 | Status: Ongoing
+4: Mushoku Tensei: Jobless Reincarnation 2nd Season | Country: Japan
+   | Episodes: 12 | Released: 2021 | Status: Completed
+5: Mushoku Tensei II: Isekai Ittara Honki Dasu Part 2 - Mushoku Tensei: Jobless Reincarnation Season 2 Part 2 | Country: Japan
+   | Episodes: 12 | Released: 2024 | Status: Completed
+
+Enter 0 to search with different key word
+
+Select one of the above: 3
+
+Available Episodes Details: 6 episodes found.
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 01
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 02
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 03
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 04
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 05
+Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 06
+
+Enter episodes to download (ex: 1-16) [default=1-6]: 6
+
+Fetching Episodes & Available Resolutions:
+Episode: 06 (duration: NA) | 720P (NA)
+
+Enter download resolution (720) [default=720]: 
+
+Fetching Episode links:
+Episode: 06 | 720P | Failed to fetch link with error ['downloadLink']
+
+Episodes available for download [0/1]. 
+No episodes available to download! Exiting.
+
+Ready for one more? Start new download (y|n)? 

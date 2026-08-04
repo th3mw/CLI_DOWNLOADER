@@ -114,7 +114,7 @@ After page load:
 ---
 
 ## Fix 6: FFmpeg PNG Segment Rejection
-**Commit:** `d603d69`
+**Commit:** `7d21324`
 **File:** `Utils/HLSDownloader.py`
 
 **Error in logs:**
@@ -123,34 +123,31 @@ URL .../639212812880698874.PNG is not in allowed_segment_extensions
 Error opening input file .../uwu.m3u8
 ```
 
-**Root cause:** The new AnimePahe domain serves HLS playlists that contain `.PNG` image segments (likely error/placeholder images). FFmpeg rejects these by default, even with `-allowed_extensions ALL`, because image extensions are not valid video segment types.
+**Root cause:** The CDN serves HLS video segments with `.PNG` extensions — these are NOT real images, just segment files with misleading extensions. FFmpeg rejects them because `.PNG` is not in its `allowed_segment_extensions` list, even with `-allowed_extensions ALL`.
 
-**Fix:**
+An initial fix filtered out non-media extensions, but this was too aggressive — **all** segments had `.PNG` extensions, resulting in empty playlists and a secondary "Empty segment" error.
 
-### 6a. Added `NON_MEDIA_EXTENSIONS` constant
+**Fix — Rename, Don't Filter:**
+
+### 6a. Added `_sanitize_segment_name()` helper
 ```python
 NON_MEDIA_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico'}
+
+def _sanitize_segment_name(filename):
+    name, ext = os.path.splitext(filename)
+    if ext.lower() in NON_MEDIA_EXTENSIONS:
+        return name + '.ts'
+    return filename
 ```
 
-### 6b. `_collect_ts_urls` — Filter non-media segments
-Segments with non-media extensions are now filtered out during collection, preventing them from being downloaded or included in the playlist:
-```python
-urls = list(set(
-    normalize_url(m.group(0), base_url)
-    for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE)
-    if not os.path.splitext(m.group(0))[1].lower() in NON_MEDIA_EXTENSIONS
-))
-```
+### 6b. `_collect_ts_urls` — Collect all segments
+Reverted to collecting all non-comment URLs (no filtering).
 
-### 6c. `_rewrite_m3u8_file` — Strip non-media lines from m3u8
-When rewriting the m3u8 file with local paths, non-media segment lines are removed entirely:
-```python
-def _replace_or_filter(match):
-    if os.path.splitext(line)[1].lower() in NON_MEDIA_EXTENSIONS:
-        return ''  # remove non-media segment lines
-    return f'{seg_temp_dir}{regex_safe}{line}'
-```
-Empty lines from removed segments are cleaned up to maintain valid m3u8 formatting.
+### 6c. `_download_segment` — Save with sanitized name
+Segments are saved locally with `.ts` extension instead of `.png`.
+
+### 6d. `_rewrite_m3u8_file` — Rewrite references with `.ts`
+When rewriting the m3u8 with local paths, all non-media extensions are renamed to `.ts`, keeping the download file and m3u8 reference synchronized.
 
 ---
 
@@ -163,4 +160,4 @@ Empty lines from removed segments are cleaned up to maintain valid m3u8 formatti
 | `resolution_size` KeyError | `8ee2f80` | `BaseClient.py` | Missing dict key |
 | `downloadLink` KeyError | `8ee2f80` | `KissKhClient.py` | Wrong dict keys |
 | Cloudflare Turnstile block | `8ee2f80` | `AnimePaheClient.py` | Cloudflare protection |
-| FFmpeg PNG rejection | `d603d69` | `HLSDownloader.py` | Invalid HLS segment |
+| FFmpeg PNG segment rejection | `7d21324` | `HLSDownloader.py` | Invalid HLS segment |

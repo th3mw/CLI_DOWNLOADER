@@ -151,6 +151,42 @@ When rewriting the m3u8 with local paths, all non-media extensions are renamed t
 
 ---
 
+## Fix 7: Terminal Size Error in Non-Interactive Mode
+**Commit:** `TBD`
+**File:** `scraper.py:264`
+
+**Error in logs:**
+```
+Error occurred: [Errno 25] Inappropriate ioctl for device
+File "/home/themw/DEV/CLI_DOWNLOADER/scraper.py", line 264, in batch_downloader
+    width = os.get_terminal_size().columns
+OSError: [Errno 25] Inappropriate ioctl for device
+```
+
+**Root cause:** When stdin is piped (non-interactive mode), `os.get_terminal_size()` raises `OSError` because there's no TTY.
+
+**Fix:** Wrap in try/except with a default fallback:
+```python
+try:
+    width = os.get_terminal_size().columns
+except OSError:
+    width = 80
+```
+
+---
+
+## Fix 8: Double `communicate()` Call in subprocess Wrapper
+**Commit:** `TBD`
+**File:** `Utils/commons.py:47`
+
+**Root cause:** `exec_os_cmd` called `proc.communicate()` twice — the second call returns `(None, None)` after pipes are exhausted, causing `AttributeError` or `OSError` when `.decode()` is called on `None`.
+
+**Fix:**
+- Single `communicate()` call: `stdout, stderr = proc.communicate()`
+- Added `stdin=DEVNULL` to prevent FFmpeg/TTY ioctl errors from inherited stdin
+
+---
+
 ## Summary Table
 
 | Issue | Commit | File(s) | Error Type |
@@ -161,3 +197,5 @@ When rewriting the m3u8 with local paths, all non-media extensions are renamed t
 | `downloadLink` KeyError | `8ee2f80` | `KissKhClient.py` | Wrong dict keys |
 | Cloudflare Turnstile block | `8ee2f80` | `AnimePaheClient.py` | Cloudflare protection |
 | FFmpeg PNG segment rejection | `7d21324` | `HLSDownloader.py` | Invalid HLS segment |
+| `os.get_terminal_size()` in non-interactive mode | `TBD` | `scraper.py` | TTY ioctl error |
+| Double `communicate()` call | `TBD` | `commons.py` | Subprocess pipe error |

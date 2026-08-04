@@ -9,7 +9,7 @@ from datetime import datetime
 from functools import wraps
 from time import sleep
 from logging.handlers import RotatingFileHandler
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, DEVNULL
 
 
 # color themes
@@ -44,10 +44,11 @@ def exec_os_cmd(cmd):
     Args: command to be executed
     Returns: output of executed command
     '''
-    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True)
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True, stdin=DEVNULL)
     # print stdout to console
-    msg = proc.communicate()[0].decode("utf-8")
-    std_err = proc.communicate()[1].decode("utf-8")
+    stdout, stderr = proc.communicate()
+    msg = stdout.decode("utf-8")
+    std_err = stderr.decode("utf-8")
     rc = proc.returncode
     if rc != 0:
         raise Exception(f"Error occured: {std_err}")

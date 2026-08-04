@@ -4,6 +4,8 @@ import re
 from Utils.commons import retry
 from Utils.BaseDownloader import BaseDownloader
 
+NON_MEDIA_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico'}
+
 
 class HLSDownloader(BaseDownloader):
     '''Download Client for HLS files'''
@@ -42,8 +44,13 @@ class HLSDownloader(BaseDownloader):
         # Improved regex to handle all cases. (get all lines except those starting with #)
         base_url = '/'.join(m3u8_link.split('/')[:-1])
         normalize_url = lambda url, base_url: (url if url.startswith('http') else 'https:' + url if url.startswith('//') else base_url + '/' + url)
-        # Some m3u8 files have duplicate urls, so using set to remove duplicates
-        urls = list(set( normalize_url(url.group(0), base_url) for url in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE) ))
+        # Some m3u8 files have duplicate urls, so using set to remove duplicates.
+        # Filter out non-media segment URLs (images, subtitles, etc.) that FFmpeg cannot handle
+        urls = list(set(
+            normalize_url(m.group(0), base_url)
+            for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE)
+            if not os.path.splitext(m.group(0))[1].lower() in NON_MEDIA_EXTENSIONS
+        ))
 
         return urls
 
@@ -80,8 +87,15 @@ class HLSDownloader(BaseDownloader):
             regex_safe = '\\\\' if os.sep == '\\' else '/'
             # strip off url for segments
             m3u8_content = re.sub(r'(.*)//(.*)/', '', m3u8_content)
-            # prefix the downloaded path for segments
-            m3u8_content = re.sub(r'^(?!#).+$', rf'{seg_temp_dir}{regex_safe}\g<0>', m3u8_content, flags=re.MULTILINE)
+            # prefix the downloaded path for segments, skipping non-media lines (e.g. images)
+            def _replace_or_filter(match):
+                line = match.group(0)
+                if os.path.splitext(line)[1].lower() in NON_MEDIA_EXTENSIONS:
+                    return ''  # remove non-media segment lines
+                return f'{seg_temp_dir}{regex_safe}{line}'
+            m3u8_content = re.sub(r'^(?!#).+$', _replace_or_filter, m3u8_content, flags=re.MULTILINE)
+            # remove empty lines left by filtered segments
+            m3u8_content = re.sub(r'\n+', '\n', m3u8_content).strip()
             m3u8_f.write(m3u8_content)
 
     def _convert_to_mp4(self):

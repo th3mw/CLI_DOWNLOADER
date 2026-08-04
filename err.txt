@@ -1,46 +1,3 @@
-python scraper.py
-╔══════════════════════════════════════════════════════════════╗
-║                     🎬 MEDIA SCRAPER v1.0 🎬                    ║
-║           Download Anime, Movies & TV Shows with ease!          ║
-╚══════════════════════════════════════════════════════════════╝
-
-╭───── SELECT TYPE ─────╮
-│ 1. Anime               │
-│ 2. Movies & Shows      │
-╰─────────────────────╯
-
-Enter your choice: 1
-
-Enter series/movie name: jobless
-
-Search Results:
-Error occurred: Message: session not created: cannot connect to chrome at 127.0.0.1:52671
-from session not created: This version of ChromeDriver only supports Chrome version 151
-Current browser version is 150.0.7871.186; For documentation on this error, please visit: https://www.selenium.dev/documentation/webdriver/troubleshooting/errors#sessionnotcreatedexception
-Stacktrace:
-#0 0x56458717a83a <unknown>
-#1 0x564586aedfc9 <unknown>
-#2 0x564586b33eaf <unknown>
-#3 0x564586b32c70 <unknown>
-#4 0x564586b27d6f <unknown>
-#5 0x564586b783be <unknown>
-#6 0x564586b77aac <unknown>
-#7 0x564586b36d32 <unknown>
-#8 0x564586b37bb1 <unknown>
-#9 0x56458713fbc0 <unknown>
-#10 0x56458713e23a <unknown>
-#11 0x564587128c65 <unknown>
-#12 0x56458713eefa <unknown>
-#13 0x564587110b60 <unknown>
-#14 0x564587166218 <unknown>
-#15 0x5645871663b5 <unknown>
-#16 0x5645871793ee <unknown>
-#17 0x7f57a7a97fd9 <unknown>
-#18 0x7f57a7b1f02c <unknown>
-. Check log for more details.
-
-Ready for one more? Start new download (y|n)? ^C⏎                                                                    ┬─[themw@THEMW:~/D/CLI_DOWNLOADER]─[06:31:38 PM]─[V:.venv]─[G:main >]
-╰─>$ python scraper.py
 ╔══════════════════════════════════════════════════════════════╗
 ║                     🎬 MEDIA SCRAPER v1.0 🎬                    ║
 ║           Download Anime, Movies & TV Shows with ease!          ║
@@ -53,7 +10,7 @@ Ready for one more? Start new download (y|n)? ^C⏎                             
 
 Enter your choice: 2
 
-Enter series/movie name: jobless
+Enter series/movie name: Jobless
 
 Search Results:
 -------------- Asian Drama --------------
@@ -82,7 +39,7 @@ Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episo
 Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 05
 Episode: Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 06
 
-Enter episodes to download (ex: 1-16) [default=1-6]: 06
+Enter episodes to download (ex: 1-16) [default=1-6]: 6
 
 Fetching Episodes & Available Resolutions:
 Episode: 06 (duration: NA) | 720P (1280x720)
@@ -95,11 +52,12 @@ Episode: 06 | 720P | Link found [https://tmp.cdnvideo11.shop/tmp/Mushoku-Tensei-
 Episodes available for download [1/1]. Proceed to download (y|n)? 
 
 Downloading episode(s) to /home/themw/Videos/Series/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 (2026)...
-Downloading Episode-06: 100%|██████████████████████████████████████████| 142/142 [00:33<00:00,  4.25seg/s, R/F: 0/0]
+Downloading Episode-06: |                                                                    | 0/0 [00:00<?, ?seg/s]
 
 
 Download Summary:
-[2026-08-04 18:32:36] Download failed for Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P.mp4, with error: Error occured: [in#0 @ 0x55f2c844dac0] URL /home/themw/Videos/Series/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 (2026)/temp_dir/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P/639212812880698874.PNG is not in allowed_segment_extensions, consider updating hls.c and submitting a patch to ffmpeg-devel, if this should be added
-[in#0 @ 0x55f2c844d7c0] Error opening input: Invalid data found when processing input
-Error opening input file /home/themw/Videos/Series/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 (2026)/temp_dir/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P/uwu.m3u8.
-Error opening input files: Invalid data found when processing input
+[2026-08-04 18:44:39] Download failed for Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P.mp4, with error: Error occured: [in#0 @ 0x55d171c47ac0] Empty segment [/home/themw/Videos/Series/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 (2026)/temp_dir/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P/uwu.m3u8]
+[out#0/mp4 @ 0x55d171c4b580] Output file does not contain any stream
+Error opening output file /home/themw/Videos/Series/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 (2026)/Mushoku Tensei Jobless Reincarnation Season 3 - Mushoku Tensei S3 Episode 6 - 720P.mp4.
+Error opening output files: Invalid argument
+

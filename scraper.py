@@ -95,7 +95,7 @@ def search_and_select_series(predefined_search_input=None):
         # search with keyword and show results
         colprint('header', "\nSearch Results:")
         logger.info(f'Searching with keyword: {keyword}')
-        search_results = client.search(keyword)
+        search_results = client.search(keyword) # pyright: ignore[reportOptionalMemberAccess]
         logger.info('Search Results Found')
         logger.debug(f'Search Results: {search_results}')
 

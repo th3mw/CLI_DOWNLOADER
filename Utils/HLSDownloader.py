@@ -7,6 +7,17 @@ from Utils.BaseDownloader import BaseDownloader
 NON_MEDIA_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico'}
 
 
+def _sanitize_segment_name(filename):
+    '''
+    Some CDNs serve video segments with non-media extensions (e.g., .png).
+    Rename them to .ts so FFmpeg's HLS demuxer accepts them.
+    '''
+    name, ext = os.path.splitext(filename)
+    if ext.lower() in NON_MEDIA_EXTENSIONS:
+        return name + '.ts'
+    return filename
+
+
 class HLSDownloader(BaseDownloader):
     '''Download Client for HLS files'''
     # References: https://github.com/Oshan96/monkey-dl/blob/master/anime_downloader/util/hls_downloader.py
@@ -44,13 +55,8 @@ class HLSDownloader(BaseDownloader):
         # Improved regex to handle all cases. (get all lines except those starting with #)
         base_url = '/'.join(m3u8_link.split('/')[:-1])
         normalize_url = lambda url, base_url: (url if url.startswith('http') else 'https:' + url if url.startswith('//') else base_url + '/' + url)
-        # Some m3u8 files have duplicate urls, so using set to remove duplicates.
-        # Filter out non-media segment URLs (images, subtitles, etc.) that FFmpeg cannot handle
-        urls = list(set(
-            normalize_url(m.group(0), base_url)
-            for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE)
-            if not os.path.splitext(m.group(0))[1].lower() in NON_MEDIA_EXTENSIONS
-        ))
+        # Some m3u8 files have duplicate urls, so using set to remove duplicates
+        urls = list(set( normalize_url(m.group(0), base_url) for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE) ))
 
         return urls
 
@@ -62,7 +68,7 @@ class HLSDownloader(BaseDownloader):
         Returns: (download_status, progress_bar_increment)
         '''
         try:
-            segment_file_nm = ts_url.split('/')[-1]
+            segment_file_nm = _sanitize_segment_name(ts_url.split('/')[-1])
             segment_file = os.path.join(f"{self.temp_dir}", f"{segment_file_nm}")
 
             # check if the segment is already downloaded
@@ -87,15 +93,13 @@ class HLSDownloader(BaseDownloader):
             regex_safe = '\\\\' if os.sep == '\\' else '/'
             # strip off url for segments
             m3u8_content = re.sub(r'(.*)//(.*)/', '', m3u8_content)
-            # prefix the downloaded path for segments, skipping non-media lines (e.g. images)
-            def _replace_or_filter(match):
-                line = match.group(0)
-                if os.path.splitext(line)[1].lower() in NON_MEDIA_EXTENSIONS:
-                    return ''  # remove non-media segment lines
-                return f'{seg_temp_dir}{regex_safe}{line}'
-            m3u8_content = re.sub(r'^(?!#).+$', _replace_or_filter, m3u8_content, flags=re.MULTILINE)
-            # remove empty lines left by filtered segments
-            m3u8_content = re.sub(r'\n+', '\n', m3u8_content).strip()
+            # prefix the downloaded path for segments, and rename non-media
+            # extensions (e.g. .png) to .ts so FFmpeg's HLS demuxer accepts them
+            m3u8_content = re.sub(
+                r'^(?!#).+$',
+                lambda m: f'{seg_temp_dir}{regex_safe}{_sanitize_segment_name(m.group(0))}',
+                m3u8_content, flags=re.MULTILINE
+            )
             m3u8_f.write(m3u8_content)
 
     def _convert_to_mp4(self):

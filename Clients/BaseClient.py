@@ -7,6 +7,16 @@ from bs4 import BeautifulSoup as BS
 from copy import deepcopy
 from urllib.parse import parse_qs, urlparse
 
+import time
+import socket
+import urllib3.util.connection as urllib3_cn
+
+# Force urllib3 to use IPv4 to avoid network unreachable drops when IPv6 is disabled/unsupported
+try:
+    urllib3_cn.allowed_gai_family = lambda: socket.AF_INET
+except Exception:
+    pass
+
 import base64
 try:
     from Cryptodome.Cipher import AES
@@ -39,7 +49,7 @@ class BaseClient():
 
         self.header = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
-            "Accept-Encoding": "*",
+            "Accept-Encoding": "gzip, deflate",
             "Connection": "keep-alive"
         }
         self.scraper_episode_dict = {}   # dict containing all details of epsiodes
@@ -114,9 +124,10 @@ class BaseClient():
             elif return_type.lower() == 'raw':
                 return response
 
-        elif str(response.status_code).startswith('5'):     # retry if status code is 5xx
+        elif response.status_code == 429 or str(response.status_code).startswith('5'):     # retry if status code is 429 or 5xx
             msg = f'Failed with code: {response.status_code}'
-            self.logger.warning(msg)
+            self.logger.warning(f'{msg}. Retrying in 2 seconds...')
+            time.sleep(2)
             raise Exception(msg)
 
         elif response.status_code == 404:                   # raise exception if status code is 4xx

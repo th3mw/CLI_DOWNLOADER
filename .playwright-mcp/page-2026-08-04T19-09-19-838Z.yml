@@ -1,0 +1,301 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e5]:
+        - button "" [ref=e6] [cursor=pointer]
+        - link [ref=e9] [cursor=pointer]:
+          - /url: https://animesuge.cz/
+          - img "Animesuge" [ref=e10]
+        - generic:  
+        - generic [ref=e11] [cursor=pointer]:
+          - generic [ref=e12]: EN
+          - generic [ref=e13]: JP
+        - generic [ref=e14]:
+          - text: 
+          - generic [ref=e16]:
+            - generic [ref=e17]: 
+            - textbox "Search" [ref=e18]
+            - link "Filter" [ref=e19] [cursor=pointer]:
+              - /url: https://animesuge.cz/filter
+        - generic [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: 
+          - text: Sign In
+    - main [ref=e23]:
+      - generic [ref=e25]:
+        - complementary [ref=e26]:
+          - generic [ref=e27]:
+            - generic [ref=e32] [cursor=pointer]:
+              - generic [ref=e33]: 
+              - text: Watch
+            - generic [ref=e35]:
+              - generic [ref=e36] [cursor=pointer]:
+                - generic [ref=e37]: 
+                - text: Auto Play
+              - generic [ref=e38] [cursor=pointer]:
+                - generic [ref=e39]: 
+                - text: Auto Next
+              - generic [ref=e40] [cursor=pointer]:
+                - generic [ref=e41]: 
+                - text: Auto Skip
+              - text:   
+              - generic [ref=e42] [cursor=pointer]:
+                - generic [ref=e43]: 
+                - generic [ref=e44]: Light
+              - generic [ref=e46] [cursor=pointer]:
+                - generic [ref=e47]: 
+                - generic [ref=e48]: Add Bookmark
+            - generic [ref=e49]:
+              - button "" [ref=e50] [cursor=pointer]
+              - text: Join Animesuge Anime Telegram
+              - link "@animesugetv" [ref=e52] [cursor=pointer]:
+                - /url: https://t.me/animesugetv
+            - generic [ref=e53]:
+              - button "" [ref=e54] [cursor=pointer]
+              - generic [ref=e56]: 
+              - text: The next episode is predicted to arrive on 2026/08/09 03:00 PM GMT (
+              - generic [ref=e57]: 4 days, 19 hours, 50 minutes, 40 seconds
+              - text: )
+            - generic [ref=e58]:
+              - generic [ref=e59]:
+                - generic [ref=e60]: You are watching Episode 1
+                - generic [ref=e61]: (If the current server doesn't work, please try other servers beside.)
+              - generic [ref=e62]:
+                - generic [ref=e63]:
+                  - generic [ref=e64]: "Sub:"
+                  - generic [ref=e68]:
+                    - generic [ref=e69] [cursor=pointer]: VidPlay-1
+                    - generic [ref=e72] [cursor=pointer]: HD-1
+                    - generic [ref=e75] [cursor=pointer]: Megaplay-1
+                    - generic [ref=e78] [cursor=pointer]: Vidwish-1
+                - generic [ref=e81]:
+                  - generic [ref=e82]: "Hsub:"
+                  - generic [ref=e86]:
+                    - generic [ref=e87] [cursor=pointer]: VidPlay-1
+                    - generic [ref=e90] [cursor=pointer]: HD-1
+                    - generic [ref=e93] [cursor=pointer]: Megaplay-1
+                - generic [ref=e96]:
+                  - generic [ref=e97]: "Dub:"
+                  - generic [ref=e101]:
+                    - generic [ref=e102] [cursor=pointer]: VidPlay-1
+                    - generic [ref=e105] [cursor=pointer]: HD-1
+                    - generic [ref=e108] [cursor=pointer]: Megaplay-1
+                    - generic [ref=e111] [cursor=pointer]: Vidwish-1
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - button "001-006 " [ref=e118] [cursor=pointer]
+                - textbox "Find number" [ref=e121]
+              - generic [ref=e130]:
+                - link "1" [ref=e132] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-1
+                - link "2" [ref=e134] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-2
+                - link "3" [ref=e136] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-3
+                - link "4" [ref=e138] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-4
+                - link "5" [ref=e140] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-5
+                - link "6" [ref=e142] [cursor=pointer]:
+                  - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-3-2uzez/ep-6
+          - generic [ref=e143]:
+            - generic [ref=e144]:
+              - generic [ref=e145]: "241"
+              - generic [ref=e146]: Shares
+            - generic [ref=e147] [cursor=pointer]:
+              - img "facebook sharing button" [ref=e148]
+              - generic [ref=e149]: Share
+            - generic [ref=e150] [cursor=pointer]:
+              - img "twitter sharing button" [ref=e151]
+              - generic [ref=e152]: Post
+            - generic [ref=e153] [cursor=pointer]:
+              - img "messenger sharing button" [ref=e154]
+              - generic [ref=e155]: Share
+            - generic [ref=e156] [cursor=pointer]:
+              - img "reddit sharing button" [ref=e157]
+              - generic [ref=e158]: Share
+            - generic [ref=e159] [cursor=pointer]:
+              - img "whatsapp sharing button" [ref=e160]
+              - generic [ref=e161]: Share
+            - generic [ref=e162] [cursor=pointer]:
+              - img "telegram sharing button" [ref=e163]
+              - generic [ref=e164]: Share
+            - img "sharethis sharing button" [ref=e166] [cursor=pointer]
+          - generic [ref=e167]:
+            - 'img "Mushoku Tensei: Jobless Reincarnation Season 3" [ref=e171]'
+            - generic [ref=e172]:
+              - generic [ref=e173]:
+                - paragraph [ref=e174]: "Mushoku Tensei III: Isekai Ittara Honki Dasu"
+                - 'heading "Mushoku Tensei: Jobless Reincarnation Season 3" [level=1] [ref=e175]'
+                - generic [ref=e176]:
+                  - generic [ref=e177]: TV
+                  - generic [ref=e178]: "?"
+                  - generic [ref=e179]: HD
+                  - generic:
+                    - generic: "6"
+                    - generic: "4"
+                    - generic: "14"
+                - generic [ref=e181]:
+                  - generic [ref=e182]: "The third season of Mushoku Tensei: Isekai Ittara Honki Dasu."
+                  - button "more+" [ref=e183] [cursor=pointer]
+              - generic [ref=e184]:
+                - generic [ref=e185]:
+                  - generic [ref=e186]: "Type:"
+                  - generic [ref=e187]: TV
+                - generic [ref=e188]:
+                  - generic [ref=e189]: "Premiered:"
+                  - link "SUMMER 2026" [ref=e191] [cursor=pointer]:
+                    - /url: /filter?season[]=summer&year[]=2026
+                - generic [ref=e192]:
+                  - generic [ref=e193]: "Aired:"
+                  - generic [ref=e194]: Jul 6, 2026 to Nov 30, 1899
+                - generic [ref=e195]:
+                  - generic [ref=e196]: "Status:"
+                  - link "Currently Airing" [ref=e198] [cursor=pointer]:
+                    - /url: https://animesuge.cz/status/currently-airing
+                - generic [ref=e199]:
+                  - generic [ref=e200]: "MAL:"
+                  - generic [ref=e201]: "8.99"
+                - generic [ref=e202]:
+                  - generic [ref=e203]: "Duration:"
+                  - generic [ref=e204]: "?"
+                - generic [ref=e205]:
+                  - generic [ref=e206]: "Episodes:"
+                  - generic [ref=e207]: "14"
+                - generic [ref=e208]:
+                  - generic [ref=e209]: "Studios:"
+                  - link "Studio Bind" [ref=e211] [cursor=pointer]:
+                    - /url: https://animesuge.cz/studio/studio-bind
+                - generic [ref=e212]:
+                  - generic [ref=e213]: "Genre:"
+                  - generic [ref=e214]:
+                    - link "Adventure" [ref=e215] [cursor=pointer]:
+                      - /url: https://animesuge.cz/genre/adventure
+                    - text: ","
+                    - link "Fantasy" [ref=e216] [cursor=pointer]:
+                      - /url: https://animesuge.cz/genre/fantasy
+                    - text: ","
+                    - link "Drama" [ref=e217] [cursor=pointer]:
+                      - /url: https://animesuge.cz/genre/drama
+                    - text: ","
+                    - link "Ecchi" [ref=e218] [cursor=pointer]:
+                      - /url: https://animesuge.cz/genre/ecchi
+                - generic [ref=e219]:
+                  - generic [ref=e220]: "Producers:"
+                  - link "unknown" [ref=e222] [cursor=pointer]:
+                    - /url: https://animesuge.cz/producer/unknown
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - generic [ref=e225] [cursor=pointer]: 
+                - generic [ref=e226] [cursor=pointer]: 
+                - generic [ref=e227] [cursor=pointer]: 
+                - generic [ref=e228] [cursor=pointer]: 
+                - generic [ref=e229] [cursor=pointer]:  
+              - generic [ref=e230]:
+                - generic [ref=e231]: 
+                - text: 8.99 /10
+          - heading "Comments" [level=2] [ref=e235]
+        - complementary [ref=e240]:
+          - generic [ref=e241]:
+            - heading "Recommended" [level=2] [ref=e244]
+            - generic [ref=e245]:
+              - link "Chained Soldier Season 2 Chained Soldier Season 2 TV 12" [ref=e246] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/chained-soldier-season-2-4ggkk
+                - img "Chained Soldier Season 2" [ref=e249]
+                - generic [ref=e250]:
+                  - paragraph [ref=e251]: Chained Soldier Season 2
+                  - generic [ref=e252]:
+                    - generic [ref=e253]: TV
+                    - generic: "12"
+              - link "Redo of Healer Redo of Healer TV 12" [ref=e254] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/redo-of-healer-byy20
+                - img "Redo of Healer" [ref=e257]
+                - generic [ref=e258]:
+                  - paragraph [ref=e259]: Redo of Healer
+                  - generic [ref=e260]:
+                    - generic [ref=e261]: TV
+                    - generic: "12"
+              - 'link "Mushoku Tensei: Jobless Reincarnation Season 2 Part 2 Mushoku Tensei: Jobless Reincarnation Season 2 Part 2 TV 12" [ref=e262] [cursor=pointer]':
+                - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-2-part-2-eaqko
+                - 'img "Mushoku Tensei: Jobless Reincarnation Season 2 Part 2" [ref=e265]'
+                - generic [ref=e266]:
+                  - paragraph [ref=e267]: "Mushoku Tensei: Jobless Reincarnation Season 2 Part 2"
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: TV
+                    - generic: "12"
+              - 'link "Mushoku Tensei: Jobless Reincarnation Season 2 Mushoku Tensei: Jobless Reincarnation Season 2 TV 12" [ref=e270] [cursor=pointer]':
+                - /url: https://animesuge.cz/anime/mushoku-tensei-jobless-reincarnation-season-2-u1lv2
+                - 'img "Mushoku Tensei: Jobless Reincarnation Season 2" [ref=e273]'
+                - generic [ref=e274]:
+                  - paragraph [ref=e275]: "Mushoku Tensei: Jobless Reincarnation Season 2"
+                  - generic [ref=e276]:
+                    - generic [ref=e277]: TV
+                    - generic: "12"
+              - link "Chained Soldier Season 2 [Uncensored] Chained Soldier Season 2 [Uncensored] TV 12" [ref=e278] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/chained-soldier-season-2-uncensored-shwdh
+                - img "Chained Soldier Season 2 [Uncensored]" [ref=e281]
+                - generic [ref=e282]:
+                  - paragraph [ref=e283]: Chained Soldier Season 2 [Uncensored]
+                  - generic [ref=e284]:
+                    - generic [ref=e285]: TV
+                    - generic: "12"
+              - 'link "Fullmetal Alchemist: Brotherhood Fullmetal Alchemist: Brotherhood TV 64" [ref=e286] [cursor=pointer]':
+                - /url: https://animesuge.cz/anime/fullmetal-alchemist-brotherhood-9s0fl
+                - 'img "Fullmetal Alchemist: Brotherhood" [ref=e289]'
+                - generic [ref=e290]:
+                  - paragraph [ref=e291]: "Fullmetal Alchemist: Brotherhood"
+                  - generic [ref=e292]:
+                    - generic [ref=e293]: TV
+                    - generic: "64"
+              - link "Arashi no Yoru ni Arashi no Yoru ni MOVIE" [ref=e294] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/arashi-no-yoru-ni-bnu5y
+                - img "Arashi no Yoru ni" [ref=e297]
+                - generic [ref=e298]:
+                  - paragraph [ref=e299]: Arashi no Yoru ni
+                  - generic [ref=e300]: MOVIE
+              - link "Magic Knight Rayearth Magic Knight Rayearth TV 20" [ref=e302] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/magic-knight-rayearth-3xnrr
+                - img "Magic Knight Rayearth" [ref=e305]
+                - generic [ref=e306]:
+                  - paragraph [ref=e307]: Magic Knight Rayearth
+                  - generic [ref=e308]:
+                    - generic [ref=e309]: TV
+                    - generic: "20"
+              - 'link "The Familiar of Zero: Knight of the Twin Moons The Familiar of Zero: Knight of the Twin Moons TV 12" [ref=e310] [cursor=pointer]':
+                - /url: https://animesuge.cz/anime/the-familiar-of-zero-knight-of-the-twin-moons-6veim
+                - 'img "The Familiar of Zero: Knight of the Twin Moons" [ref=e313]'
+                - generic [ref=e314]:
+                  - paragraph [ref=e315]: "The Familiar of Zero: Knight of the Twin Moons"
+                  - generic [ref=e316]:
+                    - generic [ref=e317]: TV
+                    - generic: "12"
+              - link "White Snake White Snake MOVIE" [ref=e318] [cursor=pointer]:
+                - /url: https://animesuge.cz/anime/white-snake-xsod2
+                - img "White Snake" [ref=e321]
+                - generic [ref=e322]:
+                  - paragraph [ref=e323]: White Snake
+                  - generic [ref=e324]: MOVIE
+    - contentinfo [ref=e327]:
+      - button " Back to top" [ref=e329] [cursor=pointer]:
+        - generic [ref=e330]: 
+        - text: Back to top
+      - generic [ref=e331]:
+        - link "Home" [ref=e332] [cursor=pointer]:
+          - /url: https://animesuge.cz/
+        - link "Contact Us" [ref=e333] [cursor=pointer]:
+          - /url: https://animesuge.cz/contact
+      - generic [ref=e334]:
+        - generic [ref=e335]:
+          - img "Animesuge" [ref=e337]
+          - generic [ref=e338]: Copyright © animesuge.cz. All Rights Reserved
+        - generic [ref=e339]:
+          - generic [ref=e340]: © animesuge.cz. All rights reserved.
+          - generic [ref=e342]: "Disclaimer: This site does not store any files on its server. All contents are provided by non-affiliated third parties."
+  - complementary [ref=e343]:
+    - generic [ref=e344]:
+      - generic [ref=e345] [cursor=pointer]: 
+      - generic [ref=e347]:
+        - time [ref=e348]: 20:09:19
+        - generic [ref=e349]: GMT+1
+      - paragraph [ref=e350]: Release time is estimated
+      - text: 
+  - text:   

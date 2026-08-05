@@ -594,8 +594,15 @@ class BaseClient():
                     ep_link = res_dict['downloadLink']
                     link_type = res_dict['downloadType']
 
-                    # add download link and it's type against episode
-                    self._update_scraper_dict(ep, {'episodeName': ep_name, 'downloadLink': ep_link, 'downloadType': link_type, 'refererLink': res_dict.get('refererLink', getattr(self, 'base_url', ''))})
+                    update_dict = {
+                        'episodeName': ep_name,
+                        'downloadLink': ep_link,
+                        'downloadType': link_type,
+                        'refererLink': res_dict.get('refererLink', getattr(self, 'base_url', ''))
+                    }
+                    if res_dict.get('subtitles'):
+                        update_dict['subtitles'] = res_dict['subtitles']
+                    self._update_scraper_dict(ep, update_dict)
                     self.logger.debug(f'{info} Link found [{ep_link}]')
                     self._colprint('results', f'{info} Link found [{ep_link}]')
 
@@ -608,7 +615,8 @@ class BaseClient():
                 self._update_scraper_dict(ep, {'episodeName': ep_name, 'error': error})
                 self.logger.error(f'{info} {error}')
 
-        final_dict = { k:v for k,v in self._get_scraper_dict().items() }
+        scraper_dict = self._get_scraper_dict()
+        final_dict = { k: scraper_dict[k] for k in target_links.keys() if k in scraper_dict }
 
         return final_dict
 

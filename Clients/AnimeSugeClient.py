@@ -152,20 +152,63 @@ class AnimeSugeClient(BaseClient):
         self.logger.warning(f'Could not get m3u8 from vidtube: {sources_resp}')
         return None
 
+    def _fetch_tooltip_info(self, anime_id):
+        '''Fetch tooltip metadata (status, release year) via AJAX'''
+        if not anime_id:
+            return {}
+        tooltip_url = f"{self.base_url}/ajax/anime/tooltip/{anime_id}"
+        resp_html = self._send_request(tooltip_url, extra_headers={'X-Requested-With': 'XMLHttpRequest'}, silent=True)
+        if not resp_html:
+            return {}
+        tsoup = self._get_bsoup_from_html(resp_html)
+        meta_info = {}
+        for div in tsoup.select('div.meta > div'):
+            txt = div.text.strip()
+            if 'Status:' in txt:
+                meta_info['status'] = txt.replace('Status:', '').strip()
+            elif 'Aired:' in txt:
+                aired_str = txt.replace('Aired:', '').strip()
+                meta_info['aired'] = aired_str
+                yr_match = re.search(r'\b(20\d\d|19\d\d)\b', aired_str)
+                if yr_match:
+                    meta_info['year'] = yr_match.group(1)
+        return meta_info
+
     def _show_search_results(self, key, details):
-        '''Pretty print search results'''
+        '''Pretty print search results in a structured 2-line layout matching KissKh'''
         title = details.get('title', 'Unknown')
-        ep_count = details.get('episodes', '?')
-        self._colprint('results', f"{key}: {title} | Episodes: {ep_count}")
+        jp_title = details.get('jp_title')
+        full_title = f"{title} - {jp_title}" if (jp_title and jp_title != title) else title
+
+        ep_total = details.get('episodes', '?')
+        sub_cnt = details.get('sub_cnt')
+        dub_cnt = details.get('dub_cnt')
+        ep_info = f"{ep_total}"
+        if sub_cnt or dub_cnt:
+            sd_parts = []
+            if sub_cnt: sd_parts.append(f"Sub: {sub_cnt}")
+            if dub_cnt: sd_parts.append(f"Dub: {dub_cnt}")
+            ep_info += f" ({', '.join(sd_parts)})"
+
+        status = details.get('status', 'N/A')
+        year = details.get('year', 'N/A')
+        anime_type = details.get('anime_type', '')
+
+        line = f"{key}: {full_title}"
+        if anime_type:
+            line += f" [{anime_type}]"
+        line += f"\n   | Episodes: {ep_info}"
+        if status != 'N/A':
+            line += f" | Status: {status}"
+        if year != 'N/A':
+            line += f" | Released: {year}"
+
+        self._colprint('results', line)
 
     def search(self, keyword, search_limit=10):
         '''
         Search AnimeSuge for anime matching the keyword.
-        Returns a dict of {index: result_dict} where result_dict contains:
-        - title: anime name
-        - anime_id: numeric ID for API calls
-        - episodes: episode count
-        - url: anime page URL
+        Returns a dict of {index: result_dict}
         '''
         search_url = f'{self.search_url}{quote(keyword)}'
         html = self._send_request(search_url)
@@ -174,21 +217,40 @@ class AnimeSugeClient(BaseClient):
 
         soup = self._get_bsoup_from_html(html)
         results = {}
-        idx = 1
         seen_ids = set()
+        raw_items = []
 
-        poster_links = soup.select('a.poster[data-tip]')
-        for a in poster_links:
-            if idx > search_limit:
+        for item in soup.select('div.item'):
+            if len(raw_items) >= search_limit:
                 break
-            anime_id = a.get('data-tip')
+            a_poster = item.select_one('a.poster[data-tip]')
+            if not a_poster:
+                continue
+            anime_id = a_poster.get('data-tip')
             if not anime_id or anime_id in seen_ids:
                 continue
             seen_ids.add(anime_id)
 
-            href = a.get('href', '')
-            img = a.find('img')
-            title = img.get('alt') if (img and img.get('alt')) else (a.get('data-jp') or 'Unknown')
+            href = a_poster.get('href', '')
+            img = item.find('img')
+            title = img.get('alt') if (img and img.get('alt')) else 'Unknown'
+
+            a_name = item.select_one('div.name a')
+            jp_title = a_name.get('data-jp') if a_name else None
+            if a_name and not title:
+                title = a_name.text.strip()
+
+            span_type = item.select_one('span.type')
+            anime_type = span_type.text.strip() if span_type else ''
+
+            span_total = item.select_one('div.dub-sub-total span.total')
+            ep_total = span_total.text.strip() if span_total else '?'
+
+            span_sub = item.select_one('div.dub-sub-total span.sub')
+            sub_cnt = span_sub.text.strip() if span_sub else None
+
+            span_dub = item.select_one('div.dub-sub-total span.dub')
+            dub_cnt = span_dub.text.strip() if span_dub else None
 
             slug_match = re.search(r'/anime/([^/]+)', href)
             slug = slug_match.group(1) if slug_match else ''
@@ -197,15 +259,26 @@ class AnimeSugeClient(BaseClient):
 
             anime_url = f"{self.base_url}/anime/{slug}" if slug else href
 
-            results[idx] = {
+            raw_items.append({
                 'title': title,
+                'jp_title': jp_title,
                 'anime_id': anime_id,
                 'slug': slug,
                 'anime_url': anime_url,
-                'episodes': '?',
-            }
-            self._show_search_results(idx, results[idx])
-            idx += 1
+                'episodes': ep_total,
+                'sub_cnt': sub_cnt,
+                'dub_cnt': dub_cnt,
+                'anime_type': anime_type,
+            })
+
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            tooltips = list(executor.map(lambda it: self._fetch_tooltip_info(it['anime_id']), raw_items))
+
+        for idx, (item, tooltip) in enumerate(zip(raw_items, tooltips), 1):
+            item.update(tooltip)
+            results[idx] = item
+            self._show_search_results(idx, item)
 
         return results
 

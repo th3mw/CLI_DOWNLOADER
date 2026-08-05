@@ -147,10 +147,18 @@ class AnimeSugeClient(BaseClient):
             return_type='json'
         )
         if sources_resp and isinstance(sources_resp.get('sources'), dict):
-            return sources_resp['sources'].get('file')
+            m3u8_url = sources_resp['sources'].get('file')
+            subtitles = {}
+            tracks = sources_resp.get('tracks', [])
+            if isinstance(tracks, list):
+                for track in tracks:
+                    if isinstance(track, dict) and track.get('file'):
+                        label = track.get('label', 'English')
+                        subtitles[label] = track['file']
+            return m3u8_url, subtitles
 
         self.logger.warning(f'Could not get m3u8 from vidtube: {sources_resp}')
-        return None
+        return None, {}
 
     def _fetch_tooltip_info(self, anime_id):
         '''Fetch tooltip metadata (status, release year) via AJAX'''
@@ -399,17 +407,20 @@ class AnimeSugeClient(BaseClient):
                 target_links[ep_no] = {'error': 'Failed to fetch stream URL'}
                 continue
 
-            # Get m3u8 from vidtube
-            m3u8_url = self._get_m3u8_from_vidtube(stream_url)
+            # Get m3u8 and subtitles from vidtube
+            m3u8_url, subtitles = self._get_m3u8_from_vidtube(stream_url)
             if not m3u8_url:
                 target_links[ep_no] = {'error': 'Failed to fetch m3u8 link'}
                 continue
 
-            self.logger.debug(f'Episode {ep_no}: m3u8 = {m3u8_url}')
+            self.logger.debug(f'Episode {ep_no}: m3u8 = {m3u8_url}, subtitles = {subtitles}')
 
             # Parse the master m3u8 to get resolution variants
             m3u8_links = self._parse_m3u8_links(m3u8_url, self.vidtube_origin)
             if m3u8_links:
+                if subtitles:
+                    for res_dict in m3u8_links.values():
+                        res_dict['subtitles'] = subtitles
                 target_links[ep_no] = m3u8_links
             else:
                 # Fallback: treat as a single resolution
@@ -418,6 +429,7 @@ class AnimeSugeClient(BaseClient):
                         'downloadLink': m3u8_url,
                         'downloadType': 'hls',
                         'refererLink': self.vidtube_origin,
+                        'subtitles': subtitles,
                         'duration': 0,
                     }
                 }

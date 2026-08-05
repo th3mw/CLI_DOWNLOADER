@@ -165,93 +165,83 @@ class KissKhClient(BaseClient):
                 fmted_name = re.sub(r'\b(\d$)', r'0\1', item.get('episodeName'))
                 self._colprint('results', f"{display_prefix}: {fmted_name}")
 
+    def _fetch_single_episode_link(self, episode):
+        ep_no = episode.get('episode')
+        self.logger.debug(f'Processing {episode = }')
+        token = self._get_token(episode.get('episodeId'), self.viGuid)
+        dl_links = self._send_request(self.episode_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
+        if dl_links is None:
+            self.logger.warning(f'Failed to fetch stream link for episode: {ep_no}')
+            return ep_no, None, {'error': 'Failed to fetch stream link'}
+
+        video_data = dl_links.get('Video', {})
+        if isinstance(video_data, str):
+            link = video_data
+        else:
+            qualities = video_data.get('qualities', {})
+            link = qualities.get('1080', qualities.get('720', qualities.get('480', video_data.get('url'))))
+
+        if link is None:
+            return ep_no, None, {'error': 'No stream link found'}
+
+        if 'tickcounter.com' in link:
+            return ep_no, None, {'error': 'Not Released Yet'}
+
+        self._update_scraper_dict(ep_no, episode)
+        self._update_scraper_dict(ep_no, {'streamLink': link, 'refererLink': self.base_url})
+
+        if episode.get('episodeSubs', 0) > 0:
+            token = self._get_token(episode.get('episodeId'), self.subGuid)
+            subtitles = self._send_request(self.subtitles_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
+            if subtitles:
+                subtitles_dict = {sub['label']: sub['src'] for sub in subtitles}
+                self._update_scraper_dict(ep_no, {'subtitles': subtitles_dict})
+
+                encrypted_subs_details = {}
+                for k, v in subtitles_dict.items():
+                    encryption_type = v.split('?')[0].split('.')[-1]
+                    if encryption_type == 'txt':
+                        encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY, 'iv': self.DECRYPT_SUBS_IV, 'decrypter': self._aes_decrypt}
+                    elif encryption_type == 'txt1':
+                        encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY2, 'iv': self.DECRYPT_SUBS_IV2, 'decrypter': self._aes_decrypt}
+
+                if encrypted_subs_details:
+                    self._update_scraper_dict(ep_no, {'encrypted_subs_details': encrypted_subs_details})
+
+        if isinstance(dl_links.get('Video'), dict):
+            qualities = dl_links['Video'].get('qualities', {})
+            m3u8_links = {}
+            for quality, quality_link in qualities.items():
+                m3u8_links[quality] = {'downloadLink': quality_link, 'downloadType': 'mp4' if '.mp4' in quality_link else 'hls', 'resolution_size': f'{quality}x0'}
+        else:
+            link_type = 'mp4' if '.mp4' in link else 'hls'
+            m3u8_links = {'720': {'downloadLink': link, 'downloadType': link_type, 'resolution_size': '1280x720'}}
+
+        return ep_no, m3u8_links, None
+
     def fetch_episode_links(self, episodes, ep_ranges):
-        '''Fetch download links for episodes'''
+        '''Fetch download links for episodes in parallel'''
         download_links = {}
         ep_start, ep_end, specific_eps = ep_ranges['start'], ep_ranges['end'], ep_ranges.get('specific_no', [])
         display_prefix = 'Movie' if episodes[0].get('episodeName').endswith('Movie') else 'Episode'
 
-        for episode in episodes:
-            if (float(episode.get('episode')) >= ep_start and float(episode.get('episode')) <= ep_end) or (float(episode.get('episode')) in specific_eps):
-                self.logger.debug(f'Processing {episode = }')
+        selected_eps = [
+            ep for ep in episodes
+            if (float(ep.get('episode')) >= ep_start and float(ep.get('episode')) <= ep_end) or (float(ep.get('episode')) in specific_eps)
+        ]
+        if not selected_eps:
+            return {}
 
-                self.logger.debug('Fetching stream token')
-                token = self._get_token(episode.get('episodeId'), self.viGuid)
-                self.logger.debug(f'Fetching stream link')
-                dl_links = self._send_request(self.episode_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
-                if dl_links is None:
-                    self.logger.warning(f'Failed to fetch stream link for episode: {episode.get("episode")}')
-                    continue
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(10, len(selected_eps))) as executor:
+            results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
-                self.logger.debug(f'Got video response: {dl_links}')
-                video_data = dl_links.get('Video', {})
-                if isinstance(video_data, str):
-                    link = video_data
-                    self.logger.debug(f'Direct video link: {link}')
-                else:
-                    # Try to get different quality options
-                    qualities = video_data.get('qualities', {})
-                    self.logger.debug(f'Available qualities: {qualities}')
-                    # Use highest quality as default
-                    link = qualities.get('1080', qualities.get('720', qualities.get('480', video_data.get('url'))))
-                    self.logger.debug(f'Selected quality link: {link}')
-
-                # skip if no stream link found
-                if link is None:
-                    continue
-
-                # check if link has countdown timer for upcoming releases
-                if 'tickcounter.com' in link:
-                    self.logger.debug(f'Episode {episode.get("episode")} is not released yet')
-                    self._show_episode_links(episode.get('episode'), {'error': 'Not Released Yet'}, display_prefix)
-                    continue
-
-                # add episode details & stream link to scraper dict
-                self._update_scraper_dict(episode.get('episode'), episode)
-                self._update_scraper_dict(episode.get('episode'), {'streamLink': link, 'refererLink': self.base_url})
-
-                # get subtitles
-                if episode.get('episodeSubs', 0) > 0:
-                    self.logger.debug('Subtitles found. Fetching subtitles token')
-                    token = self._get_token(episode.get('episodeId'), self.subGuid)
-                    self.logger.debug('Fetching subtitles for the episode...')
-                    subtitles = self._send_request(self.subtitles_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
-                    subtitles = {sub['label']: sub['src'] for sub in subtitles}
-                    self._update_scraper_dict(episode.get('episode'), {'subtitles': subtitles})
-
-                    # Handle subtitle decryption
-                    encrypted_subs_details = {}
-                    for k, v in subtitles.items():
-                        self.logger.debug(f'Checking encryption type for {k} language...')
-                        encryption_type = v.split('?')[0].split('.')[-1]
-                        if encryption_type == 'txt':
-                            encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY, 'iv': self.DECRYPT_SUBS_IV, 'decrypter': self._aes_decrypt}
-                        elif encryption_type == 'txt1':
-                            encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY2, 'iv': self.DECRYPT_SUBS_IV2, 'decrypter': self._aes_decrypt}
-                        elif encryption_type == 'srt':
-                            continue    # no encryption
-                        else:
-                            self.logger.warning(f"Unknown encryption type found: {encryption_type}")
-
-                    if encrypted_subs_details:
-                        self.logger.debug(f'Encrypted subtitles found. Adding decryption details')
-                        self._update_scraper_dict(episode.get('episode'), {'encrypted_subs_details': encrypted_subs_details})
-
-                # Create quality options if we have a video data object
-                if isinstance(dl_links.get('Video'), dict):
-                    qualities = dl_links['Video'].get('qualities', {})
-                    m3u8_links = {}
-                    for quality, quality_link in qualities.items():
-                        m3u8_links[quality] = {'downloadLink': quality_link, 'downloadType': 'mp4' if '.mp4' in quality_link else 'hls', 'resolution_size': f'{quality}x0'}
-                else:
-                    # Single quality link
-                    link_type = 'mp4' if '.mp4' in link else 'hls'
-                    m3u8_links = {'720': {'downloadLink': link, 'downloadType': link_type, 'resolution_size': '1280x720'}}
-
-                self.logger.debug(f'Available quality options: {list(m3u8_links.keys())}')
-
-                download_links[episode.get('episode')] = m3u8_links
-                self._show_episode_links(episode.get('episode'), m3u8_links, display_prefix)
+        for ep_no, m3u8_links, err_dict in sorted(results, key=lambda x: float(x[0])):
+            if m3u8_links:
+                download_links[ep_no] = m3u8_links
+                self._show_episode_links(ep_no, m3u8_links, display_prefix)
+            elif err_dict:
+                self._show_episode_links(ep_no, err_dict, display_prefix)
 
         return download_links
 

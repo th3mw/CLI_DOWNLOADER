@@ -249,27 +249,37 @@ class AnimePaheClient(BaseClient):
                              f"Audio: {item.get('audio')} | Duration: {item.get('duration')} | "
                              f"Release date: {item.get('created_at')}")
 
+    def _fetch_single_episode_link(self, episode):
+        ep_no = episode.get('episode')
+        episode_link = self.episode_url.format(anime_id=self.anime_id, episode_id=episode.get('session'))
+        links = self._get_kwik_links_v2(episode_link)
+        if not links:
+            return ep_no, None
+
+        self._update_scraper_dict(ep_no, {'episodeId': episode.get('session'), 'episodeLink': episode_link})
+        return ep_no, links
+
     def fetch_episode_links(self, episodes, ep_ranges):
         download_links = {}
         ep_start = ep_ranges['start']
         ep_end = ep_ranges['end']
         specific_eps = ep_ranges.get('specific_no', [])
 
-        for episode in episodes:
-            ep_num = float(episode.get('episode'))
-            if (ep_num >= ep_start and ep_num <= ep_end) or (ep_num in specific_eps):
-                episode_link = self.episode_url.format(anime_id=self.anime_id, 
-                                                     episode_id=episode.get('session'))
-                links = self._get_kwik_links_v2(episode_link)
+        selected_eps = [
+            ep for ep in episodes
+            if (float(ep.get('episode')) >= ep_start and float(ep.get('episode')) <= ep_end) or (float(ep.get('episode')) in specific_eps)
+        ]
+        if not selected_eps:
+            return {}
 
-                if not links:
-                    continue
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(10, len(selected_eps))) as executor:
+            results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
-                self._update_scraper_dict(episode.get('episode'),
-                                    {'episodeId': episode.get('session'), 
-                                     'episodeLink': episode_link})
-                download_links[episode.get('episode')] = links
-                self._show_episode_links(episode.get('episode'), links)
+        for ep_no, links in sorted(results, key=lambda x: float(x[0])):
+            if links:
+                download_links[ep_no] = links
+                self._show_episode_links(ep_no, links)
 
         return download_links
 

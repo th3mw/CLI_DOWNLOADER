@@ -235,16 +235,27 @@ class BaseDownloader():
 
             try:
                 self.logger.debug(f'Downloading {sub_name} subtitle from {sub_link} to {sub_file}')
-                if os.path.isfile(sub_file):
-                    self.logger.debug('Subtitle file already exists. Skipping...')
-                    continue
-                sub_content = self._get_stream_data(sub_link)
-                # download the subtitle to local
-                with open(sub_file, 'wb') as f:
-                    f.write(sub_content)
+                if not os.path.isfile(sub_file):
+                    sub_content = self._get_stream_data(sub_link)
+                    # download the subtitle to local
+                    with open(sub_file, 'wb') as f:
+                        f.write(sub_content)
 
                 if self.encrypted_subs_details.get(sub_name):
                     self._decrypt_subtitle_file(sub_file, **self.encrypted_subs_details[sub_name])
+
+                if sub_file.endswith('.vtt'):
+                    srt_file = sub_file[:-4] + '.srt'
+                    try:
+                        if not os.path.isfile(srt_file):
+                            self.logger.debug(f'Converting VTT subtitle to SRT: {srt_file}')
+                            exec_os_cmd(f'ffmpeg -y -loglevel warning -i "{sub_file}" "{srt_file}"')
+                        if os.path.isfile(srt_file) and os.path.getsize(srt_file) > 0:
+                            sub_file = srt_file
+                    except Exception as e:
+                        self.logger.warning(f'Failed to convert VTT to SRT: {e}')
+
+                self.subtitles[sub_name] = sub_file
 
             except Exception as e:
                 self.logger.warning(f'Failed to download {sub_name} subtitle with error: {e}')
@@ -288,9 +299,12 @@ class BaseDownloader():
 
         # Prepare the command if subtitles are present
         for i, (lang, url) in enumerate(self.subtitles.items(), start=1):
+            stream_idx = 1 + i
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
-            metadata.append(f'-metadata:s:s:{i-1} title="{lang}"')
+            metadata.append(f'-metadata:s:{stream_idx} title="{lang}"')
+            metadata.append(f'-metadata:s:{stream_idx} language=eng')
+            metadata.append(f'-disposition:{stream_idx} default+forced')
 
         metadata.append(f'-c:v copy -c:a copy -c:s mov_text -bsf:a aac_adtstoasc "{temp_out_file}"')
 

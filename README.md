@@ -1,157 +1,185 @@
-# Media Scraper
+# 🎬 Media Scraper
 
-A command-line tool for downloading Anime, Movies & TV Shows with ease. This scraper supports downloading content from multiple sources with features like batch downloading, resolution selection, and more.
+A powerful command-line interface (CLI) application for searching and downloading Anime, Movies, and TV Shows from multiple online providers with high performance, resolution selection, parallel link fetching, and automated HLS segment processing.
 
-## Screenshots
+---
 
-Here's how the scraper looks in action:
+## 📖 Table of Contents
+- [Features](#-features)
+- [Screenshots](#-screenshots)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Command Line Interface (CLI) Usage](#-command-line-interface-cli-usage)
+- [Supported Providers](#-supported-providers)
+- [Configuration](#-configuration)
+- [Subtitle & Media Player Notes](#-subtitle--media-player-notes)
+- [Technical Documentation](#-technical-documentation)
+- [License](#-license)
+
+---
+
+## ✨ Features
+
+- **Multi-Source Scraping**: Download content seamlessly from top Anime and Movie/TV Show providers.
+- **Fast Parallel Fetching**: Concurrent episode link resolution (~9x speedup using multi-threaded execution).
+- **Structured 2-Line Search Cards**: Rich search results displaying episode counts, sub/dub availability, release year, airing status, and content types (`[TV]`, `[MOVIE]`, `[ONA]`, `[SPECIAL]`).
+- **Resolution Control**: Download in your preferred video quality (360p, 720p, 1080p).
+- **HLS / M3U8 Downloader**: Automated segment downloading, PNG obfuscation stripping, and FFmpeg MP4 remuxing.
+- **Subtitle Extraction & Conversion**: Automatic extraction and WebVTT-to-SRT conversion embedded into downloaded MP4 files.
+- **Network Resilience**: Automatic HTTP 429 rate-limit retries, IPv4 socket enforcement, and Cloudflare Turnstile challenge solving.
+- **Interactive & Non-Interactive CLI**: Run interactively or automate via command-line flags.
+
+---
+
+## 📷 Screenshots
+
+Here is the Media Scraper in action:
 
 ![Scraper Interface 1](images/1st.png)
 ![Scraper Interface 2](images/2nd.png)
 
-## Features
+---
 
-- Multi-source support for Anime and Movies/TV Shows
-- Batch downloading with parallel download support
-- Resolution selection (360p to 1080p)
-- Season and episode range selection
-- HLS/M3U8 stream downloading
-- Progress tracking with status display
-- Colorized output (can be disabled)
-- Detailed logging
-- Cross-platform support (Windows/Linux path handling)
-- Command-line interface with extensive options
+## 📦 Installation
 
-## Requirements
+### Prerequisites
+- **Python 3.8+**
+- **FFmpeg** (installed and available in your system `PATH`)
 
-- Python 3.x
-- Required packages:
-  - argparse
-  - pyyaml
-  - beautifulsoup4
-  - requests
-  - tqdm
-  - pycryptodomex
-  - undetected-chromedriver
-  - setuptools
-  - quickjs
+### Setup Instructions
 
-## Installation
+1. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/iamitkrp/CLI_DOWNLOADER.git
+   cd CLI_DOWNLOADER
+   ```
 
-1. Clone this repository:
-```bash
-git clone https://github.com/yourusername/scraper.git
-cd scraper
-```
+2. **Install Dependencies**:
+   Using `uv` (recommended):
+   ```bash
+   uv pip install -r requirements.txt
+   ```
+   Or using standard `pip`:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-2. Install required packages:
-```bash
-pip install -r requirements.txt
-```
+---
 
-## Usage
+## 🚀 Quick Start
 
-Basic usage:
+Launch the interactive CLI wizard:
 ```bash
 python scraper.py
 ```
 
-The tool will guide you through:
-1. Selecting content type (Anime/Movies & Shows)
-2. Searching for your desired series/movie
-3. Selecting seasons/episodes
-4. Choosing resolution
-5. Starting the download process
+The interactive wizard will guide you through:
+1. Selecting **Anime** or **Movies & Shows**
+2. Searching for titles
+3. Selecting episodes or season ranges
+4. Choosing video resolution (360p, 720p, 1080p)
+5. Starting parallel episode downloads
+
+---
+
+## 💻 Command Line Interface (CLI) Usage
 
 ### Command Line Arguments
 
 ```bash
-python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-n SERIES_NAME]
-                  [-S SEASONS] [-e EPISODES] [-r RESOLUTION] [-d] [-dc]
-                  [-hsa [0-100]] [-dl]
-
-Options:
-  -h, --help            Show this help message
-  -c, --conf           Configuration file (default: config_scraper.yaml)
-  -l, --log-file       Custom log file name
-  -s, --series-type    Type of series
-  -n, --series-name    Name of the series to search
-  -S, --seasons        Seasons to download (for TV Shows)
-  -e, --episodes       Episodes to download
-  -r, --resolution     Resolution to download
-  -d, --start-download Start download immediately
-  -dc, --disable-colors Disable colored output
-  -hsa, --hls-size-accuracy Accuracy for HLS file size display [0-100]
-  -dl, --disable-looping Disable auto-restart
+python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
+                  [-n SERIES_NAME] [-S SEASONS] [-e EPISODES] [-r RESOLUTION]
+                  [-d] [-dc] [-hsa [0-100]] [-dl]
 ```
 
-### Examples
+| Flag | Long Option | Description |
+|------|-------------|-------------|
+| `-h` | `--help` | Display help message and options |
+| `-c` | `--conf` | Custom configuration file (default: `config_scraper.yaml`) |
+| `-l` | `--log-file` | Custom log file name |
+| `-s` | `--series-type` | Content type: `1` for Anime, `2` for Movies & Shows |
+| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `kisskh`, `animepahe`) |
+| `-n` | `--series-name` | Title search query string |
+| `-S` | `--seasons` | Season numbers to download (e.g. `1` or `1-3`) |
+| `-e` | `--episodes` | Episode numbers to download (e.g. `1-5` or `1,3,5`) |
+| `-r` | `--resolution` | Download resolution (`360`, `720`, `1080`) |
+| `-d` | `--start-download` | Start downloading immediately without prompts |
+| `-dc` | `--disable-colors` | Disable ANSI colored output |
+| `-dl` | `--disable-looping` | Disable auto-restart loop after download completes |
 
-1. Basic interactive usage:
-```bash
-python scraper.py
-```
+### Example CLI Commands
 
-2. Download specific anime episodes:
-```bash
-python scraper.py -s 1 -n "One Piece" -e "1-10" -r 720 -d
-```
+1. **Interactive Mode**:
+   ```bash
+   python scraper.py
+   ```
 
-3. Download TV show season:
-```bash
-python scraper.py -s 2 -n "Breaking Bad" -S "1" -e "1-5" -r 1080 -d
-```
+2. **Download Anime Episodes (Non-Interactive)**:
+   ```bash
+   python scraper.py -s 1 -p anime_suge -n "Solo Leveling" -e "1-5" -r 720 -d
+   ```
 
-## Configuration
+3. **Download TV Show Season (Non-Interactive)**:
+   ```bash
+   python scraper.py -s 2 -p kisskh -n "Breaking Bad" -S "1" -e "1-7" -r 1080 -d
+   ```
 
-The tool uses a YAML configuration file (default: `config_scraper.yaml`) with the following sections:
+---
 
-- DownloaderConfig: Download settings (paths, threads, etc.)
-- LoggerConfig: Logging settings
-- Anime: Anime-specific settings
-- Movies & Shows: Movie/TV show specific settings
+## 🌐 Supported Providers
 
-### Changing Download Directory
+| Category | Provider Client | Key Features |
+|----------|-----------------|--------------|
+| **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, fast multi-threaded HLS links, subtitle tracks |
+| **Anime** | `AnimePahe` (`animepahe.pw`) | Kwik stream decryption, Cloudflare Turnstile automated challenge handling |
+| **Movies & Shows** | `KissKh` (`kisskh.co`) | Movies & TV series, season breakdowns, encrypted subtitle support |
 
-You can change the download directory in two ways:
+---
 
-1. In the configuration file (`config_scraper.yaml`):
+## ⚙️ Configuration
+
+Custom settings are defined in [`config_scraper.yaml`](file:///home/themw/DEV/CLI_DOWNLOADER/config_scraper.yaml):
+
 ```yaml
 DownloaderConfig:
-  download_dir: "~/Downloads/Media"  # Change this path
-  max_parallel_downloads: 3
+  download_dir: "~/Videos"       # Root download directory
+  concurrency_per_file: 5         # Parallel segment download threads
+  max_parallel_downloads: 3       # Concurrent episode downloads
 
-# You can also set different directories for different content types:
 Anime:
-  download_dir: "~/Downloads/Anime"  # Specific path for anime
+  download_dir: "~/Videos/Anime" # Specific folder for Anime downloads
 
 Movies & Shows:
-  download_dir: "~/Downloads/Shows"  # Specific path for shows/movies
-```
-
-2. Through environment variables:
-   - Set the `DOWNLOAD_DIR` environment variable before running the script
-   - Content-specific paths take precedence over the general download directory
-
-Note: The download paths support both Windows and Linux style paths. The script will automatically handle path conversion based on your operating system.
-
-Example configuration:
-```yaml
-DownloaderConfig:
-  download_dir: "~/Downloads/Media"
-  max_parallel_downloads: 3
+  download_dir: "~/Videos/Shows" # Specific folder for Movies & TV Shows
 
 LoggerConfig:
   log_dir: "logs"
   log_level: "INFO"
   log_retention_days: 7
-  log_backup_count: 3
 ```
 
-## License
+---
 
-This project is licensed under the terms specified in `LICENSE.md`.
+## 💡 Subtitle & Media Player Notes
 
-## Contributing
+Downloaded video files (`.mp4`) include embedded soft subtitles extracted from the provider stream. 
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+> [!NOTE]
+> **Soft Subtitles in MP4 Containers**:
+> Soft subtitles in `.mp4` files are multiplexed as 3GPP Timed Text (`mov_text`) streams with ISO 639-2 language tags (`eng`). 
+> - **Player Behavior**: Depending on your media player software (Celluloid, VLC, MPV, Smart TVs), subtitles may render automatically or may require selecting the subtitle track from your player's Subtitles menu (or pressing `v` in MPV/Celluloid).
+> - If your media player does not display soft subtitles by default, enable the English subtitle track manually in your player settings.
+
+---
+
+## 🛠️ Technical Documentation
+
+For detailed architecture diagrams, client provider implementation mechanics, HLS segment obfuscation stripping algorithms, and complete bug fix history, see the technical documentation:
+
+👉 **[Technical Documentation (`Doc.md`)](Doc.md)**
+
+---
+
+## 📄 License
+
+This project is licensed under the terms specified in [`LICENSE.md`](LICENSE.md).

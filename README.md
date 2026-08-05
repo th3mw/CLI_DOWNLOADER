@@ -5,16 +5,25 @@ A powerful command-line interface (CLI) application for searching and downloadin
 ---
 
 ## 📖 Table of Contents
-- [Features](#-features)
-- [Screenshots](#-screenshots)
-- [Installation](#-installation)
-- [Quick Start](#-quick-start)
-- [Command Line Interface (CLI) Usage](#-command-line-interface-cli-usage)
-- [Supported Providers](#-supported-providers)
-- [Configuration](#-configuration)
-- [Subtitle & Media Player Notes](#-subtitle--media-player-notes)
-- [Technical Documentation](#-technical-documentation)
-- [License](#-license)
+- [🎬 Media Scraper](#-media-scraper)
+  - [📖 Table of Contents](#-table-of-contents)
+  - [✨ Features](#-features)
+  - [📷 Screenshots](#-screenshots)
+  - [📦 Installation](#-installation)
+    - [Prerequisites](#prerequisites)
+    - [Global CLI Installation (Recommended)](#global-cli-installation-recommended)
+      - [Option A: Using `pipx` (Recommended)](#option-a-using-pipx-recommended)
+      - [Option B: Using `uv tool`](#option-b-using-uv-tool)
+      - [Option C: Local Editable Install](#option-c-local-editable-install)
+  - [🚀 Quick Start](#-quick-start)
+  - [💻 Command Line Interface (CLI) Usage](#-command-line-interface-cli-usage)
+    - [Command Line Arguments](#command-line-arguments)
+    - [Example CLI Commands](#example-cli-commands)
+  - [🌐 Supported Providers](#-supported-providers)
+  - [⚙️ Configuration](#️-configuration)
+  - [💡 Subtitle \& Media Player Notes](#-subtitle--media-player-notes)
+  - [🛠️ Technical Documentation](#️-technical-documentation)
+  - [📄 License](#-license)
 
 ---
 
@@ -53,17 +62,17 @@ Install globally from GitHub using `pipx` or `uv tool` to make the `media-scrape
 
 #### Option A: Using `pipx` (Recommended)
 ```bash
-pipx install git+https://github.com/iamitkrp/CLI_DOWNLOADER.git
+pipx install git+https://github.com/th3mw/CLI_DOWNLOADER.git
 ```
 
 #### Option B: Using `uv tool`
 ```bash
-uv tool install git+https://github.com/iamitkrp/CLI_DOWNLOADER.git
+uv tool install git+https://github.com/th3mw/CLI_DOWNLOADER.git
 ```
 
 #### Option C: Local Editable Install
 ```bash
-git clone https://github.com/iamitkrp/CLI_DOWNLOADER.git
+git clone https://github.com/th3mw/CLI_DOWNLOADER.git
 cd CLI_DOWNLOADER
 pip install -e .
 ```
@@ -153,7 +162,7 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 
 ## ⚙️ Configuration
 
-Custom settings are defined in [`config_scraper.yaml`](file:///home/themw/DEV/CLI_DOWNLOADER/config_scraper.yaml):
+Custom settings are defined in [`config_scraper.yaml`](config_scraper.yaml):
 
 ```yaml
 DownloaderConfig:

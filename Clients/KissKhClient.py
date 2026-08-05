@@ -102,21 +102,28 @@ class KissKhClient(BaseClient):
             
             self.logger.debug(f'Searching for {type} with keyword: {keyword}')
             search_url = self.search_url + search_key + '&type=' + str(code)
-            search_data = self._send_request(search_url, return_type='json')[:search_limit]
+            raw_search_data = self._send_request(search_url, return_type='json')
+            if not raw_search_data or not isinstance(raw_search_data, list):
+                continue
+            search_data = raw_search_data[:search_limit]
 
             # Get basic details available from the site
             for result in search_data:
-                series_id = result['id']
+                series_id = result.get('id')
+                if not series_id:
+                    continue
                 self.logger.debug(f'Fetching additional details for series_id: {series_id}')
                 series_data = self._send_request(self.series_url + str(series_id), return_type='json')
+                if not series_data or not isinstance(series_data, dict):
+                    continue
                 item = {
-                    'title': series_data['title'],
+                    'title': series_data.get('title', 'Unknown'),
                     'series_id': series_id,
-                    'country': series_data['country'],
-                    'episodesCount': series_data['episodesCount'],
-                    'series_type': series_data['type'],
-                    'status': series_data['status'],
-                    'episodes': series_data['episodes']
+                    'country': series_data.get('country', 'N/A'),
+                    'episodesCount': series_data.get('episodesCount', 'N/A'),
+                    'series_type': series_data.get('type', 'N/A'),
+                    'status': series_data.get('status', 'N/A'),
+                    'episodes': series_data.get('episodes', [])
                 }
                 try:
                     item['year'] = series_data['releaseDate'].split('-')[0]

@@ -134,6 +134,10 @@ class HLSDownloader(BaseDownloader):
             maps.append(f'-map {i}')
             metadata.append(f'-metadata:s:s:{i-1} title="{lang}"')
 
+        if self.subtitles:
+            # Set default disposition for first subtitle stream so media players auto-enable subtitles
+            metadata.append('-disposition:s:0 default')
+
         metadata.append(f'-c:v copy -c:a copy -c:s mov_text -bsf:a aac_adtstoasc "{out_file}"')
 
         cmd = ' '.join(command + maps + metadata)

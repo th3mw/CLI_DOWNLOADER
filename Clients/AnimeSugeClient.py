@@ -355,11 +355,15 @@ class AnimeSugeClient(BaseClient):
         if ep_ranges is None:
             return True
         if isinstance(ep_ranges, dict):
+            if 1 in ep_ranges and isinstance(ep_ranges[1], dict):
+                ep_ranges = ep_ranges[1]
+
             if 'start' in ep_ranges and 'end' in ep_ranges:
                 if ep_ranges['start'] <= ep_no <= ep_ranges['end']:
                     return True
             if 'specific_no' in ep_ranges and ep_no in ep_ranges['specific_no']:
                 return True
+            return False
         return True
 
     def set_out_names(self, target_series):

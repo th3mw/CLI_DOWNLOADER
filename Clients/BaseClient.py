@@ -8,8 +8,18 @@ from copy import deepcopy
 from urllib.parse import parse_qs, urlparse
 
 import base64
-from Cryptodome.Cipher import AES
-import undetected_chromedriver as uc
+try:
+    from Cryptodome.Cipher import AES
+except ImportError:
+    try:
+        from Crypto.Cipher import AES
+    except ImportError:
+        AES = None
+
+try:
+    import undetected_chromedriver as uc
+except ImportError:
+    uc = None
 
 from Utils.commons import colprint, exec_os_cmd, pretty_time, retry, threaded, ExitException
 
@@ -221,6 +231,7 @@ class BaseClient():
                     'resolution_size': resolution,
                     'downloadLink': master_m3u8_link,
                     'downloadType': 'hls',
+                    'refererLink': referer,
                     'duration': pretty_time(duration)
                 }
                 # get approx download size and add file size if available
@@ -240,6 +251,7 @@ class BaseClient():
                 'resolution_size': _pixels,
                 'downloadLink': m3u8_link,
                 'downloadType': 'hls',
+                'refererLink': referer,
                 'duration': duration
             }
             # get approx download size and add file size if available
@@ -569,7 +581,7 @@ class BaseClient():
                     link_type = res_dict['downloadType']
 
                     # add download link and it's type against episode
-                    self._update_scraper_dict(ep, {'episodeName': ep_name, 'downloadLink': ep_link, 'downloadType': link_type})
+                    self._update_scraper_dict(ep, {'episodeName': ep_name, 'downloadLink': ep_link, 'downloadType': link_type, 'refererLink': res_dict.get('refererLink', getattr(self, 'base_url', ''))})
                     self.logger.debug(f'{info} Link found [{ep_link}]')
                     self._colprint('results', f'{info} Link found [{ep_link}]')
 
@@ -701,6 +713,10 @@ class BaseClient():
             
             setattr(uc.Chrome, '__del__', new_del)
 
+        if uc is None:
+            self.logger.error(f'{client} requires undetected-chromedriver package which is missing.')
+            self._exit(0)
+
         self.logger.debug('Suppressing exit exception in Chrome driver')
         __suppress_exception_in_del(uc)
 
@@ -711,7 +727,22 @@ class BaseClient():
             self.logger.error(f'{client} requires a chrome browser to be installed. Unable to proceed further!')
             self._exit(0)
 
-        return uc.Chrome(headless=True)
+        version_main = None
+        try:
+            cmd_out, _ = exec_os_cmd(f'"{chrome_path}" --version')
+            if cmd_out:
+                v_match = re.search(r'(\d+)\.\d+\.\d+\.\d+', cmd_out)
+                if v_match:
+                    version_main = int(v_match.group(1))
+        except Exception as e:
+            self.logger.debug(f'Could not determine Chrome version: {e}')
+
+        kwargs = {'headless': True, 'browser_executable_path': chrome_path}
+        if version_main:
+            self.logger.debug(f'Using detected Chrome version_main: {version_main}')
+            kwargs['version_main'] = version_main
+
+        return uc.Chrome(**kwargs)
 
     def cleanup(self):
         '''

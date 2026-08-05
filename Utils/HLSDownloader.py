@@ -11,9 +11,12 @@ def _sanitize_segment_name(filename):
     '''
     Some CDNs serve video segments with non-media extensions (e.g., .png).
     Rename them to .ts so FFmpeg's HLS demuxer accepts them.
+    Also add .ts extension if missing.
     '''
     name, ext = os.path.splitext(filename)
     if ext.lower() in NON_MEDIA_EXTENSIONS:
+        return name + '.ts'
+    if ext == '':
         return name + '.ts'
     return filename
 

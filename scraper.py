@@ -34,6 +34,10 @@ config = None
 logger = None
 client = None
 hls_size_accuracy = 0
+disable_colors = False
+disable_looping = False
+config_file = 'config_scraper.yaml'
+log_file_name = None
 get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
 def get_provider(series_type, predefined_provider=None):
@@ -366,7 +370,7 @@ def close_handlers():
 
 
 def main():
-    global series_type, config, logger, hls_size_accuracy, client
+    global series_type, config, logger, client, hls_size_accuracy, disable_colors, disable_looping, config_file, log_file_name
     client = None
     logger = None
     skip_restart = False

@@ -759,7 +759,13 @@ class BaseClient():
         except Exception as e:
             self.logger.debug(f'Could not determine Chrome version: {e}')
 
-        kwargs = {'headless': True, 'browser_executable_path': chrome_path}
+        options = uc.ChromeOptions()
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+
+        kwargs = {'options': options, 'browser_executable_path': chrome_path}
         if version_main:
             self.logger.debug(f'Using detected Chrome version_main: {version_main}')
             kwargs['version_main'] = version_main

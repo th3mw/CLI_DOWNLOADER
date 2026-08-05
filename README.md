@@ -21,6 +21,7 @@ A powerful command-line interface (CLI) application for searching and downloadin
 ## ✨ Features
 
 - **Multi-Source Scraping**: Download content seamlessly from top Anime and Movie/TV Show providers.
+- **Download Resumption**: Automatic segment/chunk caching. Interrupted downloads resume from where they left off without re-downloading existing segments.
 - **Fast Parallel Fetching**: Concurrent episode link resolution (~9x speedup using multi-threaded execution).
 - **Structured 2-Line Search Cards**: Rich search results displaying episode counts, sub/dub availability, release year, airing status, and content types (`[TV]`, `[MOVIE]`, `[ONA]`, `[SPECIAL]`).
 - **Resolution Control**: Download in your preferred video quality (360p, 720p, 1080p).

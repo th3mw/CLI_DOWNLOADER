@@ -357,82 +357,76 @@ class AnimeSugeClient(BaseClient):
                     ep_label += f' ({ep["type"]})'
                 self._colprint('results', ep_label)
 
+    def _fetch_single_episode_link(self, ep):
+        ep_no = ep.get('episode')
+        self.logger.debug(f'Fetching server list for episode {ep_no}')
+        server_html = self._get_server_list(ep.get('anime_id', 0), ep['data_ids'])
+        if not server_html:
+            return ep_no, {'error': 'Failed to fetch server list'}
+
+        servers = []
+        for type_match in re.finditer(r'data-type="(sub|hsub|dub)"[^>]*>.*?<div class="server-list">(.*?)</div>\s*</div>\s*</div>', server_html, re.DOTALL):
+            srv_type = type_match.group(1)
+            srv_list_html = type_match.group(2)
+            for link_match in re.finditer(r'data-link-id="([^"]+)"', srv_list_html):
+                servers.append((srv_type, link_match.group(1)))
+
+        if not servers:
+            return ep_no, {'error': 'No servers found for this episode'}
+
+        link_id = None
+        for preferred_type in self.preferred_server_types:
+            for srv_type, lid in servers:
+                if srv_type == preferred_type:
+                    link_id = lid
+                    break
+            if link_id:
+                break
+
+        if not link_id:
+            link_id = servers[0][1]
+
+        stream_url = self._get_stream_url(link_id)
+        if not stream_url:
+            return ep_no, {'error': 'Failed to fetch stream URL'}
+
+        m3u8_url, subtitles = self._get_m3u8_from_vidtube(stream_url)
+        if not m3u8_url:
+            return ep_no, {'error': 'Failed to fetch m3u8 link'}
+
+        m3u8_links = self._parse_m3u8_links(m3u8_url, self.vidtube_origin)
+        if m3u8_links:
+            if subtitles:
+                for res_dict in m3u8_links.values():
+                    res_dict['subtitles'] = subtitles
+            return ep_no, m3u8_links
+        else:
+            return ep_no, {
+                '720': {
+                    'downloadLink': m3u8_url,
+                    'downloadType': 'hls',
+                    'refererLink': self.vidtube_origin,
+                    'subtitles': subtitles,
+                    'duration': 0,
+                }
+            }
+
     def fetch_episode_links(self, episodes, ep_ranges):
         '''
-        Fetch download links (m3u8 URLs) for selected episodes.
+        Fetch download links (m3u8 URLs) for selected episodes in parallel.
         Returns dict: {ep_no: {'original': {'downloadLink': m3u8, 'downloadType': 'hls', 'refererLink': referer}}}
         '''
+        selected_eps = [ep for ep in episodes if self._is_episode_selected(ep.get('episode'), ep_ranges)]
+        if not selected_eps:
+            return {}
+
         target_links = {}
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(10, len(selected_eps))) as executor:
+            results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
-        for ep in episodes:
-            ep_no = ep.get('episode')
-            if not self._is_episode_selected(ep_no, ep_ranges):
-                continue
-
-            self.logger.debug(f'Fetching server list for episode {ep_no}')
-            server_html = self._get_server_list(ep.get('anime_id', 0), ep['data_ids'])
-            if not server_html:
-                target_links[ep_no] = {'error': 'Failed to fetch server list'}
-                continue
-
-            # Find server link-ids, preferring sub type
-            # Parse server-type blocks: each server-type div has data-type and contains server-list div with data-link-id attrs
-            servers = []
-            for type_match in re.finditer(r'data-type="(sub|hsub|dub)"[^>]*>.*?<div class="server-list">(.*?)</div>\s*</div>\s*</div>', server_html, re.DOTALL):
-                srv_type = type_match.group(1)
-                srv_list_html = type_match.group(2)
-                for link_match in re.finditer(r'data-link-id="([^"]+)"', srv_list_html):
-                    servers.append((srv_type, link_match.group(1)))
-
-            if not servers:
-                target_links[ep_no] = {'error': 'No servers found for this episode'}
-                continue
-
-            # Select preferred server type
-            link_id = None
-            for preferred_type in self.preferred_server_types:
-                for srv_type, lid in servers:
-                    if srv_type == preferred_type:
-                        link_id = lid
-                        break
-                if link_id:
-                    break
-
-            if not link_id:
-                link_id = servers[0][1]  # fallback to first server
-
-            # Get stream URL from server link
-            stream_url = self._get_stream_url(link_id)
-            if not stream_url:
-                target_links[ep_no] = {'error': 'Failed to fetch stream URL'}
-                continue
-
-            # Get m3u8 and subtitles from vidtube
-            m3u8_url, subtitles = self._get_m3u8_from_vidtube(stream_url)
-            if not m3u8_url:
-                target_links[ep_no] = {'error': 'Failed to fetch m3u8 link'}
-                continue
-
-            self.logger.debug(f'Episode {ep_no}: m3u8 = {m3u8_url}, subtitles = {subtitles}')
-
-            # Parse the master m3u8 to get resolution variants
-            m3u8_links = self._parse_m3u8_links(m3u8_url, self.vidtube_origin)
-            if m3u8_links:
-                if subtitles:
-                    for res_dict in m3u8_links.values():
-                        res_dict['subtitles'] = subtitles
-                target_links[ep_no] = m3u8_links
-            else:
-                # Fallback: treat as a single resolution
-                target_links[ep_no] = {
-                    '720': {
-                        'downloadLink': m3u8_url,
-                        'downloadType': 'hls',
-                        'refererLink': self.vidtube_origin,
-                        'subtitles': subtitles,
-                        'duration': 0,
-                    }
-                }
+        for ep_no, res_dict in sorted(results, key=lambda x: x[0]):
+            target_links[ep_no] = res_dict
 
         return target_links
 

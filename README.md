@@ -30,6 +30,7 @@ A powerful command-line interface (CLI) application for searching and downloadin
 ## ✨ Features
 
 - **Multi-Source Scraping**: Download content seamlessly from top Anime and Movie/TV Show providers.
+- **First-Launch Setup Wizard**: If no configuration file exists on first launch, an interactive setup wizard guides you step-by-step to create and save `config_scraper.yaml`.
 - **Download Resumption**: Automatic segment/chunk caching. Interrupted downloads resume from where they left off without re-downloading existing segments.
 - **Fast Parallel Fetching**: Concurrent episode link resolution (~9x speedup using multi-threaded execution).
 - **Structured 2-Line Search Cards**: Rich search results displaying episode counts, sub/dub availability, release year, airing status, and content types (`[TV]`, `[MOVIE]`, `[ONA]`, `[SPECIAL]`).

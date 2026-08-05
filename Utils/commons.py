@@ -195,11 +195,83 @@ def threaded(max_parallel=None, thread_name_prefix='scraper-', print_status=Fals
         return wrapper
     return decorator
 
+def run_config_wizard(config_file):
+    '''
+    Interactive setup wizard to create a new YAML configuration file on first launch.
+    '''
+    colprint('header', f"\n\033[96m╭────────────────── CONFIGURATION WIZARD ──────────────────╮\033[0m")
+    colprint('header', f"\033[96m│ No configuration file found at '{config_file}'.          │\033[0m")
+    colprint('header', f"\033[96m│ Let's quickly create your setup configuration!           │\033[0m")
+    colprint('header', f"\033[96m╰──────────────────────────────────────────────────────────╯\033[0m\n")
+
+    default_base_dir = "~/Videos"
+    base_dir = colprint('user_input', f"Main download directory [default={default_base_dir}]: ", input_type='once') or default_base_dir
+
+    default_anime_dir = f"{base_dir.rstrip('/')}/Anime"
+    anime_dir = colprint('user_input', f"Anime download directory [default={default_anime_dir}]: ", input_type='once') or default_anime_dir
+
+    default_shows_dir = f"{base_dir.rstrip('/')}/Shows"
+    shows_dir = colprint('user_input', f"Movies & Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
+
+    max_parallel = colprint('user_input', "Max parallel episode downloads (1-10) [default=2]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or 2
+
+    log_level = colprint('user_input', "Logging level (DEBUG|INFO|WARNING|ERROR) [default=INFO]: ", input_type='recurring', input_options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'debug', 'info', 'warning', 'error'], allow_empty_input=True).upper() or 'INFO'
+
+    config = {
+        'DownloaderConfig': {
+            'download_dir': base_dir,
+            'max_parallel_downloads': int(max_parallel),
+        },
+        'Anime': {
+            'download_dir': anime_dir,
+            'providers': {
+                'anime_suge': {
+                    'base_url': 'https://animesuge.cz',
+                    'search_url': '/filter',
+                    'preferred_server_types': ['sub', 'hsub', 'dub']
+                },
+                'animepahe': {
+                    'base_url': 'https://animepahe.pw',
+                    'in_dev': True
+                }
+            }
+        },
+        'Movies & Shows': {
+            'download_dir': shows_dir,
+            'providers': {
+                'kisskh': {
+                    'base_url': 'https://kisskh.co'
+                }
+            }
+        },
+        'LoggerConfig': {
+            'log_dir': 'logs',
+            'log_level': log_level,
+            'log_retention_days': 7,
+            'log_backup_count': 3
+        }
+    }
+
+    try:
+        parent_dir = os.path.dirname(config_file)
+        if parent_dir and not os.path.exists(parent_dir):
+            os.makedirs(parent_dir, exist_ok=True)
+
+        with open(config_file, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, sort_keys=False, default_flow_style=False)
+
+        colprint('success', f"\n✓ Configuration saved successfully to '{config_file}'!\n")
+    except Exception as e:
+        colprint('error', f"\nFailed to save configuration file '{config_file}': {e}")
+        raise ExitException(0)
+
+    return config
+
+
 # load yaml config into dict
 def load_yaml(config_file):
     if not os.path.isfile(config_file):
-        colprint('error', f'Config file [{config_file}] not found')
-        raise ExitException(0)
+        return run_config_wizard(config_file)
 
     with open(config_file, "r") as stream:
         try:

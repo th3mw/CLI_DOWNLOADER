@@ -29,6 +29,7 @@ SERIES_PROVIDERS = {
     ],
 }
 
+logger = None
 get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
 def get_provider(series_type, predefined_provider=None):
@@ -361,7 +362,9 @@ def close_handlers():
 
 
 def main():
+    global logger
     client = None
+    logger = None
     skip_restart = False
     try:
         # Initialize required variables
@@ -572,8 +575,11 @@ def main():
         if int(str(ee)) == 0: skip_restart = True
 
     except Exception as e:
-        logger.error(f'Error occurred: {e}. Check log for more details.')
-        logger.warning(f'Stacktrace: {traceback.format_exc()}')
+        if logger:
+            logger.error(f'Error occurred: {e}. Check log for more details.')
+            logger.warning(f'Stacktrace: {traceback.format_exc()}')
+        else:
+            colprint('error', f'Error occurred: {e}')
 
     finally:
         # Perform any cleanup tasks

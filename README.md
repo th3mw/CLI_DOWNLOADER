@@ -114,12 +114,17 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
    python scraper.py
    ```
 
-2. **Download Anime Episodes (Non-Interactive)**:
+2. **Download Anime Episodes (Continuous Range)**:
    ```bash
    python scraper.py -s 1 -p anime_suge -n "Solo Leveling" -e "1-5" -r 720 -d
    ```
 
-3. **Download TV Show Season (Non-Interactive)**:
+3. **Download Specific Episodes (Comma-Separated)**:
+   ```bash
+   python scraper.py -s 1 -p anime_suge -n "Solo Leveling" -e "1,5,7" -r 720 -d
+   ```
+
+4. **Download TV Show Season (Non-Interactive)**:
    ```bash
    python scraper.py -s 2 -p kisskh -n "Breaking Bad" -S "1" -e "1-7" -r 1080 -d
    ```

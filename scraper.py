@@ -29,7 +29,11 @@ SERIES_PROVIDERS = {
     ],
 }
 
+series_type = None
+config = None
 logger = None
+client = None
+hls_size_accuracy = 0
 get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
 def get_provider(series_type, predefined_provider=None):
@@ -362,7 +366,7 @@ def close_handlers():
 
 
 def main():
-    global logger
+    global series_type, config, logger, hls_size_accuracy, client
     client = None
     logger = None
     skip_restart = False

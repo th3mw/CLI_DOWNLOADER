@@ -21,6 +21,19 @@ def _sanitize_segment_name(filename):
     return filename
 
 
+def _strip_png_header(data):
+    '''
+    Some CDNs (like VidTube) obfuscate MPEG-TS segments by prepending a fake PNG header.
+    Locate the first 188-byte aligned TS sync byte (0x47) and strip the PNG header bytes.
+    '''
+    if isinstance(data, bytes) and data.startswith(b'\x89PNG\r\n\x1a\n'):
+        data_len = len(data)
+        for i in range(min(1024, data_len - 188)):
+            if data[i] == 0x47 and data[i + 188] == 0x47:
+                return data[i:]
+    return data
+
+
 class HLSDownloader(BaseDownloader):
     '''Download Client for HLS files'''
     # References: https://github.com/Oshan96/monkey-dl/blob/master/anime_downloader/util/hls_downloader.py
@@ -78,8 +91,11 @@ class HLSDownloader(BaseDownloader):
             if os.path.isfile(segment_file) and os.path.getsize(segment_file) > 0:
                 return (f'Segment file [{segment_file_nm}] already exists. Reusing.', 1)
 
+            data = self._get_stream_data(ts_url)
+            clean_data = _strip_png_header(data)
+
             with open(segment_file, "wb") as ts_file:
-                ts_file.write(self._get_stream_data(ts_url))
+                ts_file.write(clean_data)
 
             return (f'Segment file [{segment_file_nm}] downloaded', 1)
 

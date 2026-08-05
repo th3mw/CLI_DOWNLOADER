@@ -270,8 +270,11 @@ class BaseClient():
             # Note: ffprobe is taking 3-10s, so try to avoid as much as possible
             if link_type == 'hls':
                 self.logger.debug('Fetching video duration by parsing video link')
-                data = self._send_request(link)
-                duration = sum([ float(match.group(1)) for match in re.finditer('#EXTINF:(.*),', data) ])
+                data = self._send_request(link, referer=referer)
+                if data:
+                    duration = sum([ float(match.group(1)) for match in re.finditer(r'#EXTINF:([\d.]+)', data) ])
+                else:
+                    duration = 0
             else:
                 # add -show_streams in ffprobe to get more information
                 ffprobe_cmd = f'ffprobe -loglevel quiet -print_format json -show_format -select_streams v:0 -show_entries stream=width,height'

@@ -9,23 +9,94 @@ from Utils.commons import colprint_init, colprint, PRINT_THEMES, ExitException
 from Utils.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
 
 ACTIVE_CLIENTS = ['Anime', 'Movies & Shows']
+
+# Provider registry: maps provider keys to (client_class_path, series_type)
+# series_type is the config key to use for default settings
+PROVIDER_REGISTRY = {
+    'anime_suge':  {'class': 'Clients.AnimeSugeClient.AnimeSugeClient',  'series_type': 'Anime',         'label': 'AnimeSuge'},
+    'animepahe':   {'class': 'Clients.AnimePaheClient.AnimePaheClient',  'series_type': 'Anime',         'label': 'AnimePahe'},
+    'kisskh':      {'class': 'Clients.KissKhClient.KissKhClient',          'series_type': 'Movies & Shows', 'label': 'KissKh'},
+}
+
+# Provider definitions per series type (for provider selection menu)
+SERIES_PROVIDERS = {
+    'Anime': [
+        {'key': 'anime_suge',  'label': 'AnimeSuge',      'in_dev': False},
+        {'key': 'animepahe',   'label': 'AnimePahe',      'in_dev': True},
+    ],
+    'Movies & Shows': [
+        {'key': 'kisskh',      'label': 'KissKh',         'in_dev': False},
+    ],
+}
+
 get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
-def get_client():
-    '''Return a client instance'''
+def get_provider(series_type, predefined_provider=None):
+    '''
+    Show provider selection menu for the given series type.
+    Returns the selected provider key.
+    '''
+    providers = SERIES_PROVIDERS.get(series_type, [])
+    if not providers:
+        logger.error(f'No providers available for series type: {series_type}')
+        raise ExitException(0)
+
+    if len(providers) == 1:
+        return providers[0]['key']
+
+    # Show provider selection menu
+    menu = '\n\033[96m╭───── SELECT PROVIDER ─────╮\033[0m\n'
+    choices = {}
+    for idx, prov in enumerate(providers):
+        label = prov['label']
+        if prov.get('in_dev'):
+            label += ' (In Dev)'
+        menu += f'\033[94m│ {idx+1}. {label:<23} │\033[0m\n'
+        choices[idx+1] = prov['key']
+    menu += '\033[96m╰─────────────────────────╯\033[0m'
+    colprint('header', menu)
+
+    if predefined_provider is not None:
+        colprint('predefined', f'\nUsing Predefined Provider: {predefined_provider}')
+        if predefined_provider not in [p['key'] for p in providers]:
+            logger.error(f'Invalid provider: {predefined_provider}')
+            raise ExitException(0)
+        return predefined_provider
+    else:
+        choice = colprint('user_input', '\nEnter your choice: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
+        return choices[choice]
+
+def get_client(provider_key=None):
+    '''Return a client instance based on the selected provider.'''
+    global series_type, config, logger, hls_size_accuracy
+
+    # Resolve provider key if not explicitly provided
+    if provider_key is None:
+        provider_key = get_provider(series_type)
+
+    provider_info = PROVIDER_REGISTRY.get(provider_key)
+    if provider_info is None:
+        logger.error(f'Unknown provider key: {provider_key}')
+        raise ExitException(1)
+
     # add hls_size_accuracy parameter passed from cli
     config.setdefault(series_type, {}).update({'hls_size_accuracy': hls_size_accuracy})
-    # Load required Client based on user selection, to avoid unnecessary imports
-    if series_type == 'Anime':
-        logger.debug('Creating Anime Client for AnimePahe site')
+
+    logger.debug(f'Creating client for provider: {provider_key}')
+
+    if provider_key == 'anime_suge':
+        from Clients.AnimeSugeClient import AnimeSugeClient
+        return AnimeSugeClient(config['Anime'])
+    elif provider_key == 'animepahe':
+        logger.debug('Creating AnimePaheClient')
         from Clients.AnimePaheClient import AnimePaheClient
         return AnimePaheClient(config['Anime'])
-    elif series_type == 'Movies & Shows':
-        logger.debug('Creating KissKh Client for Movies & Shows')
+    elif provider_key == 'kisskh':
+        logger.debug('Creating KissKhClient')
         from Clients.KissKhClient import KissKhClient
         return KissKhClient(config['Movies & Shows'], series_type='Movies & Shows')
     else:
-        logger.error(f'Unknown series type: {series_type}')
+        logger.error(f'Unknown provider: {provider_key}')
         raise ExitException(1)
 
 def get_os_safe_path(tmp_path):
@@ -301,6 +372,7 @@ if __name__ == '__main__':
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
         parser.add_argument('-s', '--series-type', type=int, help='type of series')
+        parser.add_argument('-p', '--provider', choices=['anime_suge', 'animepahe', 'kisskh'], help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
         parser.add_argument('-e', '--episodes', action='append', help='episodes number to download')
@@ -358,8 +430,11 @@ if __name__ == '__main__':
         series_type = get_series_type(ACTIVE_CLIENTS, series_type_predef)
         logger.info(f'Selected Series type: {series_type}')
 
-        # create client
-        client = get_client()
+        # get provider key from CLI if specified
+        provider_predef = args.provider if hasattr(args, 'provider') else None
+
+        # create client (with provider selection if not predefined via CLI)
+        client = get_client(provider_predef)
         logger.info(f'Client: {client}')
 
         # set client specific download configurations

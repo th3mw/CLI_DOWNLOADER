@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "media-scraper-cli"
+version = "1.0.0"
+description = "A command-line tool for downloading Anime, Movies & TV Shows with ease."
+readme = "README.md"
+authors = [
+    { name = "Nathaniel Akpan" }
+]
+license = { file = "LICENSE.md" }
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = [
+    "pyyaml",
+    "beautifulsoup4",
+    "requests",
+    "tqdm",
+    "pycryptodomex",
+    "undetected-chromedriver",
+    "setuptools",
+    "quickjs"
+]
+
+[project.scripts]
+media-scraper = "scraper:main"
+
+[tool.setuptools]
+py-modules = ["scraper"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["Clients*", "Utils*"]

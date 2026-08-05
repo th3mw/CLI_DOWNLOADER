@@ -47,23 +47,31 @@ Here is the Media Scraper in action:
 - **Python 3.8+**
 - **FFmpeg** (installed and available in your system `PATH`)
 
-### Setup Instructions
+### Global CLI Installation (Recommended)
 
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/iamitkrp/CLI_DOWNLOADER.git
-   cd CLI_DOWNLOADER
-   ```
+Install globally from GitHub using `pipx` or `uv tool` to make the `media-scraper` command available everywhere on your system:
 
-2. **Install Dependencies**:
-   Using `uv` (recommended):
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-   Or using standard `pip`:
-   ```bash
-   pip install -r requirements.txt
-   ```
+#### Option A: Using `pipx` (Recommended)
+```bash
+pipx install git+https://github.com/iamitkrp/CLI_DOWNLOADER.git
+```
+
+#### Option B: Using `uv tool`
+```bash
+uv tool install git+https://github.com/iamitkrp/CLI_DOWNLOADER.git
+```
+
+#### Option C: Local Editable Install
+```bash
+git clone https://github.com/iamitkrp/CLI_DOWNLOADER.git
+cd CLI_DOWNLOADER
+pip install -e .
+```
+
+After installation, run `media-scraper` from any terminal directory:
+```bash
+media-scraper
+```
 
 ---
 
@@ -71,8 +79,9 @@ Here is the Media Scraper in action:
 
 Launch the interactive CLI wizard:
 ```bash
-python scraper.py
+media-scraper
 ```
+(or run `python scraper.py` locally from the repository folder)
 
 The interactive wizard will guide you through:
 1. Selecting **Anime** or **Movies & Shows**

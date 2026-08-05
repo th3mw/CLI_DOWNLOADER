@@ -360,11 +360,11 @@ def close_handlers():
         print(f'Error while closing log handlers: {e}')
 
 
-if __name__ == '__main__':
+def main():
+    client = None
+    skip_restart = False
     try:
         # Initialize required variables
-        client = None
-        skip_restart = False
 
         # parse cli arguments
         parser = argparse.ArgumentParser(description='Media scraper and downloader for anime, drama, movies and TV shows.')
@@ -591,3 +591,7 @@ if __name__ == '__main__':
 
         except KeyboardInterrupt:
             exit(0)
+
+
+if __name__ == '__main__':
+    main()

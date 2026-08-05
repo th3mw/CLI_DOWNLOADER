@@ -22,32 +22,46 @@ class AnimePaheClient(BaseClient):
                          turnstile_wait_time=15):
         driver = self._get_undetected_chrome_driver(client='AnimePaheClient')
         driver.get(url)
+        sleep(3)  # Give the page time to render before checking for challenges
 
-        retry_cnt = 1
-        while retry_cnt <= max_retries:
-            try:
-                driver.find_element(By.XPATH, check_condition)
-                break
-            except NoSuchElementException:
-                retry_cnt += 1
-                sleep(wait_time_in_secs)
-
-        if retry_cnt > max_retries:
-            driver.quit()
-            raise Exception(f'Failed to load site within {max_retries*wait_time_in_secs} seconds')
-
-        # Check for and attempt to resolve Turnstile/Cloudflare challenge
+        # Check for and attempt to resolve Turnstile/Cloudflare challenge FIRST,
+        # before waiting for page content elements (which won't appear while
+        # the challenge is blocking the page)
         try:
-            turnstile_iframes = driver.find_elements(By.XPATH, "//iframe[contains(@src, 'turnstile') or contains(@src, 'cf-challenge')]")
-            if turnstile_iframes:
+            page_title = driver.title.lower() if driver.title else ''
+            page_source = driver.page_source.lower() if driver.page_source else ''
+            is_cf_page = any(ind in page_source for ind in [
+                'Checking your browser', 'cf-challenge', 'turnstile', 'Just a moment',
+                'JavaScript is required', '__cf_duel'
+            ]) or any(ind in page_title for ind in ['checking', 'cloudflare', 'turnstile', 'just a moment'])
+
+            if is_cf_page:
                 self.logger.warning('Cloudflare Turnstile challenge detected. Attempting to resolve...')
 
-                # Try clicking the Turnstile widget
+                # Try clicking the Turnstile widget - check inside iframes first
                 try:
-                    turnstile_widget = driver.find_element(By.XPATH, "//div[@class='cf-turnstile']")
-                    driver.execute_script("arguments[0].click();", turnstile_widget)
-                except NoSuchElementException:
-                    pass
+                    turnstile_iframes = driver.find_elements(By.XPATH, "//iframe[contains(@src, 'turnstile') or contains(@src, 'cf-challenge') or contains(@src, 'cloudflare')]")
+                    for iframe in turnstile_iframes:
+                        driver.switch_to.frame(iframe)
+                        try:
+                            # Look for the Turnstile checkbox inside the iframe
+                            checkboxes = driver.find_elements(By.XPATH, "//div[@role='checkbox' or @id='turnstile-widget' or contains(@class, 'checkbox')]")
+                            for cb in checkboxes:
+                                driver.execute_script("arguments[0].click();", cb)
+                                sleep(2)
+                        except Exception as inner_e:
+                            self.logger.debug(f'Failed to interact with iframe: {inner_e}')
+                        driver.switch_to.default_content()
+
+                    # Also try clicking the widget directly in the main frame
+                    try:
+                        turnstile_widget = driver.find_element(By.XPATH, "//div[contains(@class, 'cf-turnstile')]")
+                        driver.execute_script("arguments[0].click();", turnstile_widget)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    self.logger.debug(f'Turnstile widget interaction failed: {e}')
+                    driver.switch_to.default_content()
 
                 # Wait for challenge to be resolved
                 sleep(turnstile_wait_time)
@@ -63,8 +77,24 @@ class AnimePaheClient(BaseClient):
                     self.logger.info('Turnstile challenge resolved successfully')
                 else:
                     self.logger.warning('Turnstile challenge may not have been resolved')
+            else:
+                self.logger.debug(f'No Cloudflare challenge detected. Page title: {page_title[:100]}')
         except Exception as e:
             self.logger.warning(f'Error while checking for Turnstile challenge: {e}')
+
+        # Now try to find the page content element
+        retry_cnt = 1
+        while retry_cnt <= max_retries:
+            try:
+                driver.find_element(By.XPATH, check_condition)
+                break
+            except NoSuchElementException:
+                retry_cnt += 1
+                sleep(wait_time_in_secs)
+
+        if retry_cnt > max_retries:
+            driver.quit()
+            raise Exception(f'Failed to load site within {max_retries*wait_time_in_secs} seconds')
 
         all_cookies = driver.get_cookies()
         driver.close()

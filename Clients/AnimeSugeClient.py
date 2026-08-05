@@ -204,6 +204,7 @@ class AnimeSugeClient(BaseClient):
                 'anime_url': anime_url,
                 'episodes': '?',
             }
+            self._show_search_results(idx, results[idx])
             idx += 1
 
         return results

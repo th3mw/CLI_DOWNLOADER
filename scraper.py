@@ -379,7 +379,7 @@ def main():
 
         # Display banner
         banner = '''\033[95m╔══════════════════════════════════════════════════════════════╗
-║                     🎬 MEDIA SCRAPER v1.0 🎬                    ║
+║                     🎬 MEDIA SCRAPER v1.1 🎬                    ║
 ║           Download Anime, Movies & TV Shows with ease!          ║
 ╚══════════════════════════════════════════════════════════════╝\033[0m'''
         print(banner)
@@ -509,7 +509,7 @@ def main():
             colprint('predefined', f'Using Predefined Input for start download: {start_download_predef}')
             proceed = 'y'
         else:
-            proceed = colprint('user_input', f"Proceed to download (y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
+            proceed = colprint('user_input', f"Proceed to download (Y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
 
         logger.info(f'{msg} Proceed to download? {proceed}')
 

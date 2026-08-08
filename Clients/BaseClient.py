@@ -41,6 +41,11 @@ class BaseClient():
     def __init__(self, request_timeout=30, session=None):
         # create a requests session and use across to re-use cookies
         self.req_session = session if session else requests.Session()
+        from requests.adapters import HTTPAdapter
+        adapter = HTTPAdapter(pool_connections=20, pool_maxsize=20)
+        self.req_session.mount('http://', adapter)
+        self.req_session.mount('https://', adapter)
+
         self.request_timeout = request_timeout
         try:
             self.hls_size_accuracy

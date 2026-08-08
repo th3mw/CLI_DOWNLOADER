@@ -99,15 +99,13 @@ class KissKhClient(BaseClient):
                 continue
             search_data = raw_search_data[:search_limit]
 
-            # Get basic details available from the site
-            for result in search_data:
+            def _fetch_detail(result):
                 series_id = result.get('id')
                 if not series_id:
-                    continue
-                self.logger.debug(f'Fetching additional details for series_id: {series_id}')
+                    return None
                 series_data = self._send_request(self.series_url + str(series_id), return_type='json')
                 if not series_data or not isinstance(series_data, dict):
-                    continue
+                    return None
                 item = {
                     'title': series_data.get('title', 'Unknown'),
                     'series_id': series_id,
@@ -119,13 +117,19 @@ class KissKhClient(BaseClient):
                 }
                 try:
                     item['year'] = series_data['releaseDate'].split('-')[0]
-                except:
+                except Exception:
                     item['year'] = 'XXXX'
+                return item
 
-                # Add index to every search result
-                search_results[idx] = item
-                self._show_search_results(idx, item)
-                idx += 1
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=min(10, len(search_data))) as executor:
+                detailed_items = list(executor.map(_fetch_detail, search_data))
+
+            for item in detailed_items:
+                if item:
+                    search_results[idx] = item
+                    self._show_search_results(idx, item)
+                    idx += 1
 
         return search_results
 

@@ -325,8 +325,8 @@ class BaseDownloader():
         os.replace(temp_out_file, out_file)
 
     def start_download(self, dl_link):
-        # set chunk size to 1MiB
-        self.chunk_size = 1024*1024
+        # set chunk size to 4MiB for high throughput
+        self.chunk_size = 4 * 1024 * 1024
         # create output directory
         self._create_out_dirs()
 
@@ -348,7 +348,8 @@ class BaseDownloader():
             'unit_scale': True,
             'unit_divisor': 1024
         }
-        self._multi_threaded_download(self._download_chunk, chunk_urls, **metadata)
+        concurrency = self.concurrency if self.concurrency is not None else 8
+        self._multi_threaded_download(self._download_chunk, chunk_urls, concurrency=concurrency, **metadata)
 
         self.logger.debug('Merging chunks to single file')
         self._merge_chunks(len(chunks))

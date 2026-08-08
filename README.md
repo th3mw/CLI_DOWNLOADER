@@ -158,6 +158,7 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, fast multi-threaded HLS links, subtitle tracks |
 | **Anime** | `AnimePahe` (`animepahe.pw`) | Kwik stream decryption, Cloudflare Turnstile automated challenge handling |
 | **Movies & Shows** | `KissKh` (`kisskh.co`) | Movies & TV series, season breakdowns, encrypted subtitle support |
+| **Movies & Shows** | `1Shows` (`1shows.org`) | Movies & TV series, TMDb metadata, WebAssembly decryption, direct high-speed HTTP downloads with interactive Source + RES + Size variety selection |
 
 ---
 

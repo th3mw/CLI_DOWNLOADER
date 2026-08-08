@@ -3,6 +3,7 @@ import os
 import requests
 import sys
 import http.client
+from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from shutil import rmtree
 from tqdm.auto import tqdm
@@ -60,17 +61,26 @@ class BaseDownloader():
         '''
         Fetch raw stream data using requests or http.client
         '''
+        url = quote(url, safe=':/?&=%#')
         if self.use_http_client:
             # Use http.client for the request
             parsed_url = requests.utils.urlparse(url)
-            conn = http.client.HTTPSConnection(parsed_url.netloc, timeout=self.request_timeout)
-            path = parsed_url.path + '?' + parsed_url.query
+            conn_cls = http.client.HTTPSConnection if parsed_url.scheme == 'https' else http.client.HTTPConnection
+            conn = conn_cls(parsed_url.netloc, timeout=self.request_timeout)
+            path = (parsed_url.path or '/') + ('?' + parsed_url.query if parsed_url.query else '')
             headers = self.req_session.headers.copy()
             if header: headers.update(header)
             conn.request("GET", path, headers=headers)
             response = conn.getresponse()
             if response.status in [200, 206]:  # 206 means partial data (i.e., for chunked downloads)
                 return response
+            elif response.status in [301, 302, 303, 307, 308]:
+                redirect_url = response.getheader('Location')
+                if redirect_url:
+                    if redirect_url.startswith('/'):
+                        redirect_url = f"{parsed_url.scheme}://{parsed_url.netloc}{redirect_url}"
+                    return self._get_raw_stream_data(redirect_url, stream, header)
+                raise Exception(f'Failed with redirect status code {response.status} but no Location header')
             else:
                 raise Exception(f'Failed with response code: {response.status}')
         else:
@@ -322,7 +332,10 @@ class BaseDownloader():
 
         self.logger.debug('Fetching stream data')
         dl_data = self._get_raw_stream_data(dl_link, True)
-        file_size = int(dl_data.headers.get('content-length', 0))
+        if isinstance(dl_data, http.client.HTTPResponse):
+            file_size = int(dl_data.getheader('content-length') or dl_data.getheader('Content-Length') or 0)
+        else:
+            file_size = int(dl_data.headers.get('content-length', 0))
 
         chunks = range(0, file_size, self.chunk_size)
         chunk_urls = [[dl_link, self._create_chunk_header(chunk), f'{self.out_file}.chunk{chunk_no}'] for chunk_no, chunk in enumerate(chunks)] 
@@ -349,5 +362,6 @@ class BaseDownloader():
         # remove temp dir once completed and dir is empty
         self.logger.debug('Removing temporary directories')
         self._remove_out_dirs()
+        return 0, 'Success'
 
         return (0, None)

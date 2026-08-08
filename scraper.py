@@ -16,6 +16,7 @@ PROVIDER_REGISTRY = {
     'anime_suge':  {'class': 'Clients.AnimeSugeClient.AnimeSugeClient',  'series_type': 'Anime',         'label': 'AnimeSuge'},
     'animepahe':   {'class': 'Clients.AnimePaheClient.AnimePaheClient',  'series_type': 'Anime',         'label': 'AnimePahe'},
     'kisskh':      {'class': 'Clients.KissKhClient.KissKhClient',          'series_type': 'Movies & Shows', 'label': 'KissKh'},
+    'oneshows':    {'class': 'Clients.OneShowsClient.OneShowsClient',      'series_type': 'Movies & Shows', 'label': '1Shows'},
 }
 
 # Provider definitions per series type (for provider selection menu)
@@ -26,6 +27,7 @@ SERIES_PROVIDERS = {
     ],
     'Movies & Shows': [
         {'key': 'kisskh',      'label': 'KissKh',         'in_dev': False},
+        {'key': 'oneshows',    'label': '1Shows',         'in_dev': False},
     ],
 }
 
@@ -104,6 +106,10 @@ def get_client(provider_key=None):
         logger.debug('Creating KissKhClient')
         from Clients.KissKhClient import KissKhClient
         return KissKhClient(config['Movies & Shows'], series_type='Movies & Shows')
+    elif provider_key == 'oneshows':
+        logger.debug('Creating OneShowsClient')
+        from Clients.OneShowsClient import OneShowsClient
+        return OneShowsClient(config['Movies & Shows'], series_type='Movies & Shows')
     else:
         logger.error(f'Unknown provider: {provider_key}')
         raise ExitException(1)
@@ -300,8 +306,8 @@ def downloader(ep_details, dl_config):
         from Utils.HLSDownloader import HLSDownloader
         dlClient = HLSDownloader(dl_config, ep_details)
 
-    elif download_type == 'mp4':
-        logger.debug(f'Creating MP4 download client for {out_file}')
+    elif download_type in ('mp4', 'http'):
+        logger.debug(f'Creating BaseDownloader client for {out_file}')
         from Utils.BaseDownloader import BaseDownloader
         dlClient = BaseDownloader(dl_config, ep_details)
 
@@ -383,7 +389,7 @@ def main():
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
         parser.add_argument('-s', '--series-type', type=int, help='type of series')
-        parser.add_argument('-p', '--provider', choices=['anime_suge', 'animepahe', 'kisskh'], help='provider to use for downloading')
+        parser.add_argument('-p', '--provider', choices=['anime_suge', 'animepahe', 'kisskh', 'oneshows'], help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
         parser.add_argument('-e', '--episodes', action='append', help='episodes number to download')

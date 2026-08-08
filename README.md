@@ -156,9 +156,11 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | Category | Provider Client | Key Features |
 |----------|-----------------|--------------|
 | **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, fast multi-threaded HLS links, subtitle tracks |
-| **Anime** | `AnimePahe` (`animepahe.pw`) | Kwik stream decryption, Cloudflare Turnstile automated challenge handling |
-| **Movies & Shows** | `KissKh` (`kisskh.co`) | Movies & TV series, season breakdowns, encrypted subtitle support |
-| **Movies & Shows** | `1Shows` (`1shows.org`) | Movies & TV series, TMDb metadata, WebAssembly decryption, direct high-speed HTTP downloads with interactive Source + RES + Size variety selection |
+| **Anime** | `KissKh` (`kisskh.co`) | Anime-filtered search, episode list fetching, encrypted subtitles |
+| **Movies** | `1Shows` (`1shows.org`) | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads with interactive Source + RES + Size variety selection |
+| **Movies** | `KissKh` (`kisskh.co`) | Asian Drama movies & Hollywood films |
+| **TV Shows** | `1Shows` (`1shows.org`) | TMDb series metadata, season/episode list fetching, WebAssembly decryption, direct HTTP downloads |
+| **TV Shows** | `KissKh` (`kisskh.co`) | Asian Drama series, season breakdowns, encrypted subtitle support |
 
 ---
 
@@ -173,10 +175,13 @@ DownloaderConfig:
   max_parallel_downloads: 3       # Concurrent episode downloads
 
 Anime:
-  download_dir: "~/Videos/Anime" # Specific folder for Anime downloads
+  download_dir: "~/Videos/Anime"  # Folder for Anime downloads
 
-Movies & Shows:
-  download_dir: "~/Videos/Shows" # Specific folder for Movies & TV Shows
+Movies:
+  download_dir: "~/Videos/Movies" # Folder for Movies downloads
+
+TV Shows:
+  download_dir: "~/Videos/Series" # Folder for TV Shows / Series downloads
 
 LoggerConfig:
   log_dir: "logs"

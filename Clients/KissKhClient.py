@@ -8,10 +8,11 @@ from Clients.BaseClient import BaseClient
 
 class KissKhClient(BaseClient):
     '''
-    Client for kisskh site supporting Hollywood movies and TV shows
+    Client for kisskh site supporting Anime, Asian Drama, Hollywood movies and TV shows
     '''
-    def __init__(self, config, session=None, series_type=None):
+    def __init__(self, config, session=None, series_type=None, content_filter=None):
         self.series_type = series_type
+        self.content_filter = content_filter
         self.base_url = config.get('base_url', 'https://kisskh.co/')
         self.search_url = self.base_url + config.get('search_url', 'api/DramaList/Search?q=')
         self.series_url = self.base_url + config.get('series_url', 'api/DramaList/Drama/')
@@ -22,7 +23,7 @@ class KissKhClient(BaseClient):
         self.selector_strategy = config.get('alternate_resolution_selector', 'lowest')
         self.hls_size_accuracy = config.get('hls_size_accuracy', 0)
         super().__init__(config.get('request_timeout', 30), session=session)
-        self.logger.debug(f'KissKh client initialized with {config = }')
+        self.logger.debug(f'KissKh client initialized with {config = }, {content_filter = }')
         self.token_generation_js_code = None
         self.quickjs_context = None
         # site specific details required to create token
@@ -48,59 +49,50 @@ class KissKhClient(BaseClient):
         # js code to generate token from kisskh site
         if self.token_generation_js_code is None:
             self.logger.debug('Fetching token generation js code...')
-            soup = self._get_bsoup(self.base_url + 'index.html')
-            common_js_url = self.base_url + [i['src'] for i in soup.select('script') if i.get('src') and 'common' in i['src']][0]
-            self.token_generation_js_code = self._send_request(common_js_url)
+            js_data = self._send_request(self.base_url, return_type='bs4')
+            if js_data is None:
+                self.logger.error('Failed to fetch home page of kisskh site')
+                return None
+            script_url = [ script['src'] for script in js_data.find_all('script') if script.get('src') and script['src'].startswith('/static/js/main.') ][0]
+            self.logger.debug(f'Fetching token generation script: {script_url}')
+            self.token_generation_js_code = self._send_request(self.base_url + script_url, return_type='text')
+            if self.token_generation_js_code is None:
+                self.logger.error('Failed to fetch token generation script')
+                return None
 
-        # quickjs context for evaluating js code
+        # generate token using quickjs
         if self.quickjs_context is None:
-            self.logger.debug('Creating quickjs context...')
             self.quickjs_context = quickjsContext()
+            self.quickjs_context.eval(self.token_generation_js_code)
 
-        # evaluate js code to generate token
-        self.logger.debug(f'Evaluating js code to generate token using {episode_id = } and {uid = }')
-        token = self.quickjs_context.eval(self.token_generation_js_code + f'_0x54b991({episode_id}, null, "2.8.10", "{uid}", 4830201, "kisskh", "kisskh", "kisskh", "kisskh", "kisskh", "kisskh")')
+        # evaluate function in quickjs
+        token = self.quickjs_context.eval(f'e("{episode_id}", "{uid}", "{self.subGuid}", "{self.viGuid}", "{self.appVer}", {self.platformVer}, "{self.appName}")')
         return token
 
     def search(self, keyword, search_limit=10):
-        '''Search for content based on keyword'''
-        search_types = {
-            '1': 'Asian Drama',
-            '2': 'Asian Movies',
-            '3': 'Anime',
-            '4': 'Hollywood'
-        }
-        idx = 1
+        '''Search for content on KissKh site'''
         search_results = {}
+        idx = 1
+        search_types = {'1': 'Asian Drama', '2': 'Movies', '3': 'Anime', '4': 'Hollywood'}
 
-        # Get search type based on client description
-        self.logger.debug(f'Filtering content for series_type: {self.series_type}')
-        search_type = None
-        if self.series_type and 'hollywood' in self.series_type.lower():
-            self.logger.debug('Setting search type to Hollywood only')
-            search_type = '4'  # Hollywood content only
-        else:
-            self.logger.debug('No content type filter applied')
+        # Determine target codes based on content_filter
+        allowed_codes = None
+        if self.content_filter == 'anime':
+            allowed_codes = ['3']
+        elif self.content_filter == 'movie':
+            allowed_codes = ['2', '4']
+        elif self.content_filter == 'tv':
+            allowed_codes = ['1']
 
         # url encode search keyword
         search_key = quote_plus(keyword)
 
-        for code, type in search_types.items():
-            # Skip non-Hollywood content when Hollywood is selected
-            if search_type == '4' and code != '4':
-                continue
-            # Skip Hollywood content when Asian is selected
-            if search_type is None and code == '4':
-                continue
-            # Skip header for filtered content types
-            if search_type and search_type != code:
+        for code, type_name in search_types.items():
+            if allowed_codes and code not in allowed_codes:
                 continue
 
-            # Show Hollywood header only when filtering for Hollywood
-            header = "Hollywood" if search_type == '4' else type
-            self._colprint('blurred', f"-------------- {header} --------------")
-            
-            self.logger.debug(f'Searching for {type} with keyword: {keyword}')
+            self._colprint('blurred', f"-------------- {type_name} --------------")
+            self.logger.debug(f'Searching for {type_name} with keyword: {keyword}')
             search_url = self.search_url + search_key + '&type=' + str(code)
             raw_search_data = self._send_request(search_url, return_type='json')
             if not raw_search_data or not isinstance(raw_search_data, list):

@@ -11,7 +11,9 @@ class AnimeSugeClient(BaseClient):
     Client for animesuge.cz site supporting anime streaming without Cloudflare/Turnstile protection.
     Uses pure HTTP requests — no browser automation required.
     '''
-    def __init__(self, config, session=None):
+    def __init__(self, config, session=None, series_type=None, content_filter=None, **kwargs):
+        self.series_type = series_type
+        self.content_filter = content_filter
         self.base_url = config.get('base_url', 'https://animesuge.cz')
         self.search_url = config.get('search_url', self.base_url + '/filter?keyword=')
         self.episode_list_url = config.get('episode_list_url', self.base_url + '/ajax/episode/list/')

@@ -210,8 +210,11 @@ def run_config_wizard(config_file):
     default_anime_dir = f"{base_dir.rstrip('/')}/Anime"
     anime_dir = colprint('user_input', f"Anime download directory [default={default_anime_dir}]: ", input_type='once') or default_anime_dir
 
-    default_shows_dir = f"{base_dir.rstrip('/')}/Shows"
-    shows_dir = colprint('user_input', f"Movies & Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
+    default_movies_dir = f"{base_dir.rstrip('/')}/Movies"
+    movies_dir = colprint('user_input', f"Movies download directory [default={default_movies_dir}]: ", input_type='once') or default_movies_dir
+
+    default_shows_dir = f"{base_dir.rstrip('/')}/Series"
+    shows_dir = colprint('user_input', f"TV Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
 
     max_parallel = colprint('user_input', "Max parallel episode downloads (1-10) [default=2]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or 2
 
@@ -230,20 +233,30 @@ def run_config_wizard(config_file):
                     'search_url': '/filter',
                     'preferred_server_types': ['sub', 'hsub', 'dub']
                 },
-                'animepahe': {
-                    'base_url': 'https://animepahe.pw',
-                    'in_dev': True
+                'kisskh': {
+                    'base_url': 'https://kisskh.co'
                 }
             }
         },
-        'Movies & Shows': {
-            'download_dir': shows_dir,
+        'Movies': {
+            'download_dir': movies_dir,
             'providers': {
-                'kisskh': {
-                    'base_url': 'https://kisskh.co'
-                },
                 'oneshows': {
                     'base_url': 'https://www.1shows.org'
+                },
+                'kisskh': {
+                    'base_url': 'https://kisskh.co'
+                }
+            }
+        },
+        'TV Shows': {
+            'download_dir': shows_dir,
+            'providers': {
+                'oneshows': {
+                    'base_url': 'https://www.1shows.org'
+                },
+                'kisskh': {
+                    'base_url': 'https://kisskh.co'
                 }
             }
         },

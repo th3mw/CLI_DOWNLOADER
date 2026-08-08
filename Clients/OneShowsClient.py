@@ -12,8 +12,9 @@ class OneShowsClient(BaseClient):
     Client for 1Shows (https://www.1shows.org) supporting Movies & TV Shows
     with high-quality direct download links.
     '''
-    def __init__(self, config, session=None, series_type=None):
+    def __init__(self, config, session=None, series_type=None, content_filter=None):
         self.series_type = series_type
+        self.content_filter = content_filter
         self.base_url = config.get('base_url', 'https://www.1shows.org/')
         self.search_url = config.get('search_url', 'https://www.1shows.org/api/search/query?query=')
         self.tv_url = config.get('tv_url', 'https://www.1shows.org/api/tv/')
@@ -27,7 +28,7 @@ class OneShowsClient(BaseClient):
             'Referer': self.base_url,
             'Origin': self.base_url.rstrip('/')
         })
-        self.logger.debug(f'OneShows client initialized with {config = }')
+        self.logger.debug(f'OneShows client initialized with {config = }, {content_filter = }')
 
     def _show_search_results(self, key, details):
         '''Pretty print search results'''
@@ -118,11 +119,16 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
         if not raw_data or 'results' not in raw_data:
             return {}
 
-        results = raw_data['results'][:search_limit]
+        raw_results = raw_data['results']
         search_results = {}
         idx = 1
-        for res in results:
+        for res in raw_results:
+            if idx > search_limit:
+                break
             media_type = res.get('media_type', 'movie')
+            if self.content_filter and media_type != self.content_filter:
+                continue
+
             title = res.get('title') or res.get('name', 'Unknown')
             release_date = res.get('release_date') or res.get('first_air_date') or 'XXXX'
             year = release_date.split('-')[0] if '-' in release_date else release_date

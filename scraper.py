@@ -7,29 +7,7 @@ import traceback
 # Note: For optimization, custom modules are imported as required
 from Utils.commons import colprint_init, colprint, PRINT_THEMES, ExitException
 from Utils.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
-
-ACTIVE_CLIENTS = ['Anime', 'Movies & Shows']
-
-# Provider registry: maps provider keys to (client_class_path, series_type)
-# series_type is the config key to use for default settings
-PROVIDER_REGISTRY = {
-    'anime_suge':  {'class': 'Clients.AnimeSugeClient.AnimeSugeClient',  'series_type': 'Anime',         'label': 'AnimeSuge'},
-    'animepahe':   {'class': 'Clients.AnimePaheClient.AnimePaheClient',  'series_type': 'Anime',         'label': 'AnimePahe'},
-    'kisskh':      {'class': 'Clients.KissKhClient.KissKhClient',          'series_type': 'Movies & Shows', 'label': 'KissKh'},
-    'oneshows':    {'class': 'Clients.OneShowsClient.OneShowsClient',      'series_type': 'Movies & Shows', 'label': '1Shows'},
-}
-
-# Provider definitions per series type (for provider selection menu)
-SERIES_PROVIDERS = {
-    'Anime': [
-        {'key': 'anime_suge',  'label': 'AnimeSuge',      'in_dev': False},
-        {'key': 'animepahe',   'label': 'AnimePahe',      'in_dev': True},
-    ],
-    'Movies & Shows': [
-        {'key': 'kisskh',      'label': 'KissKh',         'in_dev': False},
-        {'key': 'oneshows',    'label': '1Shows',         'in_dev': False},
-    ],
-}
+from Utils.provider_factory import CATEGORIES, get_providers_for_category, create_client
 
 series_type = None
 config = None
@@ -42,14 +20,14 @@ config_file = 'config_scraper.yaml'
 log_file_name = None
 get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
-def get_provider(series_type, predefined_provider=None):
+def get_provider(category_name, predefined_provider=None):
     '''
-    Show provider selection menu for the given series type.
+    Show provider selection menu for the given category.
     Returns the selected provider key.
     '''
-    providers = SERIES_PROVIDERS.get(series_type, [])
+    providers = get_providers_for_category(category_name)
     if not providers:
-        logger.error(f'No providers available for series type: {series_type}')
+        logger.error(f'No providers available for category: {category_name}')
         raise ExitException(0)
 
     if len(providers) == 1:
@@ -60,11 +38,9 @@ def get_provider(series_type, predefined_provider=None):
     choices = {}
     for idx, prov in enumerate(providers):
         label = prov['label']
-        if prov.get('in_dev'):
-            label += ' (In Dev)'
-        menu += f'\033[94m│ {idx+1}. {label:<23} │\033[0m\n'
+        menu += f'\033[94m│ {idx+1}. {label:<27} │\033[0m\n'
         choices[idx+1] = prov['key']
-    menu += '\033[96m╰─────────────────────────╯\033[0m'
+    menu += '\033[96m╰───────────────────────────╯\033[0m'
     colprint('header', menu)
 
     if predefined_provider is not None:
@@ -85,34 +61,12 @@ def get_client(provider_key=None):
     if provider_key is None:
         provider_key = get_provider(series_type)
 
-    provider_info = PROVIDER_REGISTRY.get(provider_key)
-    if provider_info is None:
-        logger.error(f'Unknown provider key: {provider_key}')
+    category_config = config.setdefault(series_type, {})
+    client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy)
+    if not client_inst:
+        logger.error(f'Failed to create client for category={series_type}, provider={provider_key}')
         raise ExitException(1)
-
-    # add hls_size_accuracy parameter passed from cli
-    config.setdefault(series_type, {}).update({'hls_size_accuracy': hls_size_accuracy})
-
-    logger.debug(f'Creating client for provider: {provider_key}')
-
-    if provider_key == 'anime_suge':
-        from Clients.AnimeSugeClient import AnimeSugeClient
-        return AnimeSugeClient(config['Anime'])
-    elif provider_key == 'animepahe':
-        logger.debug('Creating AnimePaheClient')
-        from Clients.AnimePaheClient import AnimePaheClient
-        return AnimePaheClient(config['Anime'])
-    elif provider_key == 'kisskh':
-        logger.debug('Creating KissKhClient')
-        from Clients.KissKhClient import KissKhClient
-        return KissKhClient(config['Movies & Shows'], series_type='Movies & Shows')
-    elif provider_key == 'oneshows':
-        logger.debug('Creating OneShowsClient')
-        from Clients.OneShowsClient import OneShowsClient
-        return OneShowsClient(config['Movies & Shows'], series_type='Movies & Shows')
-    else:
-        logger.error(f'Unknown provider: {provider_key}')
-        raise ExitException(1)
+    return client_inst
 
 def get_os_safe_path(tmp_path):
     '''Returns OS corrected path with expanded home directory'''
@@ -389,7 +343,7 @@ def main():
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
         parser.add_argument('-s', '--series-type', type=int, help='type of series')
-        parser.add_argument('-p', '--provider', choices=['anime_suge', 'animepahe', 'kisskh', 'oneshows'], help='provider to use for downloading')
+        parser.add_argument('-p', '--provider', choices=['anime_suge', 'kisskh', 'oneshows'], help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
         parser.add_argument('-e', '--episodes', action='append', help='episodes number to download')
@@ -414,6 +368,8 @@ def main():
         resolution_predef = args.resolution
         # convert bool to y/n
         start_download_predef = 'y' if args.start_download else None
+
+        # global settings
         disable_colors = args.disable_colors
         hls_size_accuracy = args.hls_size_accuracy
         disable_looping = args.disable_looping
@@ -443,8 +399,9 @@ def main():
         # remove older log files
         delete_old_logs(config['LoggerConfig']['log_dir'], config['LoggerConfig'].get('log_retention_days', 7), config['LoggerConfig'].get('log_backup_count', 3))
 
-        # get series type
-        series_type = get_series_type(ACTIVE_CLIENTS, series_type_predef)
+        # get series type / category
+        category_names = list(CATEGORIES.values())
+        series_type = get_series_type(category_names, series_type_predef)
         logger.info(f'Selected Series type: {series_type}')
 
         # get provider key from CLI if specified
@@ -455,11 +412,11 @@ def main():
         logger.info(f'Client: {client}')
 
         # set client specific download configurations
-        if series_type == 'Movies & Shows':  # KissKh client
+        if series_type in ('Movies', 'TV Shows'):
             downloader_config['use_http_client'] = True
 
         # set respective download dir if present
-        if 'download_dir' in config[series_type]:
+        if series_type in config and 'download_dir' in config[series_type]:
             logger.debug(f'Setting download dir to [{config[series_type]["download_dir"]}] from series specific configuration')
             downloader_config['download_dir'] = config[series_type]['download_dir']
 

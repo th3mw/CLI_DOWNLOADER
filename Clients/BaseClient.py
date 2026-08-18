@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 import time
 import socket
+import random
 import urllib3.util.connection as urllib3_cn
 
 # Force urllib3 to use IPv4 to avoid network unreachable drops when IPv6 is disabled/unsupported
@@ -131,8 +132,9 @@ class BaseClient():
 
         elif response.status_code == 429 or str(response.status_code).startswith('5'):     # retry if status code is 429 or 5xx
             msg = f'Failed with code: {response.status_code}'
-            self.logger.warning(f'{msg}. Retrying in 2 seconds...')
-            time.sleep(2)
+            backoff = 1.5 + random.random() * 2.0
+            self.logger.warning(f'{msg}. Retrying in {backoff:.1f} seconds...')
+            time.sleep(backoff)
             raise Exception(msg)
 
         elif response.status_code == 404:                   # raise exception if status code is 4xx

@@ -1,7 +1,7 @@
 import os
 import re
 import base64
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from Clients.BaseClient import BaseClient
 
@@ -121,46 +121,58 @@ class AnimeSugeClient(BaseClient):
         self.logger.warning(f'Failed to fetch stream URL: {resp}')
         return None
 
-    def _get_m3u8_from_vidtube(self, stream_url):
+    def _get_m3u8_from_stream(self, stream_url):
         '''
-        Given a vidtube embed URL, fetch the page to extract the media ID,
-        then call getSourcesNew to get the m3u8 URL.
+        Given an embed stream URL (e.g. vidtube, megaplay, vidstream), fetch the page
+        to extract the media ID, then query getSourcesNew / getSources on the embed domain.
+        Returns: (m3u8_url, subtitles_dict, stream_origin)
         '''
-        page_html = self._send_request(stream_url, referer=f'{self.base_url}/')
+        page_html = self._send_request(stream_url, referer=f'{self.base_url}/', silent=True)
         if not page_html:
-            return None
+            return None, {}, self.vidtube_origin
 
-        # Extract data-id (vidtube media ID) from the page
+        parsed = urlparse(stream_url)
+        stream_origin = f"{parsed.scheme}://{parsed.netloc}"
+
+        # Extract data-id (media ID) from the page
         match = re.search(r'data-id="(\d+)"', page_html)
         if not match:
-            self.logger.warning('Could not find vidtube media ID on stream page')
-            return None
+            self.logger.warning(f'Could not find media ID on stream page: {stream_url}')
+            return None, {}, stream_origin
 
-        vidtube_id = match.group(1)
+        media_id = match.group(1)
         # Extract the type from the stream URL path
-        parts = stream_url.rstrip('/').split('/')
+        parts = parsed.path.rstrip('/').split('/')
         vid_type = parts[-1] if parts else 'sub'
 
-        # Call getSourcesNew API
-        sources_resp = self._send_request(
-            f'{self.vidtube_get_sources_url}{vidtube_id}&type={vid_type}',
-            referer=stream_url,
-            extra_headers={'X-Requested-With': 'XMLHttpRequest'},
-            return_type='json'
-        )
-        if sources_resp and isinstance(sources_resp.get('sources'), dict):
-            m3u8_url = sources_resp['sources'].get('file')
-            subtitles = {}
-            tracks = sources_resp.get('tracks', [])
-            if isinstance(tracks, list):
-                for track in tracks:
-                    if isinstance(track, dict) and track.get('file'):
-                        label = track.get('label', 'English')
-                        subtitles[label] = track['file']
-            return m3u8_url, subtitles
+        # Try getSourcesNew then fallback to getSources on the embed's own origin domain
+        for endpoint in ['getSourcesNew', 'getSources']:
+            sources_url = f'{stream_origin}/stream/{endpoint}?id={media_id}&type={vid_type}'
+            sources_resp = self._send_request(
+                sources_url,
+                referer=stream_url,
+                extra_headers={'X-Requested-With': 'XMLHttpRequest'},
+                return_type='json',
+                silent=True
+            )
+            if sources_resp and isinstance(sources_resp.get('sources'), dict) and sources_resp['sources'].get('file'):
+                m3u8_url = sources_resp['sources']['file']
+                subtitles = {}
+                tracks = sources_resp.get('tracks', [])
+                if isinstance(tracks, list):
+                    for track in tracks:
+                        if isinstance(track, dict) and track.get('file'):
+                            label = track.get('label', 'English')
+                            subtitles[label] = track['file']
+                return m3u8_url, subtitles, stream_origin
 
-        self.logger.warning(f'Could not get m3u8 from vidtube: {sources_resp}')
-        return None, {}
+        self.logger.warning(f'Could not get m3u8 from stream source: {stream_url}')
+        return None, {}, stream_origin
+
+    def _get_m3u8_from_vidtube(self, stream_url):
+        '''Backwards-compatible alias for _get_m3u8_from_stream'''
+        m3u8, subs, _ = self._get_m3u8_from_stream(stream_url)
+        return m3u8, subs
 
     def _fetch_tooltip_info(self, anime_id):
         '''Fetch tooltip metadata (status, release year) via AJAX'''
@@ -376,42 +388,44 @@ class AnimeSugeClient(BaseClient):
         if not servers:
             return ep_no, {'error': 'No servers found for this episode'}
 
-        link_id = None
+        # Build prioritized list of server link_ids
+        ordered_servers = []
         for preferred_type in self.preferred_server_types:
             for srv_type, lid in servers:
-                if srv_type == preferred_type:
-                    link_id = lid
-                    break
-            if link_id:
-                break
+                if srv_type == preferred_type and lid not in [s[1] for s in ordered_servers]:
+                    ordered_servers.append((srv_type, lid))
+        for srv in servers:
+            if srv[1] not in [s[1] for s in ordered_servers]:
+                ordered_servers.append(srv)
 
-        if not link_id:
-            link_id = servers[0][1]
+        for srv_type, link_id in ordered_servers:
+            stream_url = self._get_stream_url(link_id)
+            if not stream_url:
+                continue
 
-        stream_url = self._get_stream_url(link_id)
-        if not stream_url:
-            return ep_no, {'error': 'Failed to fetch stream URL'}
+            m3u8_url, subtitles, stream_origin = self._get_m3u8_from_stream(stream_url)
+            if not m3u8_url:
+                continue
 
-        m3u8_url, subtitles = self._get_m3u8_from_vidtube(stream_url)
-        if not m3u8_url:
-            return ep_no, {'error': 'Failed to fetch m3u8 link'}
-
-        m3u8_links = self._parse_m3u8_links(m3u8_url, self.vidtube_origin)
-        if m3u8_links:
-            if subtitles:
-                for res_dict in m3u8_links.values():
-                    res_dict['subtitles'] = subtitles
-            return ep_no, m3u8_links
-        else:
-            return ep_no, {
-                '720': {
-                    'downloadLink': m3u8_url,
-                    'downloadType': 'hls',
-                    'refererLink': self.vidtube_origin,
-                    'subtitles': subtitles,
-                    'duration': 0,
+            stream_referer = stream_origin.rstrip('/') + '/'
+            m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
+            if m3u8_links:
+                if subtitles:
+                    for res_dict in m3u8_links.values():
+                        res_dict['subtitles'] = subtitles
+                return ep_no, m3u8_links
+            else:
+                return ep_no, {
+                    '720': {
+                        'downloadLink': m3u8_url,
+                        'downloadType': 'hls',
+                        'refererLink': stream_referer,
+                        'subtitles': subtitles,
+                        'duration': 0,
+                    }
                 }
-            }
+
+        return ep_no, {'error': 'Failed to fetch m3u8 link from available servers'}
 
     def fetch_episode_links(self, episodes, ep_ranges):
         '''
@@ -424,7 +438,7 @@ class AnimeSugeClient(BaseClient):
 
         target_links = {}
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=min(10, len(selected_eps))) as executor:
+        with ThreadPoolExecutor(max_workers=min(5, len(selected_eps))) as executor:
             results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
         for ep_no, res_dict in sorted(results, key=lambda x: x[0]):

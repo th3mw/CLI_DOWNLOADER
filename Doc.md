@@ -108,6 +108,8 @@ Converting to `.srt` before encoding into MP4 `mov_text` ensures that subtitle b
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **AnimeSuge Embed 404 Fix** | `Clients/AnimeSugeClient.py` | Added dynamic domain origin extraction (`getSourcesNew` / `getSources`) and multi-server fallback. |
+| **`tqdm` Missing Module Fallback** | `Utils/BaseDownloader.py` | Added lightweight self-contained progress bar fallback when `tqdm` is not installed. |
 | **`NoneType` block_size Crash** | `Clients/BaseClient.py` | Added safe fallback `self.bs = AES.block_size if AES is not None else 16` and AES availability guards. |
 | **`quickjs` Import Failure** | `Clients/KissKhClient.py`, `Utils/commons.py` | Built universal `exec_js` runner with auto-detection for `bun`, `node`, `deno`, and optional `quickjs`. |
 | **WASM Decryption in 1Shows** | `Clients/OneShowsClient.py` | Integrated `exec_js` for WASM decryption supporting Bun/Node/Deno runtimes. |

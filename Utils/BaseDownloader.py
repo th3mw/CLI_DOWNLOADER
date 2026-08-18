@@ -6,7 +6,35 @@ import http.client
 from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from shutil import rmtree
-from tqdm.auto import tqdm
+try:
+    from tqdm.auto import tqdm
+except ImportError:
+    class tqdm:
+        def __init__(self, **kwargs):
+            self.total = kwargs.get('total', 100)
+            self.desc = kwargs.get('desc', '')
+            self.unit = kwargs.get('unit', '')
+            self.n = 0
+            self.postfix = ''
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            print()
+
+        def update(self, n=1):
+            self.n += n
+            if self.total:
+                pct = min(100, int((self.n / self.total) * 100))
+                prog = f"\r{self.desc}: {self.n}/{self.total} {self.unit} ({pct}%) {self.postfix}"
+            else:
+                prog = f"\r{self.desc}: {self.n} {self.unit} {self.postfix}"
+            sys.stdout.write(prog)
+            sys.stdout.flush()
+
+        def set_postfix_str(self, s, **kwargs):
+            self.postfix = f"[{s}]"
 
 from Utils.commons import colprint, exec_os_cmd, retry, PRINT_THEMES, DISPLAY_COLORS
 

@@ -2,6 +2,8 @@ import logging
 import os
 import re
 import requests
+import shutil
+import subprocess
 import sys
 import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -53,6 +55,51 @@ def exec_os_cmd(cmd):
     if rc != 0:
         raise Exception(f"Error occured: {std_err}")
     return msg
+
+
+def get_js_runtime():
+    '''Detect available JavaScript CLI runtimes (bun, node, deno, qjs)'''
+    for bin_name in ['bun', 'node', 'deno', 'qjs']:
+        path = shutil.which(bin_name)
+        if path:
+            if bin_name == 'deno':
+                return [path, 'eval']
+            return [path, '-e']
+    return None
+
+
+def exec_js(js_code):
+    '''
+    Execute JavaScript code across multiple available engines:
+    1. CLI JS runtime (bun, node, deno, qjs)
+    2. Embedded quickjs Python C-extension
+    Raises RuntimeError if no JavaScript engine is available or execution fails.
+    '''
+    runtime_cmd = get_js_runtime()
+    if runtime_cmd:
+        res = subprocess.run(runtime_cmd + [js_code], capture_output=True, text=True)
+        if res.returncode == 0:
+            return res.stdout.strip()
+        else:
+            raise RuntimeError(f"JS execution failed via {runtime_cmd[0]}: {res.stderr.strip()}")
+
+    try:
+        import quickjs
+        ctx = quickjs.Context()
+        out = []
+        ctx.add_callable("__log_print__", lambda *args: out.append(" ".join(str(a) for a in args)))
+        ctx.eval("var console = { log: __log_print__, error: __log_print__, warn: __log_print__ };")
+        res = ctx.eval(js_code)
+        if out:
+            return "\n".join(out).strip()
+        return str(res) if res is not None else ""
+    except ImportError:
+        pass
+
+    raise RuntimeError(
+        "No JavaScript engine found. Please install 'bun' (recommended: https://bun.sh), 'node', 'deno', or the 'quickjs' package."
+    )
+
 
 # display seconds in hh mm ss format
 def pretty_time(sec: int, fmt='hh:mm:ss'):

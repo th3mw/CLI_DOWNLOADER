@@ -118,7 +118,7 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | `-c` | `--conf` | Custom configuration file (default: `config_scraper.yaml`) |
 | `-l` | `--log-file` | Custom log file name |
 | `-s` | `--series-type` | Content type: `1` for Anime, `2` for Movies & Shows |
-| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `kisskh`, `animepahe`) |
+| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `kisskh`, `oneshows`) |
 | `-n` | `--series-name` | Title search query string |
 | `-S` | `--seasons` | Season numbers to download (e.g. `1` or `1-3`) |
 | `-e` | `--episodes` | Episode numbers to download (e.g. `1-5` or `1,3,5`) |

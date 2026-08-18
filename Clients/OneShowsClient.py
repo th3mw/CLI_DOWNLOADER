@@ -5,6 +5,7 @@ import subprocess
 from urllib.parse import quote_plus
 
 from Clients.BaseClient import BaseClient
+from Utils.commons import exec_js
 
 
 class OneShowsClient(BaseClient):
@@ -104,9 +105,9 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
     console.log(new TextDecoder().decode(resultBytes));
 }});
 '''
-            res = subprocess.run(['node', '-e', js_code], capture_output=True, text=True)
-            if res.returncode == 0 and res.stdout.strip():
-                return json.loads(res.stdout.strip())
+            res_str = exec_js(js_code)
+            if res_str:
+                return json.loads(res_str)
         except Exception as e:
             self.logger.error(f'Decryption failed: {e}')
         return None

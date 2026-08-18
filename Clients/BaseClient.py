@@ -61,7 +61,7 @@ class BaseClient():
         self.cookies_file = os.path.join(os.path.dirname(__file__), '.scraper_client_cookies.json')      # file containing re-usable cookies
         # list of invalid characters not allowed in windows file system
         self.invalid_chars = ['/', '\\', '"', ':', '?', '|', '<', '>', '*']
-        self.bs = AES.block_size
+        self.bs = AES.block_size if AES is not None else 16
         # get the root logger
         self.logger = logging.getLogger()
         # re-usable lambda functions
@@ -632,6 +632,8 @@ class BaseClient():
         return s[:-ord(s[len(s)-1:])]
 
     def _aes_encrypt(self, word: str, key: bytes, iv: bytes):
+        if AES is None:
+            raise ImportError("AES encryption requires 'pycryptodomex' or 'pycryptodome' to be installed.")
         # Encrypt the message and add PKCS#7 padding
         padded_message = self._pad(word)
         # set up the AES cipher in CBC mode
@@ -643,6 +645,8 @@ class BaseClient():
         return base64_encrypted_message
 
     def _aes_decrypt(self, word: str, key: bytes, iv: bytes):
+        if AES is None:
+            raise ImportError("AES decryption requires 'pycryptodomex' or 'pycryptodome' to be installed.")
         encrypted_msg = base64.b64decode(word)
         # set up the AES cipher in CBC mode
         cipher = AES.new(key, AES.MODE_CBC, iv)

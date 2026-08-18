@@ -1,9 +1,8 @@
-# Remove existing author info
 import re
-from quickjs import Context as quickjsContext
 from urllib.parse import quote_plus
 
 from Clients.BaseClient import BaseClient
+from Utils.commons import exec_js
 
 
 class KissKhClient(BaseClient):
@@ -29,7 +28,6 @@ class KissKhClient(BaseClient):
         super().__init__(config.get('request_timeout', 30), session=session)
         self.logger.debug(f'KissKh client initialized with {config = }, {content_filter = }')
         self.token_generation_js_code = None
-        self.quickjs_context = None
         # site specific details required to create token
         self.subGuid = "VgV52sWhwvBSf8BsM3BRY9weWiiCbtGp"
         self.viGuid = "62f176f3bb1b5b8e70e39932ad34a0c7"
@@ -43,6 +41,11 @@ class KissKhClient(BaseClient):
             (1902406224 >> 24) & 0xff, (1902406224 >> 16) & 0xff, (1902406224 >> 8) & 0xff, 1902406224 & 0xff,
             (1164854838 >> 24) & 0xff, (1164854838 >> 16) & 0xff, (1164854838 >> 8) & 0xff, 1164854838 & 0xff
         ])
+        # key and iv for decrypting subtitles
+        self.DECRYPT_SUBS_KEY = b'8056483646328763'
+        self.DECRYPT_SUBS_IV = b'6852612370185273'
+        self.DECRYPT_SUBS_KEY2 = b'AmSmZVcH93UQUezi'
+        self.DECRYPT_SUBS_IV2 = b'ReBKWW8cqdjPEnF6'
 
     def _show_search_results(self, key, details):
         '''Pretty print search results'''
@@ -74,22 +77,18 @@ class KissKhClient(BaseClient):
                 self.logger.error('Failed to fetch token generation script')
                 return None
 
-        if self.quickjs_context is None:
-            self.quickjs_context = quickjsContext()
-            polyfill = """
-            var window = globalThis;
-            window.location = { href: 'https://kisskh.co/', URL: 'https://kisskh.co/' };
-            window.document = { referrer: 'https://kisskh.co/', platform: 'Linux x86_64' };
-            window.navigator = { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64', appName: 'Netscape', appCodeName: 'Mozilla' };
-            """
-            self.quickjs_context.eval(polyfill)
-            self.quickjs_context.eval(self.token_generation_js_code)
+        polyfill = """
+        var window = globalThis;
+        window.location = { href: 'https://kisskh.co/', URL: 'https://kisskh.co/' };
+        window.document = { referrer: 'https://kisskh.co/', platform: 'Linux x86_64' };
+        window.navigator = { userAgent: 'Mozilla/5.0 (X11; Linux x86_64)', platform: 'Linux x86_64', appName: 'Netscape', appCodeName: 'Mozilla' };
+        """
+        eval_expr = f'_0x54b991("{episode_id}", null, "{self.appVer}", "{uid}", {self.platformVer}, "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}")'
+        js_code = f"{polyfill}\n{self.token_generation_js_code}\nconsole.log({eval_expr});"
 
         try:
-            token = self.quickjs_context.eval(
-                f'_0x54b991("{episode_id}", null, "{self.appVer}", "{uid}", {self.platformVer}, "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}", "{self.appName}")'
-            )
-            return token
+            token = exec_js(js_code)
+            return token if token else None
         except Exception as e:
             self.logger.error(f'Error generating kkey token: {e}')
             return None
@@ -204,8 +203,7 @@ class KissKhClient(BaseClient):
                 link = video_data
             elif video_data:
                 try:
-                    cipher = AES.new(self.DECRYPT_VIDEO_KEY, AES.MODE_CBC, self.DECRYPT_VIDEO_IV)
-                    link = unpad(cipher.decrypt(base64.b64decode(video_data)), AES.block_size).decode('utf-8')
+                    link = self._aes_decrypt(video_data, self.DECRYPT_VIDEO_KEY, self.DECRYPT_VIDEO_IV)
                 except Exception as e:
                     self.logger.error(f'Failed to decrypt video payload: {e}')
                     link = None

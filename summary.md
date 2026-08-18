@@ -4,7 +4,7 @@
 
 ### 1. AnimeSuge Provider Integration
 
-Added a new anime provider `anime_suge` (animesuge.cz) to the scraper alongside the existing `kisskh` and `animepahe` providers.
+Added a new anime provider `anime_suge` (animesuge.cz) to the scraper alongside `kisskh` and `oneshows`.
 
 **Files Created:**
 - `Clients/AnimeSugeClient.py` - New client for AnimeSuge
@@ -28,13 +28,15 @@ Ported the JavaScript VRF token generation algorithm to Python. This is required
 
 ### 3. Provider Registry Pattern
 
-Implemented a provider registry so adding new providers is easier:
+Implemented a provider registry in `Utils/provider_factory.py`:
 
 ```python
-PROVIDERS = {
-    'anime_suge': AnimeSugeClient,
-    'kisskh': KissKhClient,
-    'animepahe': AnimePaheClient,
+CATEGORY_PROVIDERS = {
+    'Anime': [
+        {'key': 'anime_suge', 'label': 'AnimeSuge', 'class_path': 'Clients.AnimeSugeClient.AnimeSugeClient'},
+        {'key': 'kisskh', 'label': 'KissKh (Anime Only)', 'class_path': 'Clients.KissKhClient.KissKhClient'}
+    ],
+    ...
 }
 ```
 

@@ -45,13 +45,13 @@ def get_provider(category_name, predefined_provider=None):
     print('\n' + render_box(f'SELECT {category_name.upper()} PROVIDER', menu_lines))
 
     if predefined_provider is not None:
-        colprint('predefined', f'\nUsing Predefined Provider: {predefined_provider}')
+        colprint('predefined', f'\n  Using Predefined Provider: {predefined_provider}')
         if predefined_provider not in [p['key'] for p in providers]:
             logger.error(f'Invalid provider: {predefined_provider}')
             raise ExitException(0)
         return predefined_provider
     else:
-        choice = colprint('user_input', f'\n➜ Enter choice [1-{len(providers)}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
+        choice = colprint('user_input', f'\n  ➜ Enter choice [1-{len(providers)}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
         return choices[choice]
 
 def get_client(provider_key=None):
@@ -112,7 +112,7 @@ def get_series_type(keys, predefined_input=None):
     if predefined_input is not None:
         pre_str = str(predefined_input).lower().strip()
         if pre_str in type_aliases:
-            colprint('predefined', f'\nUsing Predefined Content Type: {type_aliases[pre_str]}')
+            colprint('predefined', f'\n  Using Predefined Content Type: {type_aliases[pre_str]}')
             return type_aliases[pre_str]
 
     menu_lines = [
@@ -122,7 +122,7 @@ def get_series_type(keys, predefined_input=None):
         f"\033[38;5;244m[0]  🚪  Exit\033[0m"
     ]
     print('\n' + render_box('SELECT CONTENT TYPE', menu_lines))
-    choice = colprint('user_input', '\n➜ Enter choice [1-3, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3], allow_empty_input=False)
+    choice = colprint('user_input', '\n  ➜ Enter choice [1-3, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3], allow_empty_input=False)
     if choice == 0:
         raise ExitException(0)
 
@@ -135,12 +135,12 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
         logger.debug("Search and select series")
         # get search keyword from user input
         if predefined_search_input:
-            colprint('predefined', f'\n🔍 Using Predefined Input for search: {predefined_search_input}')
+            colprint('predefined', f'\n  🔍 Using Predefined Input for search: {predefined_search_input}')
             keyword = predefined_search_input
         else:
-            keyword = colprint('user_input', "\n🔍 Enter series/movie name: ")
+            keyword = colprint('user_input', "\n  🔍 Enter series/movie name: ")
 
-        colprint('header', f"\nSearching for '{keyword}'...")
+        colprint('header', f"\n  Searching for '{keyword}'...")
         logger.info(f'Searching with keyword: {keyword}')
         search_results = client.search(keyword) # pyright: ignore[reportOptionalMemberAccess]
         logger.info('Search Results Found')
@@ -165,9 +165,9 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
 
             line1 = f"\033[1m[{res_no}]\033[0m \033[38;5;39m{title}\033[0m"
             meta = []
-            if rating != 'N/A': meta.append(f"\033[38;5;220m★ {rating}\033[0m")
-            if year: meta.append(f"Year: {year}")
-            if format_tag: meta.append(f"\033[38;5;141m[{format_tag.upper()}]\033[0m")
+            if rating != 'N/A' and rating: meta.append(f"\033[38;5;220m★ {rating}\033[0m")
+            if year and year != 'XXXX': meta.append(f"Year: {year}")
+            if format_tag: meta.append(f"\033[38;5;141m[{str(format_tag).upper()}]\033[0m")
             if eps: meta.append(f"Eps: {eps}")
             line2 = "    " + " \033[38;5;244m•\033[0m ".join(meta)
             card_lines.append(line1)
@@ -187,7 +187,7 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
             raise ExitException(0)
 
         # get user selection for the search results
-        option = colprint('user_input', f"\n➜ Select series [1-{len(search_results)}, 0=New Search]: ", input_type='recurring', input_dtype='int', input_options=list(range(len(search_results)+1)), allow_empty_input=False)
+        option = colprint('user_input', f"\n  ➜ Select series [1-{len(search_results)}, 0=New Search]: ", input_type='recurring', input_dtype='int', input_options=list(range(len(search_results)+1)), allow_empty_input=False)
         logger.debug(f'Selected option: {option}')
 
         if option == 0:
@@ -210,10 +210,10 @@ def get_ep_range(default_ep_range, mode='Enter', _episodes_predef=None, type='ep
     Returns dict of start:float, end:float, specific_no:list.
     '''
     if _episodes_predef:
-        colprint('predefined', f'\nUsing Predefined Input for {type} to download: {_episodes_predef}')
+        colprint('predefined', f'\n  Using Predefined Input for {type} to download: {_episodes_predef}')
         ep_user_input = _episodes_predef
     else:
-        ep_user_input = colprint('user_input', f"\n{mode} {type} to download (ex: 1-16) [default={default_ep_range}]: ", input_type='recurring', input_dtype='range') or "all"
+        ep_user_input = colprint('user_input', f"\n  ➜ {mode} {type} to download (ex: 1-16) [default={default_ep_range}]: ", input_type='recurring', input_dtype='range') or "all"
         if str(ep_user_input).lower() == 'all':
             ep_user_input = default_ep_range
 
@@ -253,7 +253,7 @@ def get_ep_range_multiple(season_ep_ranges, episodes):
     if episodes_predef:
         dl_entire_season = 'n'
     else:
-        dl_entire_season = colprint('user_input', f"\nDownload entire season(s) (y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N']).lower() or 'y'
+        dl_entire_season = colprint('user_input', f"\n  ➜ Download entire season(s) (y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N']).lower() or 'y'
 
     # return entire season range
     if dl_entire_season == 'y':
@@ -309,9 +309,11 @@ def downloader(ep_details, dl_config):
         return f'{error_clr}[{start}] Download skipped for {out_file}, due to unknown download type [{download_type}]{reset_clr}'
 
     logger.info(f'Download started for {out_file}...')
+    colprint('header', f"\n  ➜ Downloading: {out_file}")
 
     if os.path.isfile(os.path.join(f'{out_dir}', f'{out_file}')) and os.path.getsize(os.path.join(f'{out_dir}', f'{out_file}')) > 0:
         # skip file if already exists
+        colprint('predefined', f"  [✓] {out_file} already exists -> Skipping")
         return f'{skipped_clr}[{start}] Download skipped for {out_file}. File already exists!{reset_clr}'
     else:
         try:
@@ -325,36 +327,23 @@ def downloader(ep_details, dl_config):
 
         end = get_current_time()
         if status != 0:
+            colprint('error', f"  [✗] Failed: {out_file} ({msg})\n")
             return f'{error_clr}[{end}] Download failed for {out_file}, with error: {msg}{reset_clr}'
 
         end_epoch = int(time())
         download_time = pretty_time(end_epoch-start_epoch, fmt='h m s')
+        colprint('results', f"  [✓] Completed: {out_file} ({download_time})\n")
         return f'{success_clr}[{end}] Download completed for {out_file} in {download_time}!{reset_clr}'
 
 def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
+    # Process episodes sequentially to ensure 100% clean, non-overlapping progress bar dashboards
+    dl_status = []
+    for link in links.values():
+        status = download_fn(link, dl_config)
+        dl_status.append(status)
 
-    @threaded(max_parallel=max_parallel_downloads, thread_name_prefix='scraper-', print_status=False)
-    def call_downloader(link, dl_config):
-        return download_fn(link, dl_config)
-
-    dl_status = call_downloader(links.values(), dl_config)
-
-    # show download status at the end, so that progress bars are not disturbed
-    print("\033[K") # Clear to the end of line
-    try:
-        width = os.get_terminal_size().columns
-    except OSError:
-        width = 80
-    header_clr = PRINT_THEMES['header'] if not disable_colors else ''
-    reset_clr = PRINT_THEMES['reset'] if not disable_colors else ''
-
-    colprint('header', '' * width)
-    status_str = f'{header_clr}Download Summary:{reset_clr}'
-    for status in dl_status:
-        status_str += f'\n{status}'
-    print(status_str)
-    logger.info(strip_ansi(status_str))
-    colprint('header', '' * width)
+    logger.info(strip_ansi('\n'.join(dl_status)))
+    return dl_status
 
 def close_handlers():
     '''
@@ -565,7 +554,7 @@ Examples:
                 label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
                 res_lines.append(f"\033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m")
             print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
-            resolution = str(colprint('user_input', f"\n➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
+            resolution = str(colprint('user_input', f"\n  ➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
 
         logger.info(f'Selected download resolution: {resolution}')
 
@@ -638,7 +627,7 @@ Examples:
             colprint('predefined', f'Using Predefined Input for start download: {start_download_predef}')
             proceed = 'y'
         else:
-            proceed = colprint('user_input', f"➜ Proceed to download (Y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
+            proceed = colprint('user_input', f"\n  ➜ Proceed to download (Y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
 
         if proceed == 'y':
             pass
@@ -697,7 +686,7 @@ Examples:
         # Auto-start a new instance
         if skip_restart or disable_looping: exit(0)
         try:
-            continuation_prompt = colprint('user_input', '\nReady for one more? Start new download (y|n)? ', input_type='recurring', input_options=['y', 'n', 'Y', 'N']).lower() or 'y'
+            continuation_prompt = colprint('user_input', '\n  ➜ Ready for one more? Start new download (y|n)? ', input_type='recurring', input_options=['y', 'n', 'Y', 'N']).lower() or 'y'
             if continuation_prompt == 'y':
                 os.system(f'{sys.executable} {sys.argv[0]} -c {config_file} -l {log_file_name}')
             else:

@@ -125,21 +125,6 @@ class AniDbClient(BaseClient):
                     if idx > search_limit:
                         break
 
-        # Print structured 2-line terminal cards
-        for index, item in results.items():
-            first_line = f"{index}: {item['title']} [{item['type'].upper()}]"
-            details = []
-            if item.get('rating'):
-                details.append(f"Rating: {item['rating']}")
-            if item.get('anime_id'):
-                details.append(f"ID: {item['anime_id']}")
-
-            second_line = f"   | {' | '.join(details)}" if details else ""
-
-            self._colprint('results', first_line)
-            if second_line:
-                self._colprint('results', second_line)
-
         return results
 
     def fetch_episodes_list(self, target_series: dict) -> list:

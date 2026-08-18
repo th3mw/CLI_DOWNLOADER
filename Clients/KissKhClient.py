@@ -114,8 +114,6 @@ class KissKhClient(BaseClient):
         for code, type_name in search_types.items():
             if allowed_codes and code not in allowed_codes:
                 continue
-
-            self._colprint('blurred', f"-------------- {type_name} --------------")
             self.logger.debug(f'Searching for {type_name} with keyword: {keyword}')
             search_url = self.search_url + search_key + '&type=' + str(code)
             raw_search_data = self._send_request(search_url, return_type='json')
@@ -151,8 +149,9 @@ class KissKhClient(BaseClient):
 
             for item in detailed_items:
                 if item:
+                    item['episodes_count'] = item.get('episodesCount', '')
+                    item['type'] = item.get('series_type', '')
                     search_results[idx] = item
-                    self._show_search_results(idx, item)
                     idx += 1
 
         return search_results

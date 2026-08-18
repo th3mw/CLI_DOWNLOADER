@@ -42,17 +42,19 @@ def visible_len(text):
     '''Calculate visible display length of string ignoring ANSI codes'''
     return len(strip_ansi(text))
 
-def render_box(title, lines, max_width=78):
+def render_box(title, lines, max_width=76, indent=2):
     '''
     Render a clean Unicode bordered card container.
     Adapts dynamically to terminal width without line overflow.
+    Includes left indentation margin for clean breathing room.
     '''
     try:
         term_cols = shutil.get_terminal_size((80, 24)).columns
     except Exception:
         term_cols = 80
-    term_width = min(term_cols, max_width)
+    term_width = min(term_cols - (indent * 2), max_width)
     inner_width = max(term_width - 4, 30)
+    pad_left = ' ' * indent
 
     c_border = PRINT_THEMES['primary'] if DISPLAY_COLORS else ''
     c_title = (PRINT_THEMES['secondary'] + PRINT_THEMES['bold']) if DISPLAY_COLORS else ''
@@ -62,7 +64,7 @@ def render_box(title, lines, max_width=78):
     title_vlen = visible_len(title) + 2 if title else 0
     dash_count = max(inner_width - title_vlen, 2)
 
-    out = [f'{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}']
+    out = [f'{pad_left}{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}']
     for line in lines:
         vlen = visible_len(line)
         if vlen > inner_width:
@@ -71,9 +73,9 @@ def render_box(title, lines, max_width=78):
         else:
             line_str = line
         pad = max(0, inner_width - vlen)
-        out.append(f'{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
+        out.append(f'{pad_left}{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
 
-    out.append(f'{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
+    out.append(f'{pad_left}{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
     return '\n'.join(out)
 class ExitException(Exception):
     '''

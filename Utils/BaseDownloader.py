@@ -97,10 +97,10 @@ class ProgressBar:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
             tot_str = self._fmt_size(self.total) if self.unit_scale else f'{self.total}'
             unit_suffix = f' {self.unit}' if (self.unit and not self.unit_scale) else ''
-            line = f'\r{c_desc}{self.desc}{c_reset} {c_bar}{bar}{c_reset} {c_pct}{pct:3d}%{c_reset} {c_muted}•{c_reset} {n_str}/{tot_str}{unit_suffix} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} {c_eta}ETA {eta_str}{c_reset} {c_muted}{self.postfix}{c_reset}'
+            line = f'\r\033[K  {c_desc}{self.desc}{c_reset} {c_bar}{bar}{c_reset} {c_pct}{pct:3d}%{c_reset} {c_muted}•{c_reset} {n_str}/{tot_str}{unit_suffix} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} {c_eta}ETA {eta_str}{c_reset} {c_muted}{self.postfix}{c_reset}'
         else:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
-            line = f'\r{c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
+            line = f'\r\033[K  {c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
 
         sys.stdout.write(line)
         sys.stdout.flush()

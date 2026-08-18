@@ -725,6 +725,24 @@ class BaseClient():
 
         return start, end
 
+    def get_season_ep_ranges(self, episodes: list) -> dict:
+        '''
+        Extract min and max episode numbers per season.
+        Returns dict: {season_num: {'start': min_ep, 'end': max_ep}, ...}
+        '''
+        seasons = {}
+        if not episodes:
+            return {1: {'start': 1, 'end': 1}}
+        for ep in episodes:
+            s = ep.get('season', 1)
+            ep_no = ep.get('episode', 1)
+            if s not in seasons:
+                seasons[s] = {'start': ep_no, 'end': ep_no}
+            else:
+                seasons[s]['start'] = min(seasons[s]['start'], ep_no)
+                seasons[s]['end'] = max(seasons[s]['end'], ep_no)
+        return seasons if seasons else {1: {'start': 1, 'end': len(episodes)}}
+
     def _resolution_selector(self, available_resolutions, target_resolution, selector_strategy='lowest'):
         '''
         Select a resolution based on selection strategy

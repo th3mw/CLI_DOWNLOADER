@@ -138,12 +138,13 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
                 'title': title,
                 'tmdb_id': res.get('id'),
                 'media_type': media_type,
+                'type': media_type,
                 'year': year,
+                'rating': round(res.get('vote_average', 0.0), 1),
                 'vote_average': round(res.get('vote_average', 0.0), 1),
                 'overview': res.get('overview', '')
             }
             search_results[idx] = item
-            self._show_search_results(idx, item)
             idx += 1
 
         return search_results

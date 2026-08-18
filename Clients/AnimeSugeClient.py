@@ -300,7 +300,6 @@ class AnimeSugeClient(BaseClient):
         for idx, (item, tooltip) in enumerate(zip(raw_items, tooltips), 1):
             item.update(tooltip)
             results[idx] = item
-            self._show_search_results(idx, item)
 
         return results
 

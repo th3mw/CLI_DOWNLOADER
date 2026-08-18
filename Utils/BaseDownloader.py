@@ -2,41 +2,103 @@ import logging
 import os
 import requests
 import sys
+import time
 import http.client
 from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from shutil import rmtree
+from Utils.commons import colprint, exec_os_cmd, retry, PRINT_THEMES, DISPLAY_COLORS
+
+
+class ProgressBar:
+    '''
+    Built-in full-featured progress bar with download speed, ETA, and graphical bar.
+    Provides identical API to tqdm without requiring external packages.
+    '''
+    def __init__(self, total=100, desc='Downloading', unit='seg', unit_scale=False, unit_divisor=1024, bar_format=None, **kwargs):
+        self.total = max(1, total) if total else 0
+        self.desc = desc or ''
+        self.unit = unit or ''
+        self.unit_scale = unit_scale
+        self.unit_divisor = unit_divisor
+        self.n = 0
+        self.postfix = ''
+        self.start_time = time.time()
+        self.last_render_time = 0
+        self.bar_width = 25
+        self.theme = PRINT_THEMES.get('results', '\033[94m') if DISPLAY_COLORS else ''
+        self.reset = PRINT_THEMES.get('reset', '\033[0m') if DISPLAY_COLORS else ''
+
+    def __enter__(self):
+        self.start_time = time.time()
+        self._render()
+        return self
+
+    def __exit__(self, *args):
+        self._render(force=True)
+        sys.stdout.write('\n')
+        sys.stdout.flush()
+
+    def set_postfix_str(self, s, refresh=True):
+        self.postfix = f', {s}' if s else ''
+        if refresh:
+            self._render()
+
+    def _fmt_size(self, val):
+        if not self.unit_scale:
+            return f'{val:.0f}' if isinstance(val, float) else f'{val}'
+        for u in ['B', 'KB', 'MB', 'GB', 'TB']:
+            if val < self.unit_divisor or u == 'TB':
+                return f'{val:.1f}{u}'
+            val /= self.unit_divisor
+        return f'{val:.1f}B'
+
+    def _fmt_time(self, seconds):
+        if seconds is None or seconds < 0 or seconds > 86400:
+            return '--:--'
+        m, s = divmod(int(seconds), 60)
+        h, m = divmod(m, 60)
+        return f'{h:02d}:{m:02d}:{s:02d}' if h else f'{m:02d}:{s:02d}'
+
+    def update(self, n=1):
+        self.n += n
+        now = time.time()
+        if now - self.last_render_time >= 0.05 or self.n >= self.total:
+            self._render()
+
+    def _render(self, force=False):
+        now = time.time()
+        self.last_render_time = now
+        elapsed = max(0.001, now - self.start_time)
+        rate = self.n / elapsed if elapsed > 0.05 else 0
+
+        # Format download speed / rate
+        if self.unit_scale:
+            rate_str = f'{self._fmt_size(rate)}/s'
+        else:
+            rate_str = f'{rate:.1f}{self.unit}/s' if self.unit else f'{rate:.1f}/s'
+
+        if self.total > 0:
+            pct = min(100, int((self.n / self.total) * 100))
+            eta = ((self.total - self.n) / rate) if (rate > 0 and self.n < self.total) else 0
+            eta_str = self._fmt_time(eta)
+            filled = min(self.bar_width, int(self.bar_width * self.n / self.total))
+            bar = '█' * filled + '░' * (self.bar_width - filled)
+            n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
+            tot_str = self._fmt_size(self.total) if self.unit_scale else f'{self.total}'
+            line = f'\r{self.theme}{self.desc}: {pct:3d}%|{bar}| {n_str}/{tot_str} [{self._fmt_time(elapsed)}<{eta_str}, {rate_str}{self.postfix}]{self.reset}'
+        else:
+            n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
+            line = f'\r{self.theme}{self.desc}: {n_str} [{self._fmt_time(elapsed)}, {rate_str}{self.postfix}]{self.reset}'
+
+        sys.stdout.write(line)
+        sys.stdout.flush()
+
+
 try:
     from tqdm.auto import tqdm
 except ImportError:
-    class tqdm:
-        def __init__(self, **kwargs):
-            self.total = kwargs.get('total', 100)
-            self.desc = kwargs.get('desc', '')
-            self.unit = kwargs.get('unit', '')
-            self.n = 0
-            self.postfix = ''
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            print()
-
-        def update(self, n=1):
-            self.n += n
-            if self.total:
-                pct = min(100, int((self.n / self.total) * 100))
-                prog = f"\r{self.desc}: {self.n}/{self.total} {self.unit} ({pct}%) {self.postfix}"
-            else:
-                prog = f"\r{self.desc}: {self.n} {self.unit} {self.postfix}"
-            sys.stdout.write(prog)
-            sys.stdout.flush()
-
-        def set_postfix_str(self, s, **kwargs):
-            self.postfix = f"[{s}]"
-
-from Utils.commons import colprint, exec_os_cmd, retry, PRINT_THEMES, DISPLAY_COLORS
+    tqdm = ProgressBar
 
 
 class BaseDownloader():

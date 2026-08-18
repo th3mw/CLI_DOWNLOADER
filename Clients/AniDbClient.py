@@ -180,11 +180,19 @@ class AniDbClient(BaseClient):
         episodes.sort(key=lambda x: x.get('episode', 0))
         return episodes
 
-    def show_episode_results(self, items: list, ep_ranges: dict):
+    def show_episode_results(self, items: list, *predefined_range):
         '''
         Display episode range selection in terminal.
         '''
-        start, end = ep_ranges.get('start', 1), ep_ranges.get('end', len(items))
+        if not items:
+            return
+        ep_predef = predefined_range[1] if len(predefined_range) > 1 else (predefined_range[0] if predefined_range else None)
+        start, end = self._get_episode_range_to_show(
+            items[0].get('episode', 1),
+            items[-1].get('episode', len(items)),
+            ep_predef,
+            threshold=24
+        )
         for ep in items:
             ep_no = ep.get('episode')
             if start <= ep_no <= end:

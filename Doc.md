@@ -115,6 +115,8 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **HLS Query Params & Extension Rejection Fix** | `Utils/HLSDownloader.py` | Upgraded `_sanitize_segment_name` to strip query strings (`.jpg?mod=1`) and rewritten playlists to enforce `.ts` segments for FFmpeg. |
+| **AniDB `show_episode_results` Signature Fix** | `Clients/AniDbClient.py` | Added `*predefined_range` variadic argument support to `show_episode_results` matching `scraper.py` dispatcher. |
 | **MKV Container with Forced Subtitles** | `BaseClient.py`, `HLSDownloader.py`, `BaseDownloader.py` | Transitioned output container to MKV (`.mkv`) with SubRip (`srt`) and `default+forced` flags for auto-activation in VLC. |
 | **AniDB Provider Integration** | `Clients/AniDbClient.py`, `Utils/provider_factory.py` | Added AniDB (`anidb.app`) provider client with multi-language HLS streams and `.xls` segment sanitization. |
 | **AnimeSuge Embed 404 Fix** | `Clients/AnimeSugeClient.py` | Added dynamic domain origin extraction (`getSourcesNew` / `getSources`) and multi-server fallback. |

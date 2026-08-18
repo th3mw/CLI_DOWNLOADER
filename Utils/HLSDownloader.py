@@ -6,32 +6,33 @@ from Utils.BaseDownloader import BaseDownloader
 
 NON_MEDIA_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico',
-    '.xls', '.xlsx', '.doc', '.docx', '.pdf', '.bin', '.txt'
+    '.xls', '.xlsx', '.doc', '.docx', '.pdf', '.bin', '.txt', '.html', '.htm'
 }
 
 
 def _sanitize_segment_name(filename):
     '''
-    Some CDNs serve video segments with non-media extensions (e.g., .png).
-    Rename them to .ts so FFmpeg's HLS demuxer accepts them.
-    Also add .ts extension if missing.
+    Sanitize segment filename:
+    1. Strip URL query parameters (?foo=bar) and URL fragments (#xyz).
+    2. Extract only the basename.
+    3. If extension is a non-media extension (e.g. .jpg, .png, .xls) or missing, rename to .ts.
     '''
-    name, ext = os.path.splitext(filename)
-    if ext.lower() in NON_MEDIA_EXTENSIONS:
+    clean_filename = filename.split('?')[0].split('#')[0]
+    base_name = os.path.basename(clean_filename.replace('\\', '/'))
+    name, ext = os.path.splitext(base_name)
+    if ext.lower() in NON_MEDIA_EXTENSIONS or ext.lower() not in {'.ts', '.aac', '.mp4', '.m4s', '.vtt'}:
         return name + '.ts'
-    if ext == '':
-        return name + '.ts'
-    return filename
+    return base_name
 
 
-def _strip_png_header(data):
+def _strip_fake_header(data):
     '''
-    Some CDNs (like VidTube) obfuscate MPEG-TS segments by prepending a fake PNG header.
-    Locate the first 188-byte aligned TS sync byte (0x47) and strip the PNG header bytes.
+    Some CDNs (like VidTube) obfuscate MPEG-TS segments by prepending fake image/file headers (PNG, JPEG, etc.).
+    Locate the first 188-byte aligned TS sync byte (0x47) and strip the leading fake header bytes.
     '''
-    if isinstance(data, bytes) and data.startswith(b'\x89PNG\r\n\x1a\n'):
+    if isinstance(data, bytes) and len(data) > 376 and data[0] != 0x47:
         data_len = len(data)
-        for i in range(min(1024, data_len - 188)):
+        for i in range(min(2048, data_len - 188)):
             if data[i] == 0x47 and data[i + 188] == 0x47:
                 return data[i:]
     return data
@@ -106,7 +107,7 @@ class HLSDownloader(BaseDownloader):
         Returns: (download_status, progress_bar_increment)
         '''
         try:
-            segment_file_nm = _sanitize_segment_name(ts_url.split('/')[-1])
+            segment_file_nm = _sanitize_segment_name(ts_url)
             segment_file = os.path.join(f"{self.temp_dir}", f"{segment_file_nm}")
 
             # check if the segment is already downloaded
@@ -114,7 +115,7 @@ class HLSDownloader(BaseDownloader):
                 return (f'Segment file [{segment_file_nm}] already exists. Reusing.', 1)
 
             data = self._get_stream_data(ts_url)
-            clean_data = _strip_png_header(data)
+            clean_data = _strip_fake_header(data)
 
             with open(segment_file, "wb") as ts_file:
                 ts_file.write(clean_data)
@@ -125,23 +126,22 @@ class HLSDownloader(BaseDownloader):
             return (f'\nERROR: Segment download failed [{segment_file_nm}] due to: {e}', 0)
 
     def _rewrite_m3u8_file(self, m3u8_data):
-        # regex safe temp dir path
-        seg_temp_dir = self.temp_dir.replace('\\', '\\\\')
         # ffmpeg doesn't accept backward slash in key file irrespective of platform
         key_temp_dir = self.temp_dir.replace('\\', '/')
+        m3u8_content = re.sub(r'URI=(.*)/', f'URI="{key_temp_dir}/', m3u8_data, count=1)
+
+        # Rewrite each segment reference line to local sanitized file path
+        new_lines = []
+        for line in m3u8_content.splitlines():
+            stripped = line.strip()
+            if stripped and not stripped.startswith('#'):
+                sanitized_name = _sanitize_segment_name(stripped)
+                new_lines.append(os.path.join(self.temp_dir, sanitized_name))
+            else:
+                new_lines.append(line)
+
         with open(self.m3u8_file, 'w', encoding='utf-8') as m3u8_f:
-            m3u8_content = re.sub('URI=(.*)/', f'URI="{key_temp_dir}/', m3u8_data, count=1)
-            regex_safe = '\\\\' if os.sep == '\\' else '/'
-            # strip off url for segments
-            m3u8_content = re.sub(r'(.*)//(.*)/', '', m3u8_content)
-            # prefix the downloaded path for segments, and rename non-media
-            # extensions (e.g. .png) to .ts so FFmpeg's HLS demuxer accepts them
-            m3u8_content = re.sub(
-                r'^(?!#).+$',
-                lambda m: f'{seg_temp_dir}{regex_safe}{_sanitize_segment_name(m.group(0))}',
-                m3u8_content, flags=re.MULTILINE
-            )
-            m3u8_f.write(m3u8_content)
+            m3u8_f.write('\n'.join(new_lines) + '\n')
 
     def _convert_to_mp4(self):
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')

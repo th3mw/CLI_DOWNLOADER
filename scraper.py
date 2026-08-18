@@ -23,15 +23,12 @@ get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 def get_provider(category_name, predefined_provider=None):
     '''
     Show provider selection menu for the given category.
-    Returns the selected provider key.
+    Returns the selected provider key or 'BACK'.
     '''
     providers = get_providers_for_category(category_name)
     if not providers:
         logger.error(f'No providers available for category: {category_name}')
         raise ExitException(0)
-
-    if len(providers) == 1:
-        return providers[0]['key']
 
     # Show provider selection menu
     menu = '\n\033[96m╭───── SELECT PROVIDER ─────╮\033[0m\n'
@@ -40,6 +37,8 @@ def get_provider(category_name, predefined_provider=None):
         label = prov['label']
         menu += f'\033[94m│ {idx+1}. {label:<27} │\033[0m\n'
         choices[idx+1] = prov['key']
+    menu += f'\033[94m│ 0. {"Back":<27} │\033[0m\n'
+    choices[0] = 'BACK'
     menu += '\033[96m╰───────────────────────────╯\033[0m'
     colprint('header', menu)
 
@@ -60,6 +59,8 @@ def get_client(provider_key=None):
     # Resolve provider key if not explicitly provided
     if provider_key is None:
         provider_key = get_provider(series_type)
+        if provider_key == 'BACK':
+            return None
 
     category_config = config.setdefault(series_type, {})
     client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy)
@@ -403,17 +404,24 @@ def main():
         # remove older log files
         delete_old_logs(config['LoggerConfig']['log_dir'], config['LoggerConfig'].get('log_retention_days', 7), config['LoggerConfig'].get('log_backup_count', 3))
 
-        # get series type / category
-        category_names = list(CATEGORIES.values())
-        series_type = get_series_type(category_names, series_type_predef)
-        logger.info(f'Selected Series type: {series_type}')
+        # get series type / category and provider with Back navigation support
+        while True:
+            category_names = list(CATEGORIES.values())
+            series_type = get_series_type(category_names, series_type_predef)
+            logger.info(f'Selected Series type: {series_type}')
 
-        # get provider key from CLI if specified
-        provider_predef = args.provider if hasattr(args, 'provider') else None
+            # get provider key from CLI if specified
+            provider_predef = args.provider if hasattr(args, 'provider') else None
 
-        # create client (with provider selection if not predefined via CLI)
-        client = get_client(provider_predef)
-        logger.info(f'Client: {client}')
+            # create client (with provider selection if not predefined via CLI)
+            client = get_client(provider_predef)
+            if client is None:
+                if series_type_predef is not None:
+                    raise ExitException(0)
+                continue
+
+            logger.info(f'Client: {client}')
+            break
 
         # set client specific download configurations
         if series_type in ('Movies', 'TV Shows'):

@@ -2,7 +2,7 @@ import os
 import re
 
 from Utils.commons import retry
-from Utils.BaseDownloader import BaseDownloader
+from Utils.BaseDownloader import BaseDownloader, _sort_subtitles_english_first
 
 NON_MEDIA_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico',
@@ -143,6 +143,18 @@ class HLSDownloader(BaseDownloader):
         with open(self.m3u8_file, 'w', encoding='utf-8') as m3u8_f:
             m3u8_f.write('\n'.join(new_lines) + '\n')
 
+    def _handle_incomplete_cache(self):
+        '''Check if incomplete cached segments exist in temp_dir'''
+        if not os.path.isdir(self.temp_dir):
+            return
+        cached_files = [
+            f for f in os.listdir(self.temp_dir)
+            if os.path.isfile(os.path.join(self.temp_dir, f)) and os.path.getsize(os.path.join(self.temp_dir, f)) > 0
+            and not f.endswith('.m3u8')
+        ]
+        if cached_files:
+            self.logger.info(f'[{self.out_file}] Resuming download with {len(cached_files)} cached segment(s)...')
+
     def _convert_to_mp4(self):
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')
         is_mkv = out_file.lower().endswith('.mkv')
@@ -152,15 +164,19 @@ class HLSDownloader(BaseDownloader):
 
         sub_codec = '-c:s srt' if is_mkv else '-c:s mov_text'
 
-        # Prepare the command if subtitles are present
-        for i, (lang, url) in enumerate(self.subtitles.items(), start=1):
+        # Prepare the command if subtitles are present (English first)
+        sorted_subs = _sort_subtitles_english_first(self.subtitles)
+        for i, (lang, url, is_default) in enumerate(sorted_subs, start=1):
             sub_idx = i - 1
             iso_code = _get_iso_lang(lang)
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
             metadata.append(f'-metadata:s:s:{sub_idx} title="{lang}"')
             metadata.append(f'-metadata:s:s:{sub_idx} language={iso_code}')
-            metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            if is_default:
+                metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            else:
+                metadata.append(f'-disposition:s:{sub_idx} 0')
 
         sub_flag = f'{sub_codec} ' if self.subtitles else ''
         metadata.append(f'-c:v copy -c:a copy {sub_flag}-bsf:a aac_adtstoasc "{out_file}"')
@@ -169,7 +185,8 @@ class HLSDownloader(BaseDownloader):
         self._exec_cmd(cmd)
 
     def start_download(self, m3u8_link):
-        # create output directory
+        # check incomplete cache and create output directory
+        self._handle_incomplete_cache()
         self._create_out_dirs()
 
         iv = None

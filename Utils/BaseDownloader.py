@@ -101,6 +101,29 @@ except ImportError:
     tqdm = ProgressBar
 
 
+def _sort_subtitles_english_first(subtitles_dict):
+    '''
+    Sort subtitles dictionary so that English is always the first track (stream 0).
+    Returns a list of tuples: [(lang_name, sub_file_or_url, is_default), ...]
+    '''
+    def is_english(lang_str):
+        l = str(lang_str).lower()
+        return 'eng' in l or l == 'en' or 'english' in l
+
+    sorted_subs = []
+    # English first
+    for lang, url in subtitles_dict.items():
+        if is_english(lang):
+            sorted_subs.append((lang, url, True))
+    # Non-English next
+    for lang, url in subtitles_dict.items():
+        if not is_english(lang):
+            is_def = (len(sorted_subs) == 0)  # default if no English exists
+            sorted_subs.append((lang, url, is_def))
+
+    return sorted_subs
+
+
 class BaseDownloader():
     '''
     Download Client for downloading files directly using requests and http.client
@@ -388,6 +411,17 @@ class BaseDownloader():
         if decryption_fail_count > 0:
             self.logger.warning(f'Failed to decrypt {decryption_fail_count}/{total_line_count} lines in the subtitle file')
 
+    def _handle_incomplete_cache(self):
+        '''Check if incomplete cached chunks exist in temp_dir'''
+        if not os.path.isdir(self.temp_dir):
+            return
+        cached_files = [
+            f for f in os.listdir(self.temp_dir)
+            if os.path.isfile(os.path.join(self.temp_dir, f)) and os.path.getsize(os.path.join(self.temp_dir, f)) > 0
+        ]
+        if cached_files:
+            self.logger.info(f'[{self.out_file}] Resuming download with {len(cached_files)} cached chunk(s)...')
+
     def _add_subtitles(self):
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')
         is_mkv = out_file.lower().endswith('.mkv')
@@ -399,14 +433,18 @@ class BaseDownloader():
 
         sub_codec = '-c:s srt' if is_mkv else '-c:s mov_text'
 
-        # Prepare the command if subtitles are present
-        for i, (lang, url) in enumerate(self.subtitles.items(), start=1):
+        # Prepare the command if subtitles are present (English first)
+        sorted_subs = _sort_subtitles_english_first(self.subtitles)
+        for i, (lang, url, is_default) in enumerate(sorted_subs, start=1):
             sub_idx = i - 1
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
             metadata.append(f'-metadata:s:s:{sub_idx} title="{lang}"')
             metadata.append(f'-metadata:s:s:{sub_idx} language=eng')
-            metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            if is_default:
+                metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            else:
+                metadata.append(f'-disposition:s:{sub_idx} 0')
 
         sub_flag = f'{sub_codec} ' if self.subtitles else ''
         metadata.append(f'-c:v copy -c:a copy {sub_flag}-bsf:a aac_adtstoasc "{temp_out_file}"')
@@ -420,7 +458,8 @@ class BaseDownloader():
     def start_download(self, dl_link):
         # set chunk size to 4MiB for high throughput
         self.chunk_size = 4 * 1024 * 1024
-        # create output directory
+        # check incomplete cache and create output directory
+        self._handle_incomplete_cache()
         self._create_out_dirs()
 
         self.logger.debug('Fetching stream data')

@@ -115,6 +115,10 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Auto-Skip Existing Episodes** | `scraper.py` | Detects completed files (>1MB) in target output directory and skips re-downloading them. |
+| **`episodes` Undefined Variable Fix** | `scraper.py` | Passed `episodes` into `get_ep_range_multiple` and restricted multi-season prompts to TV Shows with >1 seasons. |
+| **English Subtitle Default Priority** | `HLSDownloader.py`, `BaseDownloader.py` | Sorted subtitle tracks so English is always stream 0 with `default+forced` flags. |
+| **Incomplete Download Cache Resumption** | `HLSDownloader.py`, `BaseDownloader.py` | Detected cached segments on startup and seamlessly resumed remaining segments without duplicating cache. |
 | **HLS Query Params & Extension Rejection Fix** | `Utils/HLSDownloader.py` | Upgraded `_sanitize_segment_name` to strip query strings (`.jpg?mod=1`) and rewritten playlists to enforce `.ts` segments for FFmpeg. |
 | **AniDB `show_episode_results` Signature Fix** | `Clients/AniDbClient.py` | Added `*predefined_range` variadic argument support to `show_episode_results` matching `scraper.py` dispatcher. |
 | **MKV Container with Forced Subtitles** | `BaseClient.py`, `HLSDownloader.py`, `BaseDownloader.py` | Transitioned output container to MKV (`.mkv`) with SubRip (`srt`) and `default+forced` flags for auto-activation in VLC. |

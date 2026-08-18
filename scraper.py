@@ -201,11 +201,13 @@ def get_ep_range(default_ep_range, mode='Enter', _episodes_predef=None, type='ep
 
     return {'start': ep_start, 'end': ep_end, 'specific_no': specific_eps}
 
-def get_ep_range_multiple(season_ep_ranges):
+def get_ep_range_multiple(season_ep_ranges, episodes):
     '''
     Get episode ranges per season
     '''
-    selected_seasons = get_ep_range(f"{episodes[0]['season']}-{episodes[-1]['season']}", 'Enter', seasons_predef, type='seasons')
+    min_ss = min(season_ep_ranges.keys()) if season_ep_ranges else 1
+    max_ss = max(season_ep_ranges.keys()) if season_ep_ranges else 1
+    selected_seasons = get_ep_range(f"{min_ss}-{max_ss}", 'Enter', seasons_predef, type='seasons')
     logger.debug(f'Selected seasons: {selected_seasons}')
     # filter out selected seasons only if available
     selected_seasons = { k:v for k,v in season_ep_ranges.items() if (k >= selected_seasons['start'] and k <= selected_seasons['end']) or k in selected_seasons['specific_no'] }
@@ -445,8 +447,9 @@ def main():
         client.show_episode_results(episodes, seasons_predef, episodes_predef)
 
         # get user input for episodes range and parse start and end number
-        if episodes[0].get('type') == 'tv':
-            selected_eps = get_ep_range_multiple(client.get_season_ep_ranges(episodes))
+        season_ranges = client.get_season_ep_ranges(episodes)
+        if series_type == 3 and len(season_ranges) > 1:
+            selected_eps = get_ep_range_multiple(season_ranges, episodes)
         else:
             selected_eps = get_ep_range(f"{episodes[0]['episode']}-{episodes[-1]['episode']}", 'Enter', episodes_predef)
 
@@ -495,8 +498,47 @@ def main():
         logger.info('Fetching m3u8 links for selected episodes')
         colprint('header', '\nFetching Episode links:')
         target_dl_links = client.fetch_m3u8_links(target_ep_links, resolution, episode_prefix)
+
+        # Check for already downloaded episodes in the target download directory
+        missing_dl_links = {}
+        already_downloaded_count = 0
+        for ep_key, ep_val in target_dl_links.items():
+            if not ep_val or not ep_val.get('downloadLink'):
+                missing_dl_links[ep_key] = ep_val
+                continue
+
+            ep_name = ep_val.get('episodeName', '')
+            ep_out_dir = downloader_config['download_dir']
+            if ep_val.get('type') == 'tv':
+                ep_out_dir = os.path.join(ep_out_dir, f"Season-{ep_val.get('season', 1)}")
+
+            target_file_path = os.path.join(ep_out_dir, ep_name)
+            base_without_ext = ep_name.rsplit('.', 1)[0]
+            alt_mkv = os.path.join(ep_out_dir, f"{base_without_ext}.mkv")
+            alt_mp4 = os.path.join(ep_out_dir, f"{base_without_ext}.mp4")
+
+            existing_file = None
+            if os.path.isfile(target_file_path) and os.path.getsize(target_file_path) > 1024 * 1024:
+                existing_file = target_file_path
+            elif os.path.isfile(alt_mkv) and os.path.getsize(alt_mkv) > 1024 * 1024:
+                existing_file = alt_mkv
+            elif os.path.isfile(alt_mp4) and os.path.getsize(alt_mp4) > 1024 * 1024:
+                existing_file = alt_mp4
+
+            if existing_file:
+                size_mb = round(os.path.getsize(existing_file) / (1024 * 1024), 1)
+                colprint('results', f"  [✓] {os.path.basename(existing_file)} already exists ({size_mb} MB) -> Skipping")
+                already_downloaded_count += 1
+            else:
+                missing_dl_links[ep_key] = ep_val
+
+        target_dl_links = missing_dl_links
         available_dl_count = len([ k for k, v in target_dl_links.items() if v.get('downloadLink') is not None ])
         logger.debug(f'{target_dl_links = }, {available_dl_count = }')
+
+        if available_dl_count == 0 and already_downloaded_count > 0:
+            colprint('results', f'\nAll {already_downloaded_count} selected episode(s) are already downloaded! Nothing to download.')
+            return
 
         if len(target_dl_links) == 0:
             logger.error('No episodes available to download! Exiting.')

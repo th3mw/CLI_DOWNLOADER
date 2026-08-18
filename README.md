@@ -194,13 +194,13 @@ LoggerConfig:
 
 ## 💡 Subtitle & Media Player Notes
 
-Downloaded video files (`.mp4`) include embedded soft subtitles extracted from the provider stream. 
+Downloaded video files are saved in the **MKV (`.mkv`)** container with embedded SubRip (`.srt`) soft subtitles.
 
-> [!NOTE]
-> **Soft Subtitles in MP4 Containers**:
-> Soft subtitles in `.mp4` files are multiplexed as 3GPP Timed Text (`mov_text`) streams with ISO 639-2 language tags (`eng`). 
-> - **Player Behavior**: Depending on your media player software (Celluloid, VLC, MPV, Smart TVs), subtitles may render automatically or may require selecting the subtitle track from your player's Subtitles menu (or pressing `v` in MPV/Celluloid).
-> - If your media player does not display soft subtitles by default, enable the English subtitle track manually in your player settings.
+> [!TIP]
+> **Automatic Subtitle Display in VLC & Media Players**:
+> Soft subtitles are multiplexed with `FlagDefault=1` and `FlagForced=1` disposition flags.
+> - **VLC, MPV, IINA, Plex, Jellyfin**: Automatically activate and display the subtitle track upon playback without requiring manual clicks or hotkeys.
+> - **Rich Subtitle Formatting**: MKV natively supports SubRip (`.srt`) styling and fonts without compressing into basic `mov_text`.
 
 ---
 

@@ -144,23 +144,26 @@ class HLSDownloader(BaseDownloader):
             m3u8_f.write(m3u8_content)
 
     def _convert_to_mp4(self):
-        # print(f'Converting {self.out_file} to mp4')
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')
+        is_mkv = out_file.lower().endswith('.mkv')
         command = [f'ffmpeg -y -loglevel warning -allowed_extensions ALL -i "{self.m3u8_file}"']
         maps = ['-map 0:v -map 0:a'] if self.subtitles else []
         metadata = []
 
+        sub_codec = '-c:s srt' if is_mkv else '-c:s mov_text'
+
         # Prepare the command if subtitles are present
         for i, (lang, url) in enumerate(self.subtitles.items(), start=1):
-            stream_idx = 1 + i
+            sub_idx = i - 1
             iso_code = _get_iso_lang(lang)
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
-            metadata.append(f'-metadata:s:{stream_idx} title="{lang}"')
-            metadata.append(f'-metadata:s:{stream_idx} language={iso_code}')
-            metadata.append(f'-disposition:{stream_idx} default+forced')
+            metadata.append(f'-metadata:s:s:{sub_idx} title="{lang}"')
+            metadata.append(f'-metadata:s:s:{sub_idx} language={iso_code}')
+            metadata.append(f'-disposition:s:{sub_idx} default+forced')
 
-        metadata.append(f'-c:v copy -c:a copy -c:s mov_text -bsf:a aac_adtstoasc "{out_file}"')
+        sub_flag = f'{sub_codec} ' if self.subtitles else ''
+        metadata.append(f'-c:v copy -c:a copy {sub_flag}-bsf:a aac_adtstoasc "{out_file}"')
 
         cmd = ' '.join(command + maps + metadata)
         self._exec_cmd(cmd)

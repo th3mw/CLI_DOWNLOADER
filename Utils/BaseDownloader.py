@@ -116,7 +116,7 @@ class BaseDownloader():
             self.out_dir = f"{self.out_dir}{os.sep}Season-{ep_details['season']}"
         self.concurrency = None if dl_config.get('concurrency_per_file', 'auto') == 'auto' else dl_config['concurrency_per_file']
         self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if dl_config.get('temp_download_dir', 'auto') == 'auto' else dl_config['temp_download_dir']
-        self.temp_dir = os.path.join(f"{self.parent_temp_dir}", f"{self.out_file.replace('.mp4','')}") #create temp directory per episode
+        self.temp_dir = os.path.join(f"{self.parent_temp_dir}", f"{self.out_file.rsplit('.', 1)[0]}") #create temp directory per episode
         self.request_timeout = dl_config.get('request_timeout', 30)
         self.series_type = ep_details.get('type', 'series')
         self.subtitles = ep_details.get('subtitles', {})
@@ -389,24 +389,27 @@ class BaseDownloader():
             self.logger.warning(f'Failed to decrypt {decryption_fail_count}/{total_line_count} lines in the subtitle file')
 
     def _add_subtitles(self):
-        # print(f'Converting {self.out_file} to mp4')
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')
+        is_mkv = out_file.lower().endswith('.mkv')
         # ffmpeg can't do in-place conversion. So, create a temp file and replace the original file
         temp_out_file = os.path.join(f'{self.out_dir}', f'temp_{self.out_file}')
         command = [f'ffmpeg -loglevel warning -i "{out_file}"']
         maps = ['-map 0:v -map 0:a'] if self.subtitles else []
         metadata = []
 
+        sub_codec = '-c:s srt' if is_mkv else '-c:s mov_text'
+
         # Prepare the command if subtitles are present
         for i, (lang, url) in enumerate(self.subtitles.items(), start=1):
-            stream_idx = 1 + i
+            sub_idx = i - 1
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
-            metadata.append(f'-metadata:s:{stream_idx} title="{lang}"')
-            metadata.append(f'-metadata:s:{stream_idx} language=eng')
-            metadata.append(f'-disposition:{stream_idx} default+forced')
+            metadata.append(f'-metadata:s:s:{sub_idx} title="{lang}"')
+            metadata.append(f'-metadata:s:s:{sub_idx} language=eng')
+            metadata.append(f'-disposition:s:{sub_idx} default+forced')
 
-        metadata.append(f'-c:v copy -c:a copy -c:s mov_text -bsf:a aac_adtstoasc "{temp_out_file}"')
+        sub_flag = f'{sub_codec} ' if self.subtitles else ''
+        metadata.append(f'-c:v copy -c:a copy {sub_flag}-bsf:a aac_adtstoasc "{temp_out_file}"')
 
         cmd = ' '.join(command + maps + metadata)
         self._exec_cmd(cmd)

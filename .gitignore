@@ -25,6 +25,9 @@ myvenv/
 logs/
 *.log*
 *.mp4
+*.mkv
+*.srt
+*.vtt
 
 # User-specific data files
 Clients/*.json

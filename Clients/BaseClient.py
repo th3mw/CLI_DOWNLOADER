@@ -587,7 +587,7 @@ class BaseClient():
         '''
         return dict containing m3u8 links based on resolution. (this is a default method. override if required)
         '''
-        _get_ep_name = lambda resltn: f"{self.scraper_episode_dict.get(ep).get('episodeName')} - {resltn}P.mp4"
+        _get_ep_name = lambda resltn: f"{self.scraper_episode_dict.get(ep).get('episodeName')} - {resltn}P.mkv"
 
         display_prefix = 'Episode'
         series_flag = True if str(next(iter(target_links.keys()))).startswith('s') else False

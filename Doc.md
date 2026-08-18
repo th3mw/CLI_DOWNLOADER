@@ -95,21 +95,19 @@ flowchart TD
 
 ---
 
-## 4. Subtitle Subsystem & Known Limitations
+## 4. Subtitle Subsystem & MKV Auto-Activation
 
 ### VTT to SRT Conversion (`Utils/BaseDownloader.py`)
 When subtitle tracks are downloaded in WebVTT (`.vtt`) format, `_download_subtitles()` automatically converts them to SubRip (`.srt`) format using FFmpeg:
 ```bash
 ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 ```
-Converting to `.srt` before encoding into MP4 `mov_text` ensures that subtitle bounding boxes and text styles render properly across media players.
 
-### ⚠️ Known Subtitle Limitations (MP4 Soft Subtitles)
-- **Container Constraints**: In `.mp4` containers, soft subtitles are encoded as 3GPP Timed Text (`mov_text`).
-- **Player-Dependent Rendering**: Different desktop and mobile media players (VLC, Celluloid, MPV, Windows Media Player, Smart TVs) handle embedded soft subtitles in MP4 containers differently:
-  - Some players automatically load and render `mov_text` tracks when marked `default+forced` and tagged with ISO language codes (`eng`).
-  - Other players require manually selecting the subtitle track from the player's Audio/Subtitles menu or pressing the player's subtitle hotkey (e.g. `v` in MPV/Celluloid).
-- **Recommendation**: If your media player does not display soft subtitles automatically in `.mp4` files, enable the subtitle track manually in your player settings or extract the `.srt` file alongside the video.
+### MKV Subtitle Multiplexing (`FlagDefault` & `FlagForced`)
+- **Default Container (`.mkv`)**: All downloaded video files with soft subtitles are packaged as Matroska (`.mkv`) files.
+- **Native SubRip Encoding (`-c:s srt`)**: Subtitles are stored in native SubRip format rather than being compressed to MP4's limited `mov_text`.
+- **Automatic Display in VLC & Media Players**: FFmpeg applies `-disposition:s:{idx} default+forced` which writes Matroska `FlagDefault=1` and `FlagForced=1` header flags.
+- **Player Compatibility**: VLC, MPV, IINA, Celluloid, Kodi, Plex, and Jellyfin immediately auto-render the subtitle track on startup without requiring manual track selection or hotkey presses.
 
 ---
 
@@ -117,6 +115,7 @@ Converting to `.srt` before encoding into MP4 `mov_text` ensures that subtitle b
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **MKV Container with Forced Subtitles** | `BaseClient.py`, `HLSDownloader.py`, `BaseDownloader.py` | Transitioned output container to MKV (`.mkv`) with SubRip (`srt`) and `default+forced` flags for auto-activation in VLC. |
 | **AniDB Provider Integration** | `Clients/AniDbClient.py`, `Utils/provider_factory.py` | Added AniDB (`anidb.app`) provider client with multi-language HLS streams and `.xls` segment sanitization. |
 | **AnimeSuge Embed 404 Fix** | `Clients/AnimeSugeClient.py` | Added dynamic domain origin extraction (`getSourcesNew` / `getSources`) and multi-server fallback. |
 | **`tqdm` Missing Module Fallback** | `Utils/BaseDownloader.py` | Added lightweight self-contained progress bar fallback when `tqdm` is not installed. |

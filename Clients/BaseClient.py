@@ -48,6 +48,7 @@ class BaseClient():
         self.req_session.mount('https://', adapter)
 
         self.request_timeout = request_timeout
+        self.selector_strategy = 'lowest'
         try:
             self.hls_size_accuracy
         except AttributeError:
@@ -587,7 +588,7 @@ class BaseClient():
         '''
         return dict containing m3u8 links based on resolution. (this is a default method. override if required)
         '''
-        _get_ep_name = lambda resltn: f"{self.scraper_episode_dict.get(ep).get('episodeName')} - {resltn}P.mkv"
+        _get_ep_name = lambda resltn: f"{self.scraper_episode_dict.get(ep, {}).get('episodeName', f'Episode {ep}')} - {resltn}P.mkv"
 
         display_prefix = 'Episode'
         series_flag = True if str(next(iter(target_links.keys()))).startswith('s') else False
@@ -605,7 +606,7 @@ class BaseClient():
             elif type(ep) == str and ep.startswith('m'):
                 display_prefix = 'Movie'
                 ep_no = int(ep.replace('m', ''))
-            elif self.scraper_episode_dict.get(ep).get('episodeName').endswith('Movie'):
+            elif self.scraper_episode_dict.get(ep, {}).get('episodeName', '').endswith('Movie'):
                 display_prefix = 'Movie'
                 ep_no = ep
             else:

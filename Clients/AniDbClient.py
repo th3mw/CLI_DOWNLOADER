@@ -24,6 +24,8 @@ class AniDbClient(BaseClient):
         self.preferred_languages = ['jpn', 'sub', 'eng', 'dub']
         self.series_type = series_type
         self.content_filter = content_filter
+        self.selector_strategy = anidb_config.get('alternate_resolution_selector', 'lowest') if isinstance(anidb_config, dict) else 'lowest'
+        self.hls_size_accuracy = anidb_config.get('hls_size_accuracy', 0) if isinstance(anidb_config, dict) else 0
 
         # Set default session headers
         self.req_session.headers.update({
@@ -165,16 +167,21 @@ class AniDbClient(BaseClient):
                 ep_id = ep_data.get('id')
                 num2 = ep_data.get('number2', 0)
                 is_filler = ep_data.get('filler', False)
+                ep_name = f'Episode {ep_no}' if not num2 or num2 == ep_no else f'Episode {ep_no}-{num2}'
 
-                episodes.append({
+                ep_dict = {
                     'episode': ep_no,
+                    'episodeName': ep_name,
                     'episode_id': ep_id,
                     'number2': num2,
                     'filler': is_filler,
                     'title': target_series.get('title', ''),
                     'anime_id': anime_id,
-                    'type': 'tv'
-                })
+                    'season': 1,
+                    'type': 'anime'
+                }
+                self._update_scraper_dict(ep_no, ep_dict)
+                episodes.append(ep_dict)
 
         # Ensure sorted by episode number
         episodes.sort(key=lambda x: x.get('episode', 0))

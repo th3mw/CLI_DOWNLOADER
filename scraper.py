@@ -5,7 +5,7 @@ from time import time
 import traceback
 
 # Note: For optimization, custom modules are imported as required
-from Utils.commons import colprint_init, colprint, PRINT_THEMES, ExitException
+from Utils.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box
 from Utils.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
 from Utils.provider_factory import CATEGORIES, get_providers_for_category, create_client
 
@@ -31,16 +31,18 @@ def get_provider(category_name, predefined_provider=None):
         raise ExitException(0)
 
     # Show provider selection menu
-    menu = '\n\033[96m╭───── SELECT PROVIDER ─────╮\033[0m\n'
+    menu_lines = []
     choices = {}
+    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿'}
     for idx, prov in enumerate(providers):
+        icon = icons.get(prov['key'], '▸')
         label = prov['label']
-        menu += f'\033[94m│ {idx+1}. {label:<27} │\033[0m\n'
+        menu_lines.append(f"\033[1m[{idx+1}]\033[0m  {icon}  {label}")
         choices[idx+1] = prov['key']
-    menu += f'\033[94m│ 0. {"Back":<27} │\033[0m\n'
+    menu_lines.append(f"\033[38;5;244m[0]  ‹   Back to Content Types\033[0m")
     choices[0] = 'BACK'
-    menu += '\033[96m╰───────────────────────────╯\033[0m'
-    colprint('header', menu)
+
+    print('\n' + render_box(f'SELECT {category_name.upper()} PROVIDER', menu_lines))
 
     if predefined_provider is not None:
         colprint('predefined', f'\nUsing Predefined Provider: {predefined_provider}')
@@ -49,7 +51,7 @@ def get_provider(category_name, predefined_provider=None):
             raise ExitException(0)
         return predefined_provider
     else:
-        choice = colprint('user_input', '\nEnter your choice: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
+        choice = colprint('user_input', f'\n➜ Enter choice [1-{len(providers)}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
         return choices[choice]
 
 def get_client(provider_key=None):
@@ -102,39 +104,43 @@ def check_if_exists(path):
 
 def get_series_type(keys, predefined_input=None):
     logger.debug('Selecting the series type')
-    types = {}
-    menu = '\n\033[96m╭───── SELECT TYPE ─────╮\033[0m\n'
-    for idx, typ in enumerate(keys):
-        menu += f'\033[94m│ {idx+1}. {typ:<19} │\033[0m\n'
-        types[idx+1] = typ
-    menu += '\033[96m╰─────────────────────╯\033[0m'
-    colprint('header', menu)
+    type_aliases = {
+        '1': 'Anime', 'anime': 'Anime',
+        '2': 'Movies', 'movies': 'Movies', 'movie': 'Movies',
+        '3': 'TV Shows', 'tv': 'TV Shows', 'tvshows': 'TV Shows', 'tv_shows': 'TV Shows', 'series': 'TV Shows'
+    }
+    if predefined_input is not None:
+        pre_str = str(predefined_input).lower().strip()
+        if pre_str in type_aliases:
+            colprint('predefined', f'\nUsing Predefined Content Type: {type_aliases[pre_str]}')
+            return type_aliases[pre_str]
 
-    if predefined_input:
-        colprint('predefined', f'\nUsing Predefined Input: {predefined_input}')
-        series_type = predefined_input
-        if series_type not in types:
-            logger.error(f'Invalid series type: {series_type}')
-            raise ExitException(0)
-    else:
-        series_type = colprint('user_input', '\nEnter your choice: ', input_type='recurring', input_dtype='int', input_options=types, allow_empty_input=False)
+    menu_lines = [
+        f"\033[1m[1]\033[0m  🎬  Anime",
+        f"\033[1m[2]\033[0m  🍿  Movies",
+        f"\033[1m[3]\033[0m  📺  TV Shows",
+        f"\033[38;5;244m[0]  🚪  Exit\033[0m"
+    ]
+    print('\n' + render_box('SELECT CONTENT TYPE', menu_lines))
+    choice = colprint('user_input', '\n➜ Enter choice [1-3, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3], allow_empty_input=False)
+    if choice == 0:
+        raise ExitException(0)
 
-    logger.debug(f'Series type selected: {series_type}')
+    series_type_selected = keys[choice - 1]
+    logger.debug(f'Series type selected: {series_type_selected}')
+    return series_type_selected
 
-    return types[series_type]
-
-def search_and_select_series(predefined_search_input=None):
+def search_and_select_series(predefined_search_input=None, search_only=False):
     while True:
         logger.debug("Search and select series")
         # get search keyword from user input
         if predefined_search_input:
-            colprint('predefined', f'\nUsing Predefined Input for search: {predefined_search_input}')
+            colprint('predefined', f'\n🔍 Using Predefined Input for search: {predefined_search_input}')
             keyword = predefined_search_input
         else:
-            keyword = colprint('user_input', "\nEnter series/movie name: ")
+            keyword = colprint('user_input', "\n🔍 Enter series/movie name: ")
 
-        # search with keyword and show results
-        colprint('header', "\nSearch Results:")
+        colprint('header', f"\nSearching for '{keyword}'...")
         logger.info(f'Searching with keyword: {keyword}')
         search_results = client.search(keyword) # pyright: ignore[reportOptionalMemberAccess]
         logger.info('Search Results Found')
@@ -147,10 +153,41 @@ def search_and_select_series(predefined_search_input=None):
             else:
                 raise ExitException(0)
 
-        colprint('header', "\nEnter 0 to search with different key word")
+        # Format 2-line search result cards
+        card_lines = []
+        for idx, (res_no, res_item) in enumerate(search_results.items()):
+            title = res_item.get('title', 'Unknown')
+            rating = res_item.get('rating', 'N/A')
+            year = res_item.get('year', '')
+            format_tag = res_item.get('type', '')
+            eps = res_item.get('episodes_count', '')
+            genres = res_item.get('genres', '')
+
+            line1 = f"\033[1m[{res_no}]\033[0m \033[38;5;39m{title}\033[0m"
+            meta = []
+            if rating != 'N/A': meta.append(f"\033[38;5;220m★ {rating}\033[0m")
+            if year: meta.append(f"Year: {year}")
+            if format_tag: meta.append(f"\033[38;5;141m[{format_tag.upper()}]\033[0m")
+            if eps: meta.append(f"Eps: {eps}")
+            line2 = "    " + " \033[38;5;244m•\033[0m ".join(meta)
+            card_lines.append(line1)
+            card_lines.append(line2)
+            if genres:
+                card_lines.append(f"    \033[38;5;244mGenres: {genres}\033[0m")
+            if idx < len(search_results) - 1:
+                card_lines.append("")
+
+        if not search_only:
+            card_lines.append("")
+            card_lines.append("\033[38;5;244m[0] 🔍 Search again with a different title\033[0m")
+
+        print('\n' + render_box(f'Search Results ({len(search_results)} matches)', card_lines))
+
+        if search_only:
+            raise ExitException(0)
 
         # get user selection for the search results
-        option = colprint('user_input', "\nSelect one of the above: ", input_type='recurring', input_dtype='int', input_options=list(range(len(search_results)+1)), allow_empty_input=False)
+        option = colprint('user_input', f"\n➜ Select series [1-{len(search_results)}, 0=New Search]: ", input_type='recurring', input_dtype='int', input_options=list(range(len(search_results)+1)), allow_empty_input=False)
         logger.debug(f'Selected option: {option}')
 
         if option == 0:
@@ -343,20 +380,42 @@ def main():
         # Initialize required variables
 
         # parse cli arguments
-        parser = argparse.ArgumentParser(description='Media scraper and downloader for anime, drama, movies and TV shows.')
+        parser = argparse.ArgumentParser(
+            description='🎬 Media scraper and downloader for Anime, Movies and TV Shows.',
+            formatter_class=argparse.RawDescriptionHelpFormatter,
+            epilog='''
+Examples:
+  Interactive Mode:
+    python scraper.py
+  
+  One-Line Direct Downloads:
+    python scraper.py -s anime -p anidb -n "Solo Leveling" -e "1-3" -r 1080 -d
+    python scraper.py -s movies -p oneshows -n "Inception" -r 1080 -d
+    python scraper.py -s tv -p kisskh -n "Vincenzo" -S "1" -e "1-5" -r 720 -d
+
+  Quick Search Only (no download):
+    python scraper.py -s anime -p anidb -n "Jobless" --search-only
+
+  Dry Run Inspection (resolve links without downloading):
+    python scraper.py -s anime -p anidb -n "Solo Leveling" -e "1" --dry-run
+'''
+        )
         parser.add_argument('-c', '--conf', default='config_scraper.yaml',
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
-        parser.add_argument('-s', '--series-type', type=int, help='type of series')
+        parser.add_argument('-s', '--series-type', type=str, help='type of content (1/anime, 2/movies, 3/tv)')
         parser.add_argument('-p', '--provider', choices=['anime_suge', 'anidb', 'kisskh', 'oneshows'], help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
-        parser.add_argument('-e', '--episodes', action='append', help='episodes number to download')
-        parser.add_argument('-r', '--resolution', type=str, help='resolution to download the episodes')
-        parser.add_argument('-d', '--start-download', action='store_true', help='start download immediately or not')
-        parser.add_argument('-dc', '--disable-colors', default=False, action='store_true', help='disable colored output')
+        parser.add_argument('-e', '--episodes', action='append', help='episodes number to download (e.g. 1-12, 1,3,5)')
+        parser.add_argument('-r', '--resolution', type=str, help='resolution to download the episodes (e.g. 1080, 720, 360)')
+        parser.add_argument('-d', '--start-download', action='store_true', help='start download immediately without prompt')
+        parser.add_argument('-dc', '--disable-colors', '--no-color', dest='disable_colors', default=False, action='store_true', help='disable colored ANSI output')
+        parser.add_argument('-q', '--quiet', default=False, action='store_true', help='suppress hero banner and non-essential decoration')
+        parser.add_argument('--search-only', default=False, action='store_true', help='search and display results without prompting to download')
+        parser.add_argument('--dry-run', default=False, action='store_true', help='resolve streams and show pre-download inspection without downloading')
         parser.add_argument('-hsa', '--hls-size-accuracy', default=0, type=int, choices=range(0, 101), metavar='[0-100]',
-                         help='accuracy to display the file size of hls files. Use 0 to disable. Please enable only if required as it is slow')
+                         help='accuracy to display the file size of hls files (0-100)')
         parser.add_argument('-dl', '--disable-looping', default=False, action='store_true', help='disable auto-restart')
 
         args = parser.parse_args()
@@ -377,17 +436,18 @@ def main():
         # global settings
         disable_colors = args.disable_colors
         hls_size_accuracy = args.hls_size_accuracy
-        disable_looping = args.disable_looping
+        disable_looping = args.disable_looping or args.search_only or args.dry_run
 
         # initialize color printer
         colprint_init(disable_colors)
 
-        # Display banner
-        banner = '''\033[95m╔══════════════════════════════════════════════════════════════╗
-║                     🎬 MEDIA SCRAPER v1.1 🎬                    ║
-║           Download Anime, Movies & TV Shows with ease!          ║
-╚══════════════════════════════════════════════════════════════╝\033[0m'''
-        print(banner)
+        # Display hero banner
+        if not args.quiet:
+            hero_box = render_box('', [
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.2\033[0m',
+                '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows\033[0m'
+            ])
+            print(f'\n{hero_box}\n')
 
         # load config from yaml to dict using yaml
         config = load_yaml(config_file)
@@ -438,20 +498,22 @@ def main():
         check_if_exists(downloader_config['download_dir'])
 
         # search in an infinite loop till you get your series
-        target_series = search_and_select_series(series_name_predef)
+        target_series = search_and_select_series(series_name_predef, search_only=args.search_only)
         logger.info(f'Selected series: {target_series}')
 
         # fetch episode links
         logger.info(f'Fetching episodes list')
-        colprint('header', f'\nAvailable Episodes Details:', end=' ')
         episodes = client.fetch_episodes_list(target_series)
-        colprint('results', f'{len(episodes)} episodes found.')
 
         if len(episodes) == 0:
             logger.error('No episodes found in selected series!')
             raise ExitException(1)
 
-        logger.info(f'Displaying episodes list')
+        ep_overview = [
+            f"\033[1mSeries:\033[0m \033[38;5;39m{target_series.get('title', 'Unknown')}\033[0m",
+            f"\033[1mTotal Episodes Available:\033[0m \033[38;5;82m{len(episodes)}\033[0m (1 - {len(episodes)})"
+        ]
+        print('\n' + render_box('AVAILABLE EPISODES', ep_overview))
         client.show_episode_results(episodes, seasons_predef, episodes_predef)
 
         # get user input for episodes range and parse start and end number
@@ -498,7 +560,12 @@ def main():
             colprint('predefined', f'\nUsing Predefined Input for resolution: {resolution_predef}')
             resolution = resolution_predef
         else:
-            resolution = str(colprint('user_input', f"\nEnter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
+            res_lines = []
+            for r in valid_resolutions:
+                label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
+                res_lines.append(f"\033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m")
+            print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+            resolution = str(colprint('user_input', f"\n➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
 
         logger.info(f'Selected download resolution: {resolution}')
 
@@ -552,18 +619,26 @@ def main():
             logger.error('No episodes available to download! Exiting.')
             raise ExitException(1)
 
-        msg = f'Episodes available for download [{available_dl_count}/{len(target_dl_links)}].'
-        colprint('header', f'\n{msg}', end=' ')
-        if available_dl_count == 0:
-            logger.error('\nNo episodes available to download! Exiting.')
-            raise ExitException(1)
-        elif start_download_predef:
+        # Display Pre-Download Checklist Card
+        checklist_lines = [
+            f"\033[1mSeries:\033[0m     \033[38;5;39m{series_title}\033[0m",
+            f"\033[1mSave Path:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+            f"\033[1mResolution:\033[0m \033[38;5;220m{resolution}P\033[0m (MKV with Forced English Subtitles)",
+            f"\033[1mQueued:\033[0m     {available_dl_count} episode(s) ready to download"
+        ]
+        if already_downloaded_count > 0:
+            checklist_lines.append(f"\033[38;5;82m✔ {already_downloaded_count} existing episode(s) skipped\033[0m")
+        print('\n' + render_box('PRE-DOWNLOAD INSPECTION', checklist_lines))
+
+        if args.dry_run:
+            colprint('results', '\n[DRY RUN] Inspection complete. Exiting without downloading video files.')
+            return
+
+        if start_download_predef:
             colprint('predefined', f'Using Predefined Input for start download: {start_download_predef}')
             proceed = 'y'
         else:
-            proceed = colprint('user_input', f"Proceed to download (Y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
-
-        logger.info(f'{msg} Proceed to download? {proceed}')
+            proceed = colprint('user_input', f"➜ Proceed to download (Y|n)? ", input_type='recurring', input_options=['y', 'n', 'Y', 'N', 'e']).lower() or 'y'
 
         if proceed == 'y':
             pass
@@ -580,11 +655,21 @@ def main():
             raise ExitException(1)
 
         # start downloading...
-        msg = f"Downloading episode(s) to {downloader_config['download_dir']}..."
-        logger.info(msg); colprint('header', f"\n{msg}")
+        msg = f"Downloading {available_dl_count} episode(s) to {downloader_config['download_dir']}..."
+        logger.info(msg)
         # invoke downloader using a threadpool
         logger.info(f'Invoking batch downloader with {max_parallel_downloads = }')
         batch_downloader(downloader, target_dl_links, downloader_config, max_parallel_downloads)
+
+        # Post-download receipt card
+        receipt_lines = [
+            f"\033[1mSeries:\033[0m   \033[38;5;39m{series_title}\033[0m",
+            f"\033[1mSaved To:\033[0m \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+            f"\033[1mEpisodes:\033[0m {available_dl_count} processed",
+            "",
+            "\033[38;5;82m✔ Download session completed successfully!\033[0m"
+        ]
+        print('\n' + render_box('DOWNLOAD SUMMARY', receipt_lines))
 
     except SystemExit as se:
         # propagate the exit from argparse after printing help or on parse error

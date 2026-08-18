@@ -115,6 +115,8 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Modern CLI & Interactive UI Overhaul** | `scraper.py`, `Utils/commons.py`, `Utils/BaseDownloader.py` | Complete visual overhaul with `render_box` Unicode cards, smooth gradient progress bars (`━╸─`), `--search-only`, `--dry-run`, `-q`, and `--no-color`. |
+| **Provider Menu `0. Back` Navigation** | `scraper.py` | Added `0. Back` navigation across all provider menus to easily return to content type selection. |
 | **Auto-Skip Existing Episodes** | `scraper.py` | Detects completed files (>1MB) in target output directory and skips re-downloading them. |
 | **`episodes` Undefined Variable Fix** | `scraper.py` | Passed `episodes` into `get_ep_range_multiple` and restricted multi-season prompts to TV Shows with >1 seasons. |
 | **English Subtitle Default Priority** | `HLSDownloader.py`, `BaseDownloader.py` | Sorted subtitle tracks so English is always stream 0 with `default+forced` flags. |

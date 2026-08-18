@@ -29,16 +29,19 @@ A powerful command-line interface (CLI) application for searching and downloadin
 
 ## ✨ Features
 
+- **Modern Unicode UI Engine**: Sleek bordered cards, single-line hero banners, and dynamic status indicators built for Linux, macOS, and Windows.
 - **Multi-Source Scraping**: Download content seamlessly from top Anime and Movie/TV Show providers.
+- **Interactive Navigation with Back Support**: Context-aware provider cards with `0. Back` to change categories on the fly.
+- **Real-Time Download Dashboard**: High-precision gradient progress bars (`━╸─`) displaying speed, ETA, segment/chunk progress, and cache indicators (`[R:X F:Y]`).
+- **One-Line CLI Ergonomics**: String aliases (`-s anime`, `-s movies`, `-s tv`), `--search-only` for instant lookups, `--dry-run` for link inspection, and `-q`/`--quiet` for headless scripts.
 - **First-Launch Setup Wizard**: If no configuration file exists on first launch, an interactive setup wizard guides you step-by-step to create and save `config_scraper.yaml`.
 - **Download Resumption**: Automatic segment/chunk caching. Interrupted downloads resume from where they left off without re-downloading existing segments.
 - **Fast Parallel Fetching**: Concurrent episode link resolution (~9x speedup using multi-threaded execution).
-- **Structured 2-Line Search Cards**: Rich search results displaying episode counts, sub/dub availability, release year, airing status, and content types (`[TV]`, `[MOVIE]`, `[ONA]`, `[SPECIAL]`).
+- **Structured 2-Line Search Cards**: Rich search results displaying ratings (`★ 8.5`), genres, sub/dub availability, release year, airing status, and content types (`[TV]`, `[MOVIE]`, `[ONA]`, `[SPECIAL]`).
 - **Resolution Control**: Download in your preferred video quality (360p, 720p, 1080p).
-- **HLS / M3U8 Downloader**: Automated segment downloading, PNG obfuscation stripping, and FFmpeg MP4 remuxing.
-- **Subtitle Extraction & Conversion**: Automatic extraction and WebVTT-to-SRT conversion embedded into downloaded MP4 files.
+- **HLS / M3U8 Downloader**: Automated segment downloading, PNG obfuscation stripping, and FFmpeg MKV remuxing.
+- **Subtitle Extraction & Conversion**: Automatic extraction and WebVTT-to-SRT conversion embedded into downloaded MKV files with default and forced subtitle flags.
 - **Network Resilience**: Automatic HTTP 429 rate-limit retries, IPv4 socket enforcement, and Cloudflare Turnstile challenge solving.
-- **Interactive & Non-Interactive CLI**: Run interactively or automate via command-line flags.
 
 ---
 

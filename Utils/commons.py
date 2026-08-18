@@ -16,22 +16,65 @@ from subprocess import Popen, PIPE, DEVNULL
 
 # color themes
 PRINT_THEMES = {
-    'default': '\033[1m',       # white
-    'blurred': '\033[90m',      # black
-    'header': '\033[92m',       # green
-    'results': '\033[94m',      # blue
-    'predefined': '\033[33m',   # dark yellow
-    'user_input': '\033[93m',   # yellow
-    'yellow': '\033[93m',       # yellow
-    'success': '\033[32m',      # dark green
-    'error': '\033[91m',        # red
+    'default': '\033[1m',
+    'blurred': '\033[38;5;244m',
+    'header': '\033[38;5;39m\033[1m',
+    'results': '\033[38;5;82m',
+    'predefined': '\033[38;5;214m',
+    'user_input': '\033[38;5;220m\033[1m',
+    'yellow': '\033[38;5;220m',
+    'success': '\033[38;5;82m',
+    'error': '\033[38;5;196m',
+    'primary': '\033[38;5;39m',
+    'secondary': '\033[38;5;141m',
+    'warning': '\033[38;5;214m',
+    'muted': '\033[38;5;244m',
+    'bold': '\033[1m',
     'blinking': '\033[5m',
     'reset': '\033[0m'
 }
 DISPLAY_COLORS = True
 
-# strip ANSI characters, to write to log file
-strip_ansi = lambda text: re.sub(r'\x1b\[[0-9;]*m', '', text)
+# strip ANSI characters
+strip_ansi = lambda text: re.sub(r'\x1b\[[0-9;]*m', '', str(text)) if text is not None else ''
+
+def visible_len(text):
+    '''Calculate visible display length of string ignoring ANSI codes'''
+    return len(strip_ansi(text))
+
+def render_box(title, lines, max_width=78):
+    '''
+    Render a clean Unicode bordered card container.
+    Adapts dynamically to terminal width without line overflow.
+    '''
+    try:
+        term_cols = shutil.get_terminal_size((80, 24)).columns
+    except Exception:
+        term_cols = 80
+    term_width = min(term_cols, max_width)
+    inner_width = max(term_width - 4, 30)
+
+    c_border = PRINT_THEMES['primary'] if DISPLAY_COLORS else ''
+    c_title = (PRINT_THEMES['secondary'] + PRINT_THEMES['bold']) if DISPLAY_COLORS else ''
+    c_reset = PRINT_THEMES['reset'] if DISPLAY_COLORS else ''
+
+    title_str = f' {c_title}{title}{c_reset}{c_border} ' if title else ''
+    title_vlen = visible_len(title) + 2 if title else 0
+    dash_count = max(inner_width - title_vlen, 2)
+
+    out = [f'{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}']
+    for line in lines:
+        vlen = visible_len(line)
+        if vlen > inner_width:
+            line_str = line[:inner_width]
+            vlen = inner_width
+        else:
+            line_str = line
+        pad = max(0, inner_width - vlen)
+        out.append(f'{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
+
+    out.append(f'{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
+    return '\n'.join(out)
 class ExitException(Exception):
     '''
     Custom exception which forces UDB to exit. Requires status code as argument.
@@ -110,12 +153,14 @@ def pretty_time(sec: int, fmt='hh:mm:ss'):
         return '{:02d}h {:02d}m {:02d}s'.format(h,m,s) if h > 0 else '{:02d}m {:02d}s'.format(m,s)
 
 # initialize colored printing
-def colprint_init(disable_colors):
-    if disable_colors:
-        global DISPLAY_COLORS
+def colprint_init(disable_colors=False):
+    global DISPLAY_COLORS
+    if disable_colors or bool(os.environ.get('NO_COLOR')) or os.environ.get('TERM') == 'dumb':
         DISPLAY_COLORS = False
     else:
-        os.system('')   # required to enable ANSI output in Windows terminals
+        DISPLAY_COLORS = True
+        if os.name == 'nt':
+            os.system('')   # required to enable ANSI output in Windows terminals
 
 # custom stdout printer
 def colprint(theme, text, **kwargs):

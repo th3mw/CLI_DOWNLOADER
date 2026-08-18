@@ -78,27 +78,35 @@ class ProgressBar:
         else:
             rate_str = f'{rate:.1f}{self.unit}/s' if self.unit else f'{rate:.1f}/s'
 
+        c_desc = PRINT_THEMES.get('primary', '\033[38;5;39m') if DISPLAY_COLORS else ''
+        c_bar = PRINT_THEMES.get('success', '\033[38;5;82m') if DISPLAY_COLORS else ''
+        c_pct = PRINT_THEMES.get('bold', '\033[1m') if DISPLAY_COLORS else ''
+        c_rate = PRINT_THEMES.get('warning', '\033[38;5;220m') if DISPLAY_COLORS else ''
+        c_eta = PRINT_THEMES.get('secondary', '\033[38;5;141m') if DISPLAY_COLORS else ''
+        c_muted = PRINT_THEMES.get('muted', '\033[38;5;244m') if DISPLAY_COLORS else ''
+        c_reset = PRINT_THEMES.get('reset', '\033[0m') if DISPLAY_COLORS else ''
+
         if self.total > 0:
             pct = min(100, int((self.n / self.total) * 100))
             eta = ((self.total - self.n) / rate) if (rate > 0 and self.n < self.total) else 0
             eta_str = self._fmt_time(eta)
             filled = min(self.bar_width, int(self.bar_width * self.n / self.total))
-            bar = '█' * filled + '░' * (self.bar_width - filled)
+            tail = '╸' if (filled < self.bar_width and pct > 0) else ''
+            unfilled = max(0, self.bar_width - filled - len(tail))
+            bar = '━' * filled + tail + '─' * unfilled
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
             tot_str = self._fmt_size(self.total) if self.unit_scale else f'{self.total}'
-            line = f'\r{self.theme}{self.desc}: {pct:3d}%|{bar}| {n_str}/{tot_str} [{self._fmt_time(elapsed)}<{eta_str}, {rate_str}{self.postfix}]{self.reset}'
+            unit_suffix = f' {self.unit}' if (self.unit and not self.unit_scale) else ''
+            line = f'\r{c_desc}{self.desc}{c_reset} {c_bar}{bar}{c_reset} {c_pct}{pct:3d}%{c_reset} {c_muted}•{c_reset} {n_str}/{tot_str}{unit_suffix} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} {c_eta}ETA {eta_str}{c_reset} {c_muted}{self.postfix}{c_reset}'
         else:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
-            line = f'\r{self.theme}{self.desc}: {n_str} [{self._fmt_time(elapsed)}, {rate_str}{self.postfix}]{self.reset}'
+            line = f'\r{c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
 
         sys.stdout.write(line)
         sys.stdout.flush()
 
 
-try:
-    from tqdm.auto import tqdm
-except ImportError:
-    tqdm = ProgressBar
+tqdm = ProgressBar
 
 
 def _sort_subtitles_english_first(subtitles_dict):

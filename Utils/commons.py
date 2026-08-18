@@ -183,6 +183,22 @@ def colprint(theme, text, **kwargs):
     input_dtype = kwargs.get('input_dtype')
     input_options = kwargs.get('input_options')
     allow_empty_input = kwargs.get('allow_empty_input', True)
+    indent = kwargs.get('indent', 2)
+
+    def _indent_text(t, ind=2):
+        if not t or ind <= 0:
+            return t
+        prefix = ' ' * ind
+        lines = str(t).split('\n')
+        indented = []
+        for l in lines:
+            if not l.strip():
+                indented.append(l)
+            elif l.startswith(prefix):
+                indented.append(l)
+            else:
+                indented.append(prefix + l)
+        return '\n'.join(indented)
 
     def _get_input_(msg, input_type='once', input_dtype=None, input_options=[], allow_empty_input=True):
         user_input = input(f'{msg}').strip()
@@ -213,10 +229,12 @@ def colprint(theme, text, **kwargs):
 
         return user_input
 
+    formatted_text = _indent_text(text, indent)
+
     if 'input' in theme:
-        return _get_input_(f'{c_strt}{text}{c_end}', input_type, input_dtype, input_options, allow_empty_input)
+        return _get_input_(f'{c_strt}{formatted_text}{c_end}', input_type, input_dtype, input_options, allow_empty_input)
     else:
-        print(f'{c_strt}{text}{c_end}', end=line_end)
+        print(f'{c_strt}{formatted_text}{c_end}', end=line_end)
 
 # custom decorator for retring of a function
 def retry(exceptions=(Exception,), tries=3, delay=2, backoff=2, print_errors=False):

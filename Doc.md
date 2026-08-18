@@ -12,11 +12,13 @@ The Media Scraper is designed around a modular, object-oriented architecture sep
 flowchart TD
     CLI[scraper.py - CLI & UI Loop] --> Factory[provider_factory.py]
     Factory --> ClientChoice{Category & Provider Selection}
+    ClientChoice -->|Anime| AniDb[AniDbClient]
     ClientChoice -->|Anime| AnimeSuge[AnimeSugeClient]
     ClientChoice -->|Anime / Drama| KissKh[KissKhClient]
     ClientChoice -->|Movies / TV| OneShows[OneShowsClient]
     
-    AnimeSuge --> BaseClient[BaseClient]
+    AniDb --> BaseClient[BaseClient]
+    AnimeSuge --> BaseClient
     KissKh --> BaseClient
     OneShows --> BaseClient
 
@@ -33,7 +35,8 @@ flowchart TD
 - **`scraper.py`**: CLI entry point, argument parsing (`argparse`), interactive prompts, menu loops, and batch downloader dispatching.
 - **`Clients/`**: Provider implementations inheriting from `BaseClient`.
   - [`BaseClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/BaseClient.py): Abstract base class, HTTP request wrapper with session pooling, parallel link fetching manager, search results display formatter.
-  - [`AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/AnimeSugeClient.py): AnimeSuge provider scraper.
+  - [`AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/AniDbClient.py): AniDB provider scraper (`anidb.app`).
+  - [`AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/AnimeSugeClient.py): AnimeSuge provider scraper (`animesuge.cz`).
   - [`KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/KissKhClient.py): KissKh provider scraper (Anime, Asian Drama, Movies & TV Shows).
   - [`OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/OneShowsClient.py): 1Shows provider scraper (Movies & TV Shows with WASM decryption).
 - **`Utils/`**: Downloader and shared utility modules.
@@ -45,6 +48,12 @@ flowchart TD
 ---
 
 ## 2. Provider Implementations & Mechanics
+
+### AniDB Client (`Clients/AniDbClient.py`)
+- **API & Browse Scraping**: Scrapes search cards from `/browse?q={query}` (with fallback to `/search/suggestions?q=`), parsing anime title, type (`[TV]`, `[MOVIE]`, `[SPECIAL]`), rating, and slug IDs.
+- **Frontend REST APIs**: Directly queries `/api/frontend/anime/{id}/episodes` to retrieve full episode lists and `/api/frontend/episode/{id}/languages` to resolve multi-language audio streams (`jpn`, `eng`, `kor`).
+- **HLS Stream Parsing**: Extracts JWPlayer `master.m3u8` streams and parses multi-bitrate resolution tiers (`1080p`, `720p`, `360p`).
+- **Segment Sanitization**: Downloads `.xls` MPEG-TS segments and sanitizes extensions to `.ts` for FFmpeg remuxing.
 
 ### AnimeSuge Client (`Clients/AnimeSugeClient.py`)
 - **VRF Token Algorithm**: Implements a 5-stage verification token generator required by AnimeSuge AJAX endpoints:
@@ -108,6 +117,7 @@ Converting to `.srt` before encoding into MP4 `mov_text` ensures that subtitle b
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **AniDB Provider Integration** | `Clients/AniDbClient.py`, `Utils/provider_factory.py` | Added AniDB (`anidb.app`) provider client with multi-language HLS streams and `.xls` segment sanitization. |
 | **AnimeSuge Embed 404 Fix** | `Clients/AnimeSugeClient.py` | Added dynamic domain origin extraction (`getSourcesNew` / `getSources`) and multi-server fallback. |
 | **`tqdm` Missing Module Fallback** | `Utils/BaseDownloader.py` | Added lightweight self-contained progress bar fallback when `tqdm` is not installed. |
 | **`NoneType` block_size Crash** | `Clients/BaseClient.py` | Added safe fallback `self.bs = AES.block_size if AES is not None else 16` and AES availability guards. |

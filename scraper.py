@@ -321,6 +321,8 @@ def close_handlers():
     Close handlers properly to ensure rotation works without issues
     '''
     try:
+        if logger is None:
+            return
         for handler in logger.handlers:
             handler.close()
             logger.removeHandler(handler)
@@ -343,7 +345,7 @@ def main():
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
         parser.add_argument('-s', '--series-type', type=int, help='type of series')
-        parser.add_argument('-p', '--provider', choices=['anime_suge', 'kisskh', 'oneshows'], help='provider to use for downloading')
+        parser.add_argument('-p', '--provider', choices=['anime_suge', 'anidb', 'kisskh', 'oneshows'], help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
         parser.add_argument('-e', '--episodes', action='append', help='episodes number to download')

@@ -118,7 +118,7 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | `-c` | `--conf` | Custom configuration file (default: `config_scraper.yaml`) |
 | `-l` | `--log-file` | Custom log file name |
 | `-s` | `--series-type` | Content type: `1` for Anime, `2` for Movies & Shows |
-| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `kisskh`, `oneshows`) |
+| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `anidb`, `kisskh`, `oneshows`) |
 | `-n` | `--series-name` | Title search query string |
 | `-S` | `--seasons` | Season numbers to download (e.g. `1` or `1-3`) |
 | `-e` | `--episodes` | Episode numbers to download (e.g. `1-5` or `1,3,5`) |
@@ -136,7 +136,7 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 
 2. **Download Anime Episodes (Continuous Range)**:
    ```bash
-   python scraper.py -s 1 -p anime_suge -n "Solo Leveling" -e "1-5" -r 720 -d
+   python scraper.py -s 1 -p anidb -n "Solo Leveling" -e "1-5" -r 1080 -d
    ```
 
 3. **Download Specific Episodes (Comma-Separated)**:
@@ -155,7 +155,8 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 
 | Category | Provider Client | Key Features |
 |----------|-----------------|--------------|
-| **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, fast multi-threaded HLS links, subtitle tracks |
+| **Anime** | `AniDB` (`anidb.app`) | Fast HLS master stream resolution, multi-language audio tracks (`jpn`, `eng`), clean API |
+| **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, multi-domain dynamic embeds, multi-server fallbacks, HLS links |
 | **Anime** | `KissKh` (`kisskh.co`) | Anime-filtered search, episode list fetching, encrypted subtitles |
 | **Movies** | `1Shows` (`1shows.org`) | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads with interactive Source + RES + Size variety selection |
 | **Movies** | `KissKh` (`kisskh.co`) | Asian Drama movies & Hollywood films |

@@ -20,6 +20,12 @@ CATEGORY_PROVIDERS = {
             'content_filter': None
         },
         {
+            'key': 'anidb',
+            'label': 'AniDB',
+            'class_path': 'Clients.AniDbClient.AniDbClient',
+            'content_filter': None
+        },
+        {
             'key': 'kisskh',
             'label': 'KissKh (Anime Only)',
             'class_path': 'Clients.KissKhClient.KissKhClient',

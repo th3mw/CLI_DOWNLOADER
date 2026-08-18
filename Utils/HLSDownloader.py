@@ -4,7 +4,10 @@ import re
 from Utils.commons import retry
 from Utils.BaseDownloader import BaseDownloader
 
-NON_MEDIA_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico'}
+NON_MEDIA_EXTENSIONS = {
+    '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico',
+    '.xls', '.xlsx', '.doc', '.docx', '.pdf', '.bin', '.txt'
+}
 
 
 def _sanitize_segment_name(filename):
@@ -85,6 +88,8 @@ class HLSDownloader(BaseDownloader):
         return uri, iv
 
     def _collect_ts_urls(self, m3u8_link, m3u8_data):
+        if isinstance(m3u8_data, bytes):
+            m3u8_data = m3u8_data.decode('utf-8', errors='ignore')
         # Improved regex to handle all cases. (get all lines except those starting with #)
         base_url = '/'.join(m3u8_link.split('/')[:-1])
         normalize_url = lambda url, base_url: (url if url.startswith('http') else 'https:' + url if url.startswith('//') else base_url + '/' + url)

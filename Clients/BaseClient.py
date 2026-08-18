@@ -226,15 +226,46 @@ class BaseClient():
         base_url = '/'.join(master_m3u8_link.split('/')[:-1])
         self.logger.debug(f'Extracting m3u8 data from master link: {master_m3u8_link}')
         master_m3u8_data = self._send_request(master_m3u8_link, referer=referer)
-        # self.logger.debug(f'{master_m3u8_data = }')
+        if not master_m3u8_data:
+            return m3u8_links
 
-        _regex_list = lambda data, rgx, grp: [ url.group(grp) for url in re.finditer(rgx, data) ]
         _full_link = lambda link: link if link.startswith('http') else base_url + '/' + link
-        resolutions = _regex_list(master_m3u8_data, r'RESOLUTION=(\d+x\d+)', 1)
-        resolution_names = _regex_list(master_m3u8_data, 'NAME="(.*)"', 1)
-        if len(resolution_names) == 0:
-            resolution_names = [ res.lower().split('x')[-1] for res in resolutions ]
-        resolution_links = _regex_list(master_m3u8_data, '(.*)m3u8', 0)
+
+        resolutions = []
+        resolution_links = []
+        resolution_names = []
+
+        lines = master_m3u8_data.splitlines()
+        for i, line in enumerate(lines):
+            line = line.strip()
+            if line.startswith('#EXT-X-STREAM-INF:'):
+                res_match = re.search(r'RESOLUTION=(\d+x\d+)', line)
+                name_match = re.search(r'NAME="([^"]+)"', line)
+                if res_match:
+                    resolutions.append(res_match.group(1))
+                    resolution_names.append(name_match.group(1) if name_match else res_match.group(1).lower().split('x')[-1])
+                elif name_match:
+                    resolutions.append(name_match.group(1))
+                    resolution_names.append(name_match.group(1))
+                else:
+                    resolutions.append('NA')
+                    resolution_names.append('NA')
+
+                for next_line in lines[i+1:]:
+                    next_line = next_line.strip()
+                    if next_line and not next_line.startswith('#'):
+                        resolution_links.append(next_line)
+                        break
+
+        # Fallback if standard EXT-X-STREAM-INF parsing found no links
+        if not resolution_links:
+            _regex_list = lambda data, rgx, grp: [ url.group(grp) for url in re.finditer(rgx, data) ]
+            resolutions = _regex_list(master_m3u8_data, r'RESOLUTION=(\d+x\d+)', 1)
+            resolution_names = _regex_list(master_m3u8_data, 'NAME="(.*)"', 1)
+            if len(resolution_names) == 0:
+                resolution_names = [ res.lower().split('x')[-1] for res in resolutions ]
+            resolution_links = _regex_list(master_m3u8_data, r'^(?!#)(.*m3u8.*)$', 1)
+
         self.logger.debug(f'Resolutions data: {resolutions = }, {resolution_names = }, {resolution_links = }')
 
         if len(resolution_links) == 0:

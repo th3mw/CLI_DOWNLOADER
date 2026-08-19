@@ -158,7 +158,7 @@ class HLSDownloader(BaseDownloader):
     def _convert_to_mp4(self):
         out_file = os.path.join(f'{self.out_dir}', f'{self.out_file}')
         is_mkv = out_file.lower().endswith('.mkv')
-        command = [f'ffmpeg -y -loglevel warning -allowed_extensions ALL -i "{self.m3u8_file}"']
+        command = [f'ffmpeg -y -nostdin -loglevel warning -allowed_extensions ALL -i "{self.m3u8_file}"']
         maps = ['-map 0:v -map 0:a'] if self.subtitles else []
         metadata = []
 
@@ -222,7 +222,7 @@ class HLSDownloader(BaseDownloader):
             self.logger.debug('Downloading subtitles')
             self._download_subtitles()
 
-        self.logger.debug('Converting m3u8 segments to .mp4')
+        self.logger.debug('Converting m3u8 segments to media container')
         self._convert_to_mp4()
 
         # remove temp dir once completed and dir is empty

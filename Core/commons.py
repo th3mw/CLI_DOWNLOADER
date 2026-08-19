@@ -85,20 +85,23 @@ class ExitException(Exception):
     '''
     pass
 
-def exec_os_cmd(cmd):
+def exec_os_cmd(cmd, timeout=300):
     '''
     Execute any OS commands
     Args: command to be executed
     Returns: output of executed command
     '''
     proc = Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True, stdin=DEVNULL)
-    # print stdout to console
-    stdout, stderr = proc.communicate()
-    msg = stdout.decode("utf-8")
-    std_err = stderr.decode("utf-8")
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except Exception as e:
+        proc.kill()
+        raise Exception(f"Command timed out after {timeout}s: {e}")
+    msg = stdout.decode("utf-8", errors="ignore")
+    std_err = stderr.decode("utf-8", errors="ignore")
     rc = proc.returncode
     if rc != 0:
-        raise Exception(f"Error occured: {std_err}")
+        raise Exception(f"Error occurred: {std_err}")
     return msg
 
 

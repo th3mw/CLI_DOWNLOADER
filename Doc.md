@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Non-Blocking Post-Processing & Process Timeouts** | `Content/Anime/Downloaders/HLSDownloader.py`, `Core/commons.py` | Added `-nostdin` flag to all FFmpeg muxing commands, added 300s process execution timeout protection in `exec_os_cmd` with automatic termination on timeout, and added post-processing status indicators. |
 | **Simultaneous & Parallel Batch Episode Downloads** | `scraper.py`, `Core/BaseDownloader.py` | Enabled `ThreadPoolExecutor` parallel worker execution in `batch_downloader` according to `max_parallel_downloads`, added thread-safe stdout locking to `ProgressBar`, and protected directory cleanup across concurrent download threads. |
 | **Fix `ProgressBar` Import in `aria2_provisioner`** | `Core/aria2_provisioner.py` | Fixed `ProgressBar` import location from `Core.BaseDownloader` instead of `Core.commons`, resolving `ImportError` when dynamically instantiating `TorrentDownloader`. |
 | **Nyaa Anime Torrent Provider & Magnet Icons UI** | `Content/Anime/Providers/NyaaClient.py`, `Core/provider_factory.py`, `Core/commons.py` | Added official Nyaa.si Anime torrent provider with Kitsu metadata, multi-resolution support (1080p, 720p, 480p), complete batch detection, and added `🧲` magnet icon across all torrent providers (Nyaa, YTS, EZTV). |

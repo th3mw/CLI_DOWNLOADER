@@ -2,6 +2,7 @@ import logging
 import os
 import requests
 import sys
+import threading
 import time
 import http.client
 from urllib.parse import quote
@@ -15,6 +16,8 @@ class ProgressBar:
     Built-in full-featured progress bar with download speed, ETA, and graphical bar.
     Provides identical API to tqdm without requiring external packages.
     '''
+    _lock = threading.Lock()
+
     def __init__(self, total=100, desc='Downloading', unit='seg', unit_scale=False, unit_divisor=1024, bar_format=None, **kwargs):
         self.total = max(1, total) if total else 0
         self.desc = desc or ''
@@ -35,9 +38,10 @@ class ProgressBar:
         return self
 
     def __exit__(self, *args):
-        self._render(force=True)
-        sys.stdout.write('\n')
-        sys.stdout.flush()
+        with ProgressBar._lock:
+            self._render(force=True)
+            sys.stdout.write('\n')
+            sys.stdout.flush()
 
     def set_postfix_str(self, s, refresh=True):
         self.postfix = f', {s}' if s else ''
@@ -102,8 +106,9 @@ class ProgressBar:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
             line = f'\r\033[K  {c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
 
-        sys.stdout.write(line)
-        sys.stdout.flush()
+        with ProgressBar._lock:
+            sys.stdout.write(line)
+            sys.stdout.flush()
 
 
 tqdm = ProgressBar
@@ -232,8 +237,16 @@ class BaseDownloader():
         rmtree(self.temp_dir)
 
     def _cleanup_out_dirs(self):
-        if len(os.listdir(self.parent_temp_dir)) == 0: os.rmdir(self.parent_temp_dir)
-        if len(os.listdir(self.out_dir)) == 0: os.rmdir(self.out_dir)
+        try:
+            if os.path.exists(self.parent_temp_dir) and len(os.listdir(self.parent_temp_dir)) == 0:
+                os.rmdir(self.parent_temp_dir)
+        except Exception:
+            pass
+        try:
+            if os.path.exists(self.out_dir) and len(os.listdir(self.out_dir)) == 0:
+                os.rmdir(self.out_dir)
+        except Exception:
+            pass
 
     def _exec_cmd(self, cmd):
         self.logger.debug(f'Executing system command: {cmd}')

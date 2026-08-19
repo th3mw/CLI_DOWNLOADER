@@ -1,4 +1,5 @@
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import os, sys
 from time import time
@@ -330,11 +331,23 @@ def downloader(ep_details, dl_config):
         return f'{success_clr}[{end}] Download completed for {out_file} in {download_time}!{reset_clr}'
 
 def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
-    # Process episodes sequentially to ensure 100% clean, non-overlapping progress bar dashboards
     dl_status = []
-    for link in links.values():
-        status = download_fn(link, dl_config)
-        dl_status.append(status)
+    total_items = len(links)
+
+    if max_parallel_downloads <= 1 or total_items <= 1:
+        for link in links.values():
+            status = download_fn(link, dl_config)
+            dl_status.append(status)
+    else:
+        colprint('header', f"\n  ⚡ Starting Simultaneous Download of {total_items} item(s) (Concurrency: {max_parallel_downloads})...\n")
+        with ThreadPoolExecutor(max_workers=max_parallel_downloads) as executor:
+            future_to_link = {executor.submit(download_fn, link, dl_config): link for link in links.values()}
+            for future in as_completed(future_to_link):
+                try:
+                    status = future.result()
+                    dl_status.append(status)
+                except Exception as e:
+                    dl_status.append(f"Download failed with error: {e}")
 
     logger.info(strip_ansi('\n'.join(dl_status)))
     return dl_status

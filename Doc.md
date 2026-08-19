@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Simultaneous & Parallel Batch Episode Downloads** | `scraper.py`, `Core/BaseDownloader.py` | Enabled `ThreadPoolExecutor` parallel worker execution in `batch_downloader` according to `max_parallel_downloads`, added thread-safe stdout locking to `ProgressBar`, and protected directory cleanup across concurrent download threads. |
 | **Fix `ProgressBar` Import in `aria2_provisioner`** | `Core/aria2_provisioner.py` | Fixed `ProgressBar` import location from `Core.BaseDownloader` instead of `Core.commons`, resolving `ImportError` when dynamically instantiating `TorrentDownloader`. |
 | **Nyaa Anime Torrent Provider & Magnet Icons UI** | `Content/Anime/Providers/NyaaClient.py`, `Core/provider_factory.py`, `Core/commons.py` | Added official Nyaa.si Anime torrent provider with Kitsu metadata, multi-resolution support (1080p, 720p, 480p), complete batch detection, and added `🧲` magnet icon across all torrent providers (Nyaa, YTS, EZTV). |
 | **Complete Season Packs & Selective Episode Downloads** | `Content/Series/Providers/EZTVClient.py`, `scraper.py` | Added Complete Season Batch Pack detection (`S01 COMPLETE 1080p/720p`) when downloading full seasons, fixed `seasons_predef` multi-season parameter parsing, and supported selective episode unchecking / cherry-picking (e.g. `1,3,5` or `1-4,7`). |

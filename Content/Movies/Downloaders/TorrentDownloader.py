@@ -7,18 +7,20 @@ import webbrowser
 
 from Core.BaseDownloader import BaseDownloader
 from Core.commons import colprint, render_box
+from Core.aria2_provisioner import get_aria2_path
 
 
 class TorrentDownloader(BaseDownloader):
     '''
     Dedicated cross-platform downloader engine for BitTorrent / Magnet links.
-    - If aria2c is installed: Downloads directly in the terminal with live speeds, seeds/peers, and auto-quits.
-    - If aria2c is not installed: Seamlessly delegates to the system's default torrent client (FDM, qBittorrent,
-      Transmission, etc.) across Windows, macOS, and Linux via native system handlers.
+    - Respects 'torrent_client' config: 'aria2' (in-terminal), 'system' (FDM/qBittorrent), or 'auto'.
+    - If aria2 is selected or auto: Uses system aria2c or auto-provisions bundled static binary.
+    - If system client is selected: Directly opens default desktop app via OS URI handler.
     '''
     def __init__(self, dl_config, ep_details):
         super().__init__(dl_config, ep_details)
-        self.aria_path = shutil.which('aria2c')
+        self.torrent_client_pref = str(dl_config.get('torrent_client', 'auto')).lower().strip()
+        self.dl_config = dl_config
 
     def _open_in_system_client(self, magnet_link):
         '''Cross-platform launcher for default OS magnet handler'''
@@ -48,12 +50,32 @@ class TorrentDownloader(BaseDownloader):
         seeds = self.ep_details.get('seeds', 'N/A')
         peers = self.ep_details.get('peers', 'N/A')
 
-        if self.aria_path:
+        # 1. Direct System Desktop App Mode (FDM, qBittorrent, Transmission)
+        if self.torrent_client_pref in ('system', 'desktop', 'fdm', 'qbittorrent'):
+            card_lines = [
+                f"Movie: {title} [{quality}]",
+                f"Size: {size} • Seeds: {seeds} • Peers: {peers}",
+                "",
+                "🔗 Magnet Link sent to your default desktop torrent client.",
+                f"{magnet_link[:100]}..."
+            ]
+            print('\n' + render_box('DESKTOP TORRENT CLIENT', card_lines))
+            opened = self._open_in_system_client(magnet_link)
+            if opened:
+                colprint('results', "  [✓] Sent magnet link to default system torrent client.")
+            else:
+                colprint('results', "  [✓] Magnet ready. Copy the link into your torrent client.")
+            return 0, 'Sent to desktop torrent client'
+
+        # 2. In-Terminal / Auto Mode with aria2c
+        aria_path = get_aria2_path(auto_provision=True)
+
+        if aria_path:
             colprint('header', f"\n  ➜ Launching aria2c BitTorrent Downloader...")
             colprint('predefined', f"  [Seeds: {seeds} | Peers: {peers} | Size: {size}]")
 
             cmd = [
-                self.aria_path,
+                aria_path,
                 magnet_link,
                 '--seed-time=0',
                 '--summary-interval=0',
@@ -85,7 +107,7 @@ class TorrentDownloader(BaseDownloader):
             except Exception as e:
                 return 1, str(e)
 
-        # Instructions & fallback if aria2c is not found
+        # 3. Fallback if aria2c cannot be provisioned or run
         card_lines = [
             f"Movie: {title} [{quality}]",
             f"Size: {size} • Seeds: {seeds} • Peers: {peers}",

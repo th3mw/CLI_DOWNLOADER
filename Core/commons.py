@@ -330,12 +330,16 @@ def run_config_wizard(config_file):
 
     max_parallel = colprint('user_input', "Max parallel episode downloads (1-10) [default=2]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or 2
 
+    torrent_choice = colprint('user_input', "Preferred Torrent Mode [1. In-Terminal (aria2c), 2. Default App (e.g. FDM, qBittorrent), 3. Auto] [default=1]: ", input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True) or 1
+    torrent_client = 'aria2' if int(torrent_choice) == 1 else ('system' if int(torrent_choice) == 2 else 'auto')
+
     log_level = colprint('user_input', "Logging level (DEBUG|INFO|WARNING|ERROR) [default=INFO]: ", input_type='recurring', input_options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'debug', 'info', 'warning', 'error'], allow_empty_input=True).upper() or 'INFO'
 
     config = {
         'DownloaderConfig': {
             'download_dir': base_dir,
             'max_parallel_downloads': int(max_parallel),
+            'torrent_client': torrent_client,
         },
         'Anime': {
             'download_dir': anime_dir,

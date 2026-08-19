@@ -400,6 +400,7 @@ Examples:
         parser.add_argument('--dry-run', default=False, action='store_true', help='resolve streams and show pre-download inspection without downloading')
         parser.add_argument('-hsa', '--hls-size-accuracy', default=0, type=int, choices=range(0, 101), metavar='[0-100]',
                          help='accuracy to display the file size of hls files (0-100)')
+        parser.add_argument('-tc', '--torrent-client', choices=['aria2', 'system', 'auto'], help='preferred torrent engine (aria2 for in-terminal, system for desktop app, auto for automatic)')
         parser.add_argument('-dl', '--disable-looping', default=False, action='store_true', help='disable auto-restart')
 
         args = parser.parse_args()
@@ -436,6 +437,8 @@ Examples:
         # load config from yaml to dict using yaml
         config = load_yaml(config_file)
         downloader_config = config['DownloaderConfig']
+        if args.torrent_client:
+            downloader_config['torrent_client'] = args.torrent_client
         max_parallel_downloads = downloader_config['max_parallel_downloads']
 
         # create logger

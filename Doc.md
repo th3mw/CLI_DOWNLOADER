@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Multi-Line Non-Overlapping Parallel Progress Bars** | `Core/BaseDownloader.py` | Implemented dynamic multi-line ANSI terminal cursor management (`\033[NA` / `\r\033[K`) with synchronized registry (`_active_bars`) so concurrent parallel downloads render on dedicated separate terminal lines without overlapping or flickering. |
 | **Reentrant RLock & HTTP Connection Pool Scaling** | `Core/BaseDownloader.py`, `Content/Anime/Downloaders/HLSDownloader.py` | Replaced non-reentrant `threading.Lock()` with `threading.RLock()` in `ProgressBar` to eliminate self-deadlock at 100% completion during `__exit__` cleanup; scaled HTTP adapter connection pools to 64; preserved playlist segment order with `dict.fromkeys`. |
 | **Non-Blocking Post-Processing & Process Timeouts** | `Content/Anime/Downloaders/HLSDownloader.py`, `Core/commons.py` | Added `-nostdin` flag to all FFmpeg muxing commands, added 300s process execution timeout protection in `exec_os_cmd` with automatic termination on timeout, and added post-processing status indicators. |
 | **Simultaneous & Parallel Batch Episode Downloads** | `scraper.py`, `Core/BaseDownloader.py` | Enabled `ThreadPoolExecutor` parallel worker execution in `batch_downloader` according to `max_parallel_downloads`, added thread-safe stdout locking to `ProgressBar`, and protected directory cleanup across concurrent download threads. |

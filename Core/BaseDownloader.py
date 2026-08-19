@@ -13,10 +13,12 @@ from Core.commons import colprint, exec_os_cmd, retry, PRINT_THEMES, DISPLAY_COL
 
 class ProgressBar:
     '''
-    Built-in full-featured progress bar with download speed, ETA, and graphical bar.
+    Built-in full-featured progress bar supporting single and multi-line concurrent progress reporting.
     Provides identical API to tqdm without requiring external packages.
     '''
     _lock = threading.RLock()
+    _active_bars = []
+    _lines_rendered = 0
 
     def __init__(self, total=100, desc='Downloading', unit='seg', unit_scale=False, unit_divisor=1024, bar_format=None, **kwargs):
         self.total = max(1, total) if total else 0
@@ -34,19 +36,41 @@ class ProgressBar:
 
     def __enter__(self):
         self.start_time = time.time()
-        self._render()
+        with ProgressBar._lock:
+            if self not in ProgressBar._active_bars:
+                ProgressBar._active_bars.append(self)
+            ProgressBar._redraw_all()
         return self
 
     def __exit__(self, *args):
         with ProgressBar._lock:
-            self._render(force=True)
-            sys.stdout.write('\n')
+            if ProgressBar._lines_rendered > 1:
+                sys.stdout.write(f'\033[{ProgressBar._lines_rendered}A')
+                final_str = self._format_line(force=True)
+                sys.stdout.write(f'\r\033[K{final_str}\n')
+                if self in ProgressBar._active_bars:
+                    ProgressBar._active_bars.remove(self)
+                for bar in ProgressBar._active_bars:
+                    sys.stdout.write(f'\r\033[K{bar._format_line()}\n')
+                ProgressBar._lines_rendered = len(ProgressBar._active_bars)
+            elif ProgressBar._lines_rendered == 1:
+                final_str = self._format_line(force=True)
+                sys.stdout.write(f'\r\033[K{final_str}\n')
+                if self in ProgressBar._active_bars:
+                    ProgressBar._active_bars.remove(self)
+                ProgressBar._lines_rendered = 0
+            else:
+                final_str = self._format_line(force=True)
+                sys.stdout.write(f'\r\033[K{final_str}\n')
+                if self in ProgressBar._active_bars:
+                    ProgressBar._active_bars.remove(self)
             sys.stdout.flush()
 
     def set_postfix_str(self, s, refresh=True):
         self.postfix = f', {s}' if s else ''
         if refresh:
-            self._render()
+            with ProgressBar._lock:
+                ProgressBar._redraw_all()
 
     def _fmt_size(self, val):
         if not self.unit_scale:
@@ -68,11 +92,12 @@ class ProgressBar:
         self.n += n
         now = time.time()
         if now - self.last_render_time >= 0.05 or self.n >= self.total:
-            self._render()
+            self.last_render_time = now
+            with ProgressBar._lock:
+                ProgressBar._redraw_all()
 
-    def _render(self, force=False):
+    def _format_line(self, force=False):
         now = time.time()
-        self.last_render_time = now
         elapsed = max(0.001, now - self.start_time)
         rate = self.n / elapsed if elapsed > 0.05 else 0
 
@@ -101,14 +126,21 @@ class ProgressBar:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
             tot_str = self._fmt_size(self.total) if self.unit_scale else f'{self.total}'
             unit_suffix = f' {self.unit}' if (self.unit and not self.unit_scale) else ''
-            line = f'\r\033[K  {c_desc}{self.desc}{c_reset} {c_bar}{bar}{c_reset} {c_pct}{pct:3d}%{c_reset} {c_muted}•{c_reset} {n_str}/{tot_str}{unit_suffix} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} {c_eta}ETA {eta_str}{c_reset} {c_muted}{self.postfix}{c_reset}'
+            return f'  {c_desc}{self.desc}{c_reset} {c_bar}{bar}{c_reset} {c_pct}{pct:3d}%{c_reset} {c_muted}•{c_reset} {n_str}/{tot_str}{unit_suffix} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} {c_eta}ETA {eta_str}{c_reset} {c_muted}{self.postfix}{c_reset}'
         else:
             n_str = self._fmt_size(self.n) if self.unit_scale else f'{self.n}'
-            line = f'\r\033[K  {c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
+            return f'  {c_desc}{self.desc}{c_reset} {n_str} {c_muted}•{c_reset} {c_rate}{rate_str}{c_reset} {c_muted}•{c_reset} [{self._fmt_time(elapsed)}]{c_muted}{self.postfix}{c_reset}'
 
-        with ProgressBar._lock:
-            sys.stdout.write(line)
-            sys.stdout.flush()
+    @classmethod
+    def _redraw_all(cls):
+        if not cls._active_bars:
+            return
+        if cls._lines_rendered > 0:
+            sys.stdout.write(f'\033[{cls._lines_rendered}A')
+        for bar in cls._active_bars:
+            sys.stdout.write(f'\r\033[K{bar._format_line()}\n')
+        cls._lines_rendered = len(cls._active_bars)
+        sys.stdout.flush()
 
 
 tqdm = ProgressBar

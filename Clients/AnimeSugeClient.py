@@ -397,6 +397,9 @@ class AnimeSugeClient(BaseClient):
             if srv[1] not in [s[1] for s in ordered_servers]:
                 ordered_servers.append(srv)
 
+        merged_m3u8_links = {}
+        all_subtitles = {}
+
         for srv_type, link_id in ordered_servers:
             stream_url = self._get_stream_url(link_id)
             if not stream_url:
@@ -406,23 +409,32 @@ class AnimeSugeClient(BaseClient):
             if not m3u8_url:
                 continue
 
+            if subtitles:
+                all_subtitles.update(subtitles)
+
             stream_referer = stream_origin.rstrip('/') + '/'
             m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
             if m3u8_links:
-                if subtitles:
-                    for res_dict in m3u8_links.values():
-                        res_dict['subtitles'] = subtitles
-                return ep_no, m3u8_links
-            else:
-                return ep_no, {
-                    '720': {
-                        'downloadLink': m3u8_url,
-                        'downloadType': 'hls',
-                        'refererLink': stream_referer,
-                        'subtitles': subtitles,
-                        'duration': 0,
-                    }
+                for res_k, res_v in m3u8_links.items():
+                    if res_k not in merged_m3u8_links:
+                        merged_m3u8_links[res_k] = res_v
+            elif not merged_m3u8_links:
+                merged_m3u8_links['720'] = {
+                    'downloadLink': m3u8_url,
+                    'downloadType': 'hls',
+                    'refererLink': stream_referer,
+                    'duration': 0,
                 }
+
+            # Stop scanning if we already have 1080p, 720p, and 360p/480p
+            if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p']) and any(r in merged_m3u8_links for r in ['360', '360p', '480', '480p']):
+                break
+
+        if merged_m3u8_links:
+            if all_subtitles:
+                for res_dict in merged_m3u8_links.values():
+                    res_dict['subtitles'] = all_subtitles
+            return ep_no, merged_m3u8_links
 
         return ep_no, {'error': 'Failed to fetch m3u8 link from available servers'}
 

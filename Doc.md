@@ -6,44 +6,55 @@ Comprehensive architecture, provider implementation details, downloader mechanic
 
 ## 1. System Architecture
 
-The Media Scraper is designed around a modular, object-oriented architecture separating CLI orchestration, provider-specific web scraping, network resilience, and media downloading/remuxing engines.
+The Media Scraper is designed around a domain-modular, object-oriented architecture separating CLI orchestration, domain-specific scrapers, and purpose-built downloaders for Anime, Movies, and TV Series.
 
 ```mermaid
 flowchart TD
-    CLI[scraper.py - CLI & UI Loop] --> Factory[provider_factory.py]
-    Factory --> ClientChoice{Category & Provider Selection}
-    ClientChoice -->|Anime| AniDb[AniDbClient]
-    ClientChoice -->|Anime| AnimeSuge[AnimeSugeClient]
-    ClientChoice -->|Anime / Drama| KissKh[KissKhClient]
-    ClientChoice -->|Movies / TV| OneShows[OneShowsClient]
+    CLI[scraper.py - CLI & UI Loop] --> Factory[Core/provider_factory.py]
+    Factory --> ClientChoice{Domain & Provider Selection}
+    ClientChoice -->|Anime| AnimeSuge[Anime/Providers/AnimeSugeClient]
+    ClientChoice -->|Anime| AniDb[Anime/Providers/AniDbClient]
+    ClientChoice -->|Anime / Drama| KissKh[Anime/Providers/KissKhClient]
+    ClientChoice -->|Movies| OneShowsM[Movies/Providers/OneShowsClient]
+    ClientChoice -->|TV Series| OneShowsTV[Series/Providers/OneShowsClient]
     
-    AniDb --> BaseClient[BaseClient]
-    AnimeSuge --> BaseClient
+    AnimeSuge --> BaseClient[Core/BaseClient]
+    AniDb --> BaseClient
     KissKh --> BaseClient
-    OneShows --> BaseClient
+    OneShowsM --> BaseClient
+    OneShowsTV --> BaseClient
 
-    CLI --> DownloaderChoice{Download Type}
-    DownloaderChoice -->|Direct HTTP Chunks| BaseDownloader[BaseDownloader]
-    DownloaderChoice -->|HLS / M3U8 Streams| HLSDownloader[HLSDownloader]
+    CLI --> DownloaderChoice{Domain Downloader Dispatcher}
+    DownloaderChoice -->|Anime HLS| AnimeHLS[Anime/Downloaders/HLSDownloader]
+    DownloaderChoice -->|Movies Dedicated| MovieDL[Movies/Downloaders/MovieDownloader]
+    DownloaderChoice -->|TV Series| SeriesDL[Series/Downloaders/SeriesDownloader]
     
-    HLSDownloader --> BaseDownloader
-    HLSDownloader --> FFmpeg[FFmpeg Muxer Engine]
-    BaseDownloader --> FFmpeg
+    AnimeHLS --> BaseDownloader[Core/BaseDownloader]
+    MovieDL --> BaseDownloader
+    SeriesDL --> BaseDownloader
+    BaseDownloader --> FFmpeg[FFmpeg Muxer Engine]
 ```
 
-### Core Directory Layout
-- **`scraper.py`**: CLI entry point, argument parsing (`argparse`), interactive prompts, menu loops, and batch downloader dispatching.
-- **`Clients/`**: Provider implementations inheriting from `BaseClient`.
-  - [`BaseClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/BaseClient.py): Abstract base class, HTTP request wrapper with session pooling, parallel link fetching manager, search results display formatter.
-  - [`AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/AniDbClient.py): AniDB provider scraper (`anidb.app`).
-  - [`AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/AnimeSugeClient.py): AnimeSuge provider scraper (`animesuge.cz`).
-  - [`KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/KissKhClient.py): KissKh provider scraper (Anime, Asian Drama, Movies & TV Shows).
-  - [`OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Clients/OneShowsClient.py): 1Shows provider scraper (Movies & TV Shows with WASM decryption).
-- **`Utils/`**: Downloader and shared utility modules.
-  - [`provider_factory.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Utils/provider_factory.py): Dynamic provider registry and factory instantiation.
-  - [`BaseDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Utils/BaseDownloader.py): Direct MP4 downloader, multi-threaded chunk pool (4MiB chunks), subtitle downloader & converter.
-  - [`HLSDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Utils/HLSDownloader.py): HLS `.m3u8` playlist parser, obfuscated TS segment header stripper, local m3u8 playlist rewriter, FFmpeg remuxing engine.
-  - [`commons.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Utils/commons.py): Retry decorators, multi-engine JS runtime runner (`exec_js`), subprocess execution, terminal coloring utilities.
+### Domain-Modular Directory Layout
+- **`scraper.py`**: Main CLI entry point, interactive menu loops, parameter parsing, and batch download dispatcher.
+- **`Core/`**: Foundational shared architecture:
+  - [`Core/BaseClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/BaseClient.py): Abstract scraper base class, HTTP session manager, AES/WASM decryption helpers, m3u8 parser.
+  - [`Core/BaseDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/BaseDownloader.py): Base downloader class, `ProgressBar` engine, subtitle sorting and FFmpeg muxing.
+  - [`Core/commons.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/commons.py): Global 2-space margin printer (`colprint`), `render_box` Unicode cards, universal JS runner (`exec_js`), YAML loader.
+  - [`Core/provider_factory.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/provider_factory.py): Dynamic provider and downloader factory registry.
+- **`Anime/`**: Dedicated Anime domain modules:
+  - [`Anime/Providers/AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/AnimeSugeClient.py): AnimeSuge provider with multi-server resolution aggregation.
+  - [`Anime/Providers/AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/AniDbClient.py): AniDB provider with multi-language HLS streams and `.xls` segment sanitization.
+  - [`Anime/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/KissKhClient.py): KissKh provider (Anime filter).
+  - [`Anime/Downloaders/HLSDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Downloaders/HLSDownloader.py): High-performance HLS segment downloader with MKV output & forced subtitles.
+- **`Movies/`**: Dedicated Movies domain modules:
+  - [`Movies/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Providers/OneShowsClient.py): 1Shows movie provider (TMDb search + WASM decryption).
+  - [`Movies/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Providers/KissKhClient.py): KissKh Asian drama movie provider.
+  - [`Movies/Downloaders/MovieDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Downloaders/MovieDownloader.py): Dedicated continuous streaming movie downloader with HTTP range resumption and rate-limit mitigation.
+- **`Series/`**: Dedicated TV Shows & Asian Dramas domain modules:
+  - [`Series/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Providers/KissKhClient.py): KissKh TV series provider.
+  - [`Series/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Providers/OneShowsClient.py): 1Shows TV series provider.
+  - [`Series/Downloaders/SeriesDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Downloaders/SeriesDownloader.py): Multi-episode TV series downloader.
 
 ---
 
@@ -115,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Domain-Modular Architecture & Dedicated MovieDownloader** | `Core/`, `Anime/`, `Movies/`, `Series/`, `scraper.py` | Restructured codebase into domain folders (`Anime/Providers/`, `Anime/Downloaders/`, `Movies/Providers/`, `Movies/Downloaders/`, `Series/Providers/`, `Series/Downloaders/`, and `Core/`), and implemented dedicated streaming `MovieDownloader` with HTTP range resume support. |
 | **AnimeSuge Multi-Resolution Aggregation** | `Clients/AnimeSugeClient.py` | Aggregated available resolutions (1080p, 720p, 480p, 360p) across available servers instead of returning early on single-resolution master streams. |
 | **1Shows Movie WASM Decryption & Auto-Selection** | `Clients/OneShowsClient.py`, `Clients/BaseClient.py`, `scraper.py` | Fixed WASM bytes download in payload decryption, formatted variety selection menu in Unicode cards, and auto-selected single movies without redundant episode range prompts. |
 | **`KissKhClient` `get_season_ep_ranges` Missing Attribute** | `Clients/BaseClient.py` | Implemented `get_season_ep_ranges` on `BaseClient` so all providers inherit season/episode extraction. |

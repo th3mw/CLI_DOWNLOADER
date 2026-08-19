@@ -5,9 +5,9 @@ from time import time
 import traceback
 
 # Note: For optimization, custom modules are imported as required
-from Utils.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box
-from Utils.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
-from Utils.provider_factory import CATEGORIES, get_providers_for_category, create_client
+from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box
+from Core.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
+from Core.provider_factory import CATEGORIES, get_providers_for_category, create_client, get_downloader
 
 series_type = None
 config = None
@@ -292,21 +292,12 @@ def downloader(ep_details, dl_config):
     if ep_details.get('type', '') == 'tv':
         out_dir = f"{out_dir}{os.sep}Season-{ep_details['season']}"     # add extra folder for season
 
-    # create download client for the episode based on type
+    # create download client for the episode based on category and download type
     logger.debug(f'Creating download client with {ep_details = }, {dl_config = }')
 
-    if download_type == 'hls':
-        logger.debug(f'Creating HLS download client for {out_file}')
-        from Utils.HLSDownloader import HLSDownloader
-        dlClient = HLSDownloader(dl_config, ep_details)
-
-    elif download_type in ('mp4', 'http'):
-        logger.debug(f'Creating BaseDownloader client for {out_file}')
-        from Utils.BaseDownloader import BaseDownloader
-        dlClient = BaseDownloader(dl_config, ep_details)
-
-    else:
-        return f'{error_clr}[{start}] Download skipped for {out_file}, due to unknown download type [{download_type}]{reset_clr}'
+    downloader_cls = get_downloader(series_type, download_type)
+    logger.debug(f'Resolved downloader {downloader_cls.__name__} for category {series_type} [{download_type}]')
+    dlClient = downloader_cls(dl_config, ep_details)
 
     logger.info(f'Download started for {out_file}...')
     colprint('header', f"\n  ➜ Downloading: {out_file}")
@@ -317,8 +308,11 @@ def downloader(ep_details, dl_config):
         return f'{skipped_clr}[{start}] Download skipped for {out_file}. File already exists!{reset_clr}'
     else:
         try:
-            # main function where HLS download happens
-            status, msg = dlClient.start_download(ep_details['downloadLink'])
+            res = dlClient.start_download(ep_details['downloadLink'])
+            if isinstance(res, tuple) and len(res) == 2:
+                status, msg = res
+            else:
+                status, msg = 0, ''
         except Exception as e:
             status, msg = 1, str(e)
 

@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Complete Season Packs & Selective Episode Downloads** | `Content/Series/Providers/EZTVClient.py`, `scraper.py` | Added Complete Season Batch Pack detection (`S01 COMPLETE 1080p/720p`) when downloading full seasons, fixed `seasons_predef` multi-season parameter parsing, and supported selective episode unchecking / cherry-picking (e.g. `1,3,5` or `1-4,7`). |
 | **EZTV TV Shows Torrent Provider** | `Content/Series/Providers/EZTVClient.py`, `Core/provider_factory.py`, `Core/commons.py` | Added official EZTV & Apibay TV Shows torrent provider with TVMaze metadata, full multi-season pagination, resolution aggregation (4K, 1080p, 720p, 480p), and TorrentDownloader integration. |
 | **Torrent Client Mode Config & Standalone `aria2c` Auto-Provisioning** | `Core/aria2_provisioner.py`, `Content/Movies/Downloaders/TorrentDownloader.py`, `Core/commons.py`, `scraper.py` | Added `torrent_client` configuration (`aria2`, `system`, `auto`), `--torrent-client` CLI option, and zero-friction standalone static `aria2c` binary auto-provisioning for Linux and Windows. |
 | **`aria2c` In-Place Progress Stream & Terminal Output Fix** | `Content/Movies/Downloaders/TorrentDownloader.py` | Configured `--summary-interval=0`, `--console-log-level=error`, and `--show-console-readout=true` to update single-line download progress in place rather than printing periodic multi-line summary boxes. |

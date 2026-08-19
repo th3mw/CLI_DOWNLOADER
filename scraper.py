@@ -239,7 +239,7 @@ def get_ep_range(default_ep_range, mode='Enter', _episodes_predef=None, type='ep
 
     return {'start': ep_start, 'end': ep_end, 'specific_no': specific_eps}
 
-def get_ep_range_multiple(season_ep_ranges, episodes):
+def get_ep_range_multiple(season_ep_ranges, episodes, seasons_predef=None, episodes_predef=None):
     '''
     Get episode ranges per season
     '''
@@ -505,9 +505,9 @@ Examples:
 
         # get user input for episodes range and parse start and end number
         season_ranges = client.get_season_ep_ranges(episodes)
-        if series_type == 3 and len(season_ranges) > 1:
-            selected_eps = get_ep_range_multiple(season_ranges, episodes)
-        elif len(episodes) == 1 or series_type in ('Movies', 2):
+        if series_type in (3, '3', 'TV Shows', 'tv') and len(season_ranges) > 1:
+            selected_eps = get_ep_range_multiple(season_ranges, episodes, seasons_predef, episodes_predef)
+        elif len(episodes) == 1 or series_type in ('Movies', 2, '2', 'movies'):
             ep_start = episodes[0]['episode']
             ep_end = episodes[-1]['episode']
             selected_eps = {'start': ep_start, 'end': ep_end, 'specific_no': [ep_start]}

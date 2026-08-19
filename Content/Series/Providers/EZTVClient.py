@@ -26,7 +26,8 @@ PUBLIC_TRACKERS = [
 class EZTVClient(BaseClient):
     '''
     Client for TV Show Torrents (EZTV + Apibay / TVMaze).
-    Provides high-speed 720p, 1080p, and 4K UHD torrents across all seasons & episodes.
+    Provides high-speed 720p, 1080p, and 4K UHD torrents across all seasons & episodes,
+    including Complete Season Batch Packs.
     '''
     EZTV_MIRRORS = [
         'https://eztvx.to',
@@ -191,25 +192,44 @@ class EZTVClient(BaseClient):
                 continue
         return []
 
-    def _query_apibay_torrents(self, show_name, season, episode):
+    def _query_apibay_torrents(self, show_name, season, episode=None):
         headers = {'User-Agent': 'Mozilla/5.0'}
         clean_name = re.sub(r'[^a-zA-Z0-9 ]', '', show_name)
         short_name = re.sub(r'\b(of|the|a|an)\b', '', clean_name, flags=re.IGNORECASE).strip()
-        queries = [
-            f"{clean_name} S{season:02d}E{episode:02d}",
-            f"{short_name} S{season:02d}E{episode:02d}"
-        ]
 
+        if episode is not None:
+            queries = [
+                f"{clean_name} S{season:02d}E{episode:02d}",
+                f"{short_name} S{season:02d}E{episode:02d}"
+            ]
+        else:
+            # Season Pack queries
+            queries = [
+                f"{clean_name} S{season:02d} Complete",
+                f"{short_name} S{season:02d} Complete",
+                f"{clean_name} Season {season} Complete",
+                f"{clean_name} Season {season}",
+                f"{short_name} Season {season}"
+            ]
+
+        results = []
         for q in queries:
             try:
                 r = self.req_session.get(f"https://apibay.org/q.php?q={urllib.parse.quote(q)}&cat=200", headers=headers, timeout=4)
                 if r.status_code == 200:
                     items = r.json()
                     if items and isinstance(items, list) and items[0].get('name') != 'No results returned':
-                        return items
+                        for it in items:
+                            if episode is None:
+                                name = it.get('name', '')
+                                if re.search(rf'\bS0?{season}\b|\bSeason\s*0?{season}\b', name, re.IGNORECASE):
+                                    if not re.search(rf'S0?{season}E\d+', name, re.IGNORECASE):
+                                        results.append(it)
+                            else:
+                                results.append(it)
             except Exception:
                 continue
-        return []
+        return results
 
     def _format_size(self, size_bytes):
         try:
@@ -222,6 +242,58 @@ class EZTVClient(BaseClient):
         except Exception:
             return "Unknown"
 
+    def _fetch_season_pack(self, show_title, season):
+        '''Search for complete season batch packs'''
+        items = self._query_apibay_torrents(show_title, season, episode=None)
+        if not items:
+            return None
+
+        candidates = []
+        for it in items:
+            title = it.get('name', '')
+            info_hash = it.get('info_hash', '')
+            seeds = int(it.get('seeders', 0))
+            peers = int(it.get('leechers', 0))
+            size_str = self._format_size(it.get('size', 0))
+            magnet = self._generate_magnet(info_hash, title)
+
+            q = '480'
+            if '2160' in title or '4k' in title.lower():
+                q = '2160'
+            elif '1080' in title:
+                q = '1080'
+            elif '720' in title:
+                q = '720'
+
+            candidates.append({
+                'quality': q,
+                'magnet': magnet,
+                'seeds': seeds,
+                'peers': peers,
+                'size': size_str,
+                'title': title
+            })
+
+        if not candidates:
+            return None
+
+        resolution_links = {}
+        by_res = {}
+        for c in candidates:
+            by_res.setdefault(c['quality'], []).append(c)
+
+        for res_k, items_list in by_res.items():
+            best = max(items_list, key=lambda x: x['seeds'])
+            if best['seeds'] > 0 or len(items_list) == 1:
+                resolution_links[res_k] = {
+                    'downloadLink': best['magnet'],
+                    'downloadType': 'torrent',
+                    'resolution_size': f"{best['size']} • Seeds: {best['seeds']}",
+                    'torrent_info': best
+                }
+
+        return resolution_links if resolution_links else None
+
     def _fetch_single_episode_link(self, episode):
         ep_idx = episode.get('episode', 1)
         ep_no = episode.get('ep_no', ep_idx)
@@ -231,7 +303,7 @@ class EZTVClient(BaseClient):
 
         candidates = []
 
-        # 1. Try EZTV Torrents (from cache or API)
+        # 1. Try EZTV Torrents
         eztv_torrents = self._query_eztv_torrents(imdb_id)
         for t in eztv_torrents:
             if int(t.get('season', 0)) == season and int(t.get('episode', 0)) == ep_no:
@@ -309,6 +381,35 @@ class EZTVClient(BaseClient):
         download_links = {}
         display_prefix = 'Episode'
 
+        # Check if complete season was selected
+        is_complete_season = False
+        target_season = None
+        if isinstance(ep_ranges, dict):
+            # Check if all episodes in a season are requested
+            seasons_present = set(e.get('season') for e in episodes)
+            if len(seasons_present) == 1:
+                target_season = next(iter(seasons_present))
+                s_range = ep_ranges.get(target_season, ep_ranges)
+                if not s_range.get('specific_no') and s_range.get('start', 1) == 1 and s_range.get('end', len(episodes)) >= len(episodes):
+                    is_complete_season = True
+
+        show_title = self._target_show.get('raw_title') or self._target_show.get('title', 'Show')
+
+        # If complete season requested, try Season Pack first
+        if is_complete_season and target_season:
+            colprint('header', f"\n  ➜ Checking for Season {target_season:02d} Complete Batch Packs...")
+            season_pack_links = self._fetch_season_pack(show_title, target_season)
+            if season_pack_links:
+                download_links[1] = season_pack_links
+                info = f"  Season {target_season:02d} [Complete Pack]"
+                for res_k, val in sorted(season_pack_links.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 0, reverse=True):
+                    t_inf = val.get('torrent_info', {})
+                    info += f" | {res_k}P ({t_inf.get('size', 'NA')} • {t_inf.get('seeds', 0)} seeds)"
+                self._colprint('results', info)
+                # Store marker for fetch_m3u8_links
+                self._is_season_pack = target_season
+                return download_links
+
         # Filter target episodes based on ep_ranges
         target_eps = []
         if isinstance(ep_ranges, dict):
@@ -359,6 +460,8 @@ class EZTVClient(BaseClient):
     def fetch_m3u8_links(self, target_ep_links, resolution, episode_prefix):
         episode_links = {}
 
+        is_season_pack = getattr(self, '_is_season_pack', None)
+
         for ep_idx, res_data in target_ep_links.items():
             res_key = str(resolution).replace('P', '').replace('p', '')
             res_dict = res_data.get(res_key, {})
@@ -370,6 +473,32 @@ class EZTVClient(BaseClient):
 
             selected_magnet = res_dict.get('downloadLink')
             t_info = res_dict.get('torrent_info', {})
+
+            if is_season_pack:
+                title_clean = episode_prefix.rstrip(' -')
+                title = f"{episode_prefix}Season {is_season_pack:02d} [Complete Season Pack] [{res_key}P].mkv"
+                seeds = t_info.get('seeds', 'N/A')
+                peers = t_info.get('peers', 'N/A')
+                size = t_info.get('size', 'Unknown')
+                colprint('results', f"  Season {is_season_pack:02d} Complete Pack | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+
+                episode_links[1] = {
+                    'episode': f"S{is_season_pack:02d}",
+                    'season': is_season_pack,
+                    'type': 'tv',
+                    'title': title_clean,
+                    'episodeName': title,
+                    'out_file': title,
+                    'downloadLink': selected_magnet,
+                    'downloadType': 'torrent',
+                    'resolution': f"{res_key}P",
+                    'subtitles': [],
+                    'size': size,
+                    'seeds': seeds,
+                    'peers': peers,
+                    'info_hash': t_info.get('info_hash', '')
+                }
+                return episode_links
 
             ep_item = self._episodes_by_idx.get(ep_idx, {})
             s_num = ep_item.get('season', 1)

@@ -56,22 +56,23 @@ class TorrentDownloader(BaseDownloader):
                 self.aria_path,
                 magnet_link,
                 '--seed-time=0',
-                '--summary-interval=1',
+                '--summary-interval=0',
                 f'--dir={self.out_dir}',
                 '--max-connection-per-server=16',
                 '--enable-dht=true',
                 '--dht-listen-port=6881-6999',
                 '--file-allocation=none',
-                '--console-log-level=warn',
-                '--download-result=hide'
+                '--console-log-level=error',
+                '--download-result=hide',
+                '--show-console-readout=true'
             ]
 
             try:
                 proc = subprocess.Popen(
                     cmd,
-                    stdout=sys.stdout,
-                    stderr=sys.stderr,
-                    text=True
+                    stdin=None,
+                    stdout=None,
+                    stderr=None
                 )
                 proc.wait()
                 if proc.returncode == 0:

@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **`aria2c` In-Place Progress Stream & Terminal Output Fix** | `Content/Movies/Downloaders/TorrentDownloader.py` | Configured `--summary-interval=0`, `--console-log-level=error`, and `--show-console-readout=true` to update single-line download progress in place rather than printing periodic multi-line summary boxes. |
 | **Cross-Platform Magnet Handler (Windows, macOS, Linux)** | `Content/Movies/Downloaders/TorrentDownloader.py` | Added multi-OS default torrent client dispatching (`os.startfile` on Windows, `open` on macOS, `xdg-open` on Linux) with in-terminal `aria2c` support and copyable magnet card fallback. |
 | **Single-Step Torrent Quality Selection & `ep_details` Fix** | `Content/Movies/Providers/YTSClient.py`, `Core/BaseDownloader.py`, `scraper.py` | Enabled direct numbered selection of torrent releases (Bluray vs Web, multiple bitrates) skipping redundant resolution prompts, and fixed `self.ep_details` attribute binding in `BaseDownloader`. |
 | **Global Package Installation & Module Packaging Fix** | `pyproject.toml`, `Core/commons.py` | Added `Core*` and `Content*` to `[tool.setuptools.packages.find]` and added XDG config directory resolution (`~/.config/media-scraper/`) for standalone `media-scraper` CLI installations. |

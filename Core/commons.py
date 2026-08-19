@@ -344,10 +344,16 @@ def run_config_wizard(config_file):
         'Anime': {
             'download_dir': anime_dir,
             'providers': {
+                'nyaa': {
+                    'base_url': 'https://nyaa.si'
+                },
                 'anime_suge': {
                     'base_url': 'https://animesuge.cz',
                     'search_url': '/filter',
                     'preferred_server_types': ['sub', 'hsub', 'dub']
+                },
+                'anidb': {
+                    'base_url': 'https://anidb.app'
                 },
                 'kisskh': {
                     'base_url': 'https://kisskh.co'

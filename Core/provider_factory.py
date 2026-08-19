@@ -14,20 +14,26 @@ CATEGORIES = {
 CATEGORY_PROVIDERS = {
     'Anime': [
         {
+            'key': 'nyaa',
+            'label': '🧲  Nyaa (Anime Torrents)',
+            'class_path': 'Content.Anime.Providers.NyaaClient.NyaaClient',
+            'content_filter': 'anime'
+        },
+        {
             'key': 'anime_suge',
-            'label': 'AnimeSuge',
+            'label': '🎬  AnimeSuge',
             'class_path': 'Content.Anime.Providers.AnimeSugeClient.AnimeSugeClient',
             'content_filter': None
         },
         {
             'key': 'anidb',
-            'label': 'AniDB',
+            'label': '🎌  AniDB',
             'class_path': 'Content.Anime.Providers.AniDbClient.AniDbClient',
             'content_filter': None
         },
         {
             'key': 'kisskh',
-            'label': 'KissKh (Anime Only)',
+            'label': '🌸  KissKh (Anime Only)',
             'class_path': 'Content.Anime.Providers.KissKhClient.KissKhClient',
             'content_filter': 'anime'
         }
@@ -35,19 +41,19 @@ CATEGORY_PROVIDERS = {
     'Movies': [
         {
             'key': 'yts',
-            'label': 'YTS / YIFY (Movie Torrents)',
+            'label': '🧲  YTS / YIFY (Movie Torrents)',
             'class_path': 'Content.Movies.Providers.YTSClient.YTSClient',
             'content_filter': 'movie'
         },
         {
             'key': 'oneshows',
-            'label': '1Shows (Movies Only)',
+            'label': '🍿  1Shows (Movies Only)',
             'class_path': 'Content.Movies.Providers.OneShowsClient.OneShowsClient',
             'content_filter': 'movie'
         },
         {
             'key': 'kisskh',
-            'label': 'KissKh (Asian Drama Movies)',
+            'label': '🎌  KissKh (Asian Drama Movies)',
             'class_path': 'Content.Movies.Providers.KissKhClient.KissKhClient',
             'content_filter': 'movie'
         }
@@ -55,7 +61,7 @@ CATEGORY_PROVIDERS = {
     'TV Shows': [
         {
             'key': 'eztv',
-            'label': 'EZTV (TV Torrents)',
+            'label': '🧲  EZTV (TV Torrents)',
             'class_path': 'Content.Series.Providers.EZTVClient.EZTVClient',
             'content_filter': 'tv'
         },

@@ -7,7 +7,7 @@ from shutil import rmtree
 
 from Core.commons import colprint, exec_os_cmd, retry, PRINT_THEMES, DISPLAY_COLORS, pretty_time
 from Core.BaseDownloader import BaseDownloader, ProgressBar, _sort_subtitles_english_first
-from Anime.Downloaders.HLSDownloader import HLSDownloader
+from Content.Anime.Downloaders.HLSDownloader import HLSDownloader
 
 
 class MovieDownloader(BaseDownloader):

@@ -12,11 +12,11 @@ The Media Scraper is designed around a domain-modular, object-oriented architect
 flowchart TD
     CLI[scraper.py - CLI & UI Loop] --> Factory[Core/provider_factory.py]
     Factory --> ClientChoice{Domain & Provider Selection}
-    ClientChoice -->|Anime| AnimeSuge[Anime/Providers/AnimeSugeClient]
-    ClientChoice -->|Anime| AniDb[Anime/Providers/AniDbClient]
-    ClientChoice -->|Anime / Drama| KissKh[Anime/Providers/KissKhClient]
-    ClientChoice -->|Movies| OneShowsM[Movies/Providers/OneShowsClient]
-    ClientChoice -->|TV Series| OneShowsTV[Series/Providers/OneShowsClient]
+    ClientChoice -->|Anime| AnimeSuge[Content/Anime/Providers/AnimeSugeClient]
+    ClientChoice -->|Anime| AniDb[Content/Anime/Providers/AniDbClient]
+    ClientChoice -->|Anime / Drama| KissKh[Content/Anime/Providers/KissKhClient]
+    ClientChoice -->|Movies| OneShowsM[Content/Movies/Providers/OneShowsClient]
+    ClientChoice -->|TV Series| OneShowsTV[Content/Series/Providers/OneShowsClient]
     
     AnimeSuge --> BaseClient[Core/BaseClient]
     AniDb --> BaseClient
@@ -25,9 +25,9 @@ flowchart TD
     OneShowsTV --> BaseClient
 
     CLI --> DownloaderChoice{Domain Downloader Dispatcher}
-    DownloaderChoice -->|Anime HLS| AnimeHLS[Anime/Downloaders/HLSDownloader]
-    DownloaderChoice -->|Movies Dedicated| MovieDL[Movies/Downloaders/MovieDownloader]
-    DownloaderChoice -->|TV Series| SeriesDL[Series/Downloaders/SeriesDownloader]
+    DownloaderChoice -->|Anime HLS| AnimeHLS[Content/Anime/Downloaders/HLSDownloader]
+    DownloaderChoice -->|Movies Dedicated| MovieDL[Content/Movies/Downloaders/MovieDownloader]
+    DownloaderChoice -->|TV Series| SeriesDL[Content/Series/Downloaders/SeriesDownloader]
     
     AnimeHLS --> BaseDownloader[Core/BaseDownloader]
     MovieDL --> BaseDownloader
@@ -42,19 +42,19 @@ flowchart TD
   - [`Core/BaseDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/BaseDownloader.py): Base downloader class, `ProgressBar` engine, subtitle sorting and FFmpeg muxing.
   - [`Core/commons.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/commons.py): Global 2-space margin printer (`colprint`), `render_box` Unicode cards, universal JS runner (`exec_js`), YAML loader.
   - [`Core/provider_factory.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/provider_factory.py): Dynamic provider and downloader factory registry.
-- **`Anime/`**: Dedicated Anime domain modules:
-  - [`Anime/Providers/AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/AnimeSugeClient.py): AnimeSuge provider with multi-server resolution aggregation.
-  - [`Anime/Providers/AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/AniDbClient.py): AniDB provider with multi-language HLS streams and `.xls` segment sanitization.
-  - [`Anime/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Providers/KissKhClient.py): KissKh provider (Anime filter).
-  - [`Anime/Downloaders/HLSDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Anime/Downloaders/HLSDownloader.py): High-performance HLS segment downloader with MKV output & forced subtitles.
-- **`Movies/`**: Dedicated Movies domain modules:
-  - [`Movies/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Providers/OneShowsClient.py): 1Shows movie provider (TMDb search + WASM decryption).
-  - [`Movies/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Providers/KissKhClient.py): KissKh Asian drama movie provider.
-  - [`Movies/Downloaders/MovieDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Movies/Downloaders/MovieDownloader.py): Dedicated continuous streaming movie downloader with HTTP range resumption and rate-limit mitigation.
-- **`Series/`**: Dedicated TV Shows & Asian Dramas domain modules:
-  - [`Series/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Providers/KissKhClient.py): KissKh TV series provider.
-  - [`Series/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Providers/OneShowsClient.py): 1Shows TV series provider.
-  - [`Series/Downloaders/SeriesDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Series/Downloaders/SeriesDownloader.py): Multi-episode TV series downloader.
+- **`Content/Anime/`**: Dedicated Anime domain modules:
+  - [`Content/Anime/Providers/AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AnimeSugeClient.py): AnimeSuge provider with multi-server resolution aggregation.
+  - [`Content/Anime/Providers/AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AniDbClient.py): AniDB provider with multi-language HLS streams and `.xls` segment sanitization.
+  - [`Content/Anime/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/KissKhClient.py): KissKh provider (Anime filter).
+  - [`Content/Anime/Downloaders/HLSDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Downloaders/HLSDownloader.py): High-performance HLS segment downloader with MKV output & forced subtitles.
+- **`Content/Movies/`**: Dedicated Movies domain modules:
+  - [`Content/Movies/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/OneShowsClient.py): 1Shows movie provider (TMDb search + WASM decryption).
+  - [`Content/Movies/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/KissKhClient.py): KissKh Asian drama movie provider.
+  - [`Content/Movies/Downloaders/MovieDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Downloaders/MovieDownloader.py): Dedicated continuous streaming movie downloader with HTTP range resumption and rate-limit mitigation.
+- **`Content/Series/`**: Dedicated TV Shows & Asian Dramas domain modules:
+  - [`Content/Series/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/KissKhClient.py): KissKh TV series provider.
+  - [`Content/Series/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/OneShowsClient.py): 1Shows TV series provider.
+  - [`Content/Series/Downloaders/SeriesDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Downloaders/SeriesDownloader.py): Multi-episode TV series downloader.
 
 ---
 

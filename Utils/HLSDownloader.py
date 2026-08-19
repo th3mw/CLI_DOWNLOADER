@@ -1,1 +1,1 @@
-from Anime.Downloaders.HLSDownloader import *
+from Content.Anime.Downloaders.HLSDownloader import *

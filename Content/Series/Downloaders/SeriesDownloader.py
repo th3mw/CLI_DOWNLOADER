@@ -1,7 +1,7 @@
 import os
 from Core.BaseDownloader import BaseDownloader
-from Anime.Downloaders.HLSDownloader import HLSDownloader
-from Movies.Downloaders.MovieDownloader import MovieDownloader
+from Content.Anime.Downloaders.HLSDownloader import HLSDownloader
+from Content.Movies.Downloaders.MovieDownloader import MovieDownloader
 
 
 class SeriesDownloader(BaseDownloader):

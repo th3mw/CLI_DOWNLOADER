@@ -1,1 +1,1 @@
-from Anime.Providers.KissKhClient import KissKhClient
+from Content.Anime.Providers.KissKhClient import KissKhClient

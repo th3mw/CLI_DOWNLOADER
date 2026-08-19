@@ -1,1 +1,1 @@
-from Anime.Providers.AniDbClient import AniDbClient
+from Content.Anime.Providers.AniDbClient import AniDbClient

@@ -1,1 +1,1 @@
-from Anime.Providers.AnimeSugeClient import AnimeSugeClient
+from Content.Anime.Providers.AnimeSugeClient import AnimeSugeClient

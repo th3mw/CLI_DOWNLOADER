@@ -16,19 +16,19 @@ CATEGORY_PROVIDERS = {
         {
             'key': 'anime_suge',
             'label': 'AnimeSuge',
-            'class_path': 'Anime.Providers.AnimeSugeClient.AnimeSugeClient',
+            'class_path': 'Content.Anime.Providers.AnimeSugeClient.AnimeSugeClient',
             'content_filter': None
         },
         {
             'key': 'anidb',
             'label': 'AniDB',
-            'class_path': 'Anime.Providers.AniDbClient.AniDbClient',
+            'class_path': 'Content.Anime.Providers.AniDbClient.AniDbClient',
             'content_filter': None
         },
         {
             'key': 'kisskh',
             'label': 'KissKh (Anime Only)',
-            'class_path': 'Anime.Providers.KissKhClient.KissKhClient',
+            'class_path': 'Content.Anime.Providers.KissKhClient.KissKhClient',
             'content_filter': 'anime'
         }
     ],
@@ -36,13 +36,13 @@ CATEGORY_PROVIDERS = {
         {
             'key': 'oneshows',
             'label': '1Shows (Movies Only)',
-            'class_path': 'Movies.Providers.OneShowsClient.OneShowsClient',
+            'class_path': 'Content.Movies.Providers.OneShowsClient.OneShowsClient',
             'content_filter': 'movie'
         },
         {
             'key': 'kisskh',
             'label': 'KissKh (Asian Drama Movies)',
-            'class_path': 'Movies.Providers.KissKhClient.KissKhClient',
+            'class_path': 'Content.Movies.Providers.KissKhClient.KissKhClient',
             'content_filter': 'movie'
         }
     ],
@@ -50,13 +50,13 @@ CATEGORY_PROVIDERS = {
         {
             'key': 'oneshows',
             'label': '1Shows (Series Only)',
-            'class_path': 'Series.Providers.OneShowsClient.OneShowsClient',
+            'class_path': 'Content.Series.Providers.OneShowsClient.OneShowsClient',
             'content_filter': 'tv'
         },
         {
             'key': 'kisskh',
             'label': 'KissKh (Asian Drama Series)',
-            'class_path': 'Series.Providers.KissKhClient.KissKhClient',
+            'class_path': 'Content.Series.Providers.KissKhClient.KissKhClient',
             'content_filter': 'tv'
         }
     ]
@@ -64,16 +64,16 @@ CATEGORY_PROVIDERS = {
 
 CATEGORY_DOWNLOADERS = {
     'Anime': {
-        'hls': 'Anime.Downloaders.HLSDownloader.HLSDownloader',
+        'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
         'http': 'Core.BaseDownloader.BaseDownloader'
     },
     'Movies': {
-        'hls': 'Movies.Downloaders.MovieDownloader.MovieDownloader',
-        'http': 'Movies.Downloaders.MovieDownloader.MovieDownloader'
+        'hls': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
+        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader'
     },
     'TV Shows': {
-        'hls': 'Series.Downloaders.SeriesDownloader.SeriesDownloader',
-        'http': 'Series.Downloaders.SeriesDownloader.SeriesDownloader'
+        'hls': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
+        'http': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader'
     }
 }
 

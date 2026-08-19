@@ -1,1 +1,1 @@
-from Movies.Providers.OneShowsClient import OneShowsClient
+from Content.Movies.Providers.OneShowsClient import OneShowsClient

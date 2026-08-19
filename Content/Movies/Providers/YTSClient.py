@@ -42,7 +42,7 @@ class YTSClient(BaseClient):
         self.series_type = series_type or 'Movies'
         self.content_filter = content_filter
         self.active_base_url = None
-        self._torrent_map = {}
+        self._chosen_torrent = None
 
     def _get_api_response(self, endpoint, params=None):
         '''Try mirrors in sequence until a valid JSON response is received'''
@@ -148,48 +148,85 @@ class YTSClient(BaseClient):
         if not torrents:
             return ep_no, None, {'error': 'No torrents available for this title'}
 
-        resolution_links = {}
+        # Sort: 2160p, 1080p, 720p
+        def sort_key(t):
+            q = str(t.get('quality', '')).lower()
+            seeds = int(t.get('seeds', 0))
+            bonus = 1000 if 'bluray' in str(t.get('type', '')).lower() else 0
+            if '2160' in q or '4k' in q:
+                return 30000 + bonus + seeds
+            if '1080' in q:
+                return 20000 + bonus + seeds
+            if '720' in q:
+                return 10000 + bonus + seeds
+            return seeds
+
+        sorted_torrents = sorted(torrents, key=sort_key, reverse=True)
+
         variety_lines = []
-        for i, t in enumerate(torrents, start=1):
+        default_choice = 1
+        for i, t in enumerate(sorted_torrents, start=1):
             q = str(t.get('quality', '1080p')).upper()
             t_type = t.get('type', 'bluray').capitalize()
             size = t.get('size', 'Unknown')
             seeds = t.get('seeds', 0)
             peers = t.get('peers', 0)
-            rec = " (Recommended)" if '1080' in q else ""
-            label = f"{q:<5} • {t_type:<6} ({size:>8}) • Seeds: {seeds:<4} | Peers: {peers:<4}{rec}"
+            rec = " (Recommended)" if ('1080' in q and default_choice == 1) else ""
+            if rec and default_choice == 1:
+                default_choice = i
+            label = f"{q:<5} • {t_type:<6} ({size:>9}) • Seeds: {seeds:<4} | Peers: {peers:<4}{rec}"
             variety_lines.append(f"\033[1m[{i:2d}]\033[0m  {label}")
 
-            res_key = q.replace('P', '')
-            magnet = self._generate_magnet(t.get('hash'), f"{episode.get('episodeName')} [{q}] [YTS]")
-            resolution_links[res_key] = {
+        print('\n' + render_box('AVAILABLE TORRENT QUALITIES', variety_lines))
+
+        selected_idx = default_choice
+        try:
+            user_choice = self._colprint(
+                'user_input',
+                f"\n  ➜ Select torrent quality [1-{len(sorted_torrents)}] [default={default_choice}]: ",
+                input_type='recurring',
+                input_dtype='int'
+            )
+            if user_choice and 1 <= int(user_choice) <= len(sorted_torrents):
+                selected_idx = int(user_choice)
+        except Exception:
+            selected_idx = default_choice
+
+        chosen_t = sorted_torrents[selected_idx - 1]
+        self._chosen_torrent = chosen_t
+
+        q_clean = str(chosen_t.get('quality', '1080')).upper().replace('P', '')
+        t_type = chosen_t.get('type', 'bluray').capitalize()
+        size = chosen_t.get('size', 'Unknown')
+        seeds = chosen_t.get('seeds', 0)
+        peers = chosen_t.get('peers', 0)
+        info_hash = chosen_t.get('hash', '')
+
+        magnet = self._generate_magnet(info_hash, f"{episode.get('episodeName')} [{q_clean}P] [YTS]")
+
+        colprint('results', f"  Selected: {q_clean}P • {t_type} ({size}) • Seeds: {seeds} | Peers: {peers}")
+
+        # Return chosen resolution as the single selected resolution
+        resolution_links = {
+            q_clean: {
                 'downloadLink': magnet,
                 'downloadType': 'torrent',
-                'resolution_size': '3840x2160' if '2160' in res_key else ('1920x1080' if '1080' in res_key else '1280x720'),
-                'torrent_info': t
+                'resolution_size': f"{size} • Seeds: {seeds}",
+                'torrent_info': chosen_t
             }
+        }
 
-        print('\n' + render_box('AVAILABLE TORRENT QUALITIES', variety_lines))
-        self._torrent_map = resolution_links
         return ep_no, resolution_links, {}
 
     def fetch_episode_links(self, episodes, ep_ranges):
         download_links = {}
-        display_prefix = 'Movie'
 
-        with ThreadPoolExecutor(max_workers=min(5, len(episodes))) as executor:
-            results = list(executor.map(self._fetch_single_episode_link, episodes))
-
-        for ep_no, link, err_dict in sorted(results, key=lambda x: float(x[0])):
+        for ep in episodes:
+            ep_no, link, err_dict = self._fetch_single_episode_link(ep)
             if link:
                 download_links[ep_no] = link
-                info = f"{display_prefix}: 01"
-                for res_k, val in link.items():
-                    t_inf = val.get('torrent_info', {})
-                    info += f" | {res_k}P ({t_inf.get('size', 'NA')})"
-                self._colprint('results', info)
             elif err_dict:
-                self._show_episode_links(ep_no, err_dict, display_prefix)
+                self._show_episode_links(ep_no, err_dict, 'Movie')
 
         return download_links
 
@@ -206,22 +243,23 @@ class YTSClient(BaseClient):
             res_dict = res_data.get(res_key, {})
 
             if not res_dict and res_data:
-                # fallback to closest available resolution
                 res_key = next(iter(res_data.keys()))
                 res_dict = res_data[res_key]
 
             selected_magnet = res_dict.get('downloadLink')
-            t_info = res_dict.get('torrent_info', {})
+            t_info = res_dict.get('torrent_info', getattr(self, '_chosen_torrent', {}))
 
+            title_clean = episode_prefix.rstrip(' -')
             title = f"{episode_prefix}{ep_no:02d} [{res_key}P].mkv"
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')
 
-            colprint('results', f"  Movie: 01 | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+            colprint('results', f"  Movie | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
 
             episode_links[ep_no] = {
                 'episode': f"{ep_no:02d}",
+                'title': title_clean,
                 'episodeName': title,
                 'out_file': title,
                 'downloadLink': selected_magnet,

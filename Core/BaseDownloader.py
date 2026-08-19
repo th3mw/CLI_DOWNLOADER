@@ -139,8 +139,9 @@ class BaseDownloader():
     def __init__(self, dl_config, ep_details, session=None):
         # logger init
         self.logger = logging.getLogger()
+        self.ep_details = ep_details or {}
         # set downloader configuration
-        self.out_file = ep_details['episodeName']
+        self.out_file = ep_details.get('episodeName') or ep_details.get('out_file', 'media.mkv')
         self.out_dir = dl_config['download_dir']
         # add extra folder for season
         if ep_details.get('type', '') == 'tv':

@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **Single-Step Torrent Quality Selection & `ep_details` Fix** | `Content/Movies/Providers/YTSClient.py`, `Core/BaseDownloader.py`, `scraper.py` | Enabled direct numbered selection of torrent releases (Bluray vs Web, multiple bitrates) skipping redundant resolution prompts, and fixed `self.ep_details` attribute binding in `BaseDownloader`. |
 | **Global Package Installation & Module Packaging Fix** | `pyproject.toml`, `Core/commons.py` | Added `Core*` and `Content*` to `[tool.setuptools.packages.find]` and added XDG config directory resolution (`~/.config/media-scraper/`) for standalone `media-scraper` CLI installations. |
 | **YTS Movie Torrents Provider & TorrentDownloader Engine** | `Content/Movies/Providers/YTSClient.py`, `Content/Movies/Downloaders/TorrentDownloader.py`, `Core/provider_factory.py`, `scraper.py` | Added official YTS/YIFY multi-mirror torrent provider (720p, 1080p, 4K UHD) with seed/peer metrics, 14 public trackers, and `TorrentDownloader` engine with `aria2c` / `xdg-open` fallback. |
 | **Domain-Modular Architecture & Dedicated MovieDownloader** | `Core/`, `Anime/`, `Movies/`, `Series/`, `scraper.py` | Restructured codebase into domain folders (`Anime/Providers/`, `Anime/Downloaders/`, `Movies/Providers/`, `Movies/Downloaders/`, `Series/Providers/`, `Series/Downloaders/`, and `Core/`), and implemented dedicated streaming `MovieDownloader` with HTTP range resume support. |

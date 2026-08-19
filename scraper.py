@@ -547,6 +547,9 @@ Examples:
         if resolution_predef:
             colprint('predefined', f'\nUsing Predefined Input for resolution: {resolution_predef}')
             resolution = resolution_predef
+        elif len(valid_resolutions) == 1:
+            resolution = valid_resolutions[0]
+            logger.debug(f'Auto-selected single available resolution: {resolution}P')
         else:
             res_lines = []
             for r in valid_resolutions:

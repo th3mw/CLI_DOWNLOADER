@@ -353,6 +353,9 @@ def run_config_wizard(config_file):
         'Movies': {
             'download_dir': movies_dir,
             'providers': {
+                'yts': {
+                    'base_url': 'https://yts.lt'
+                },
                 'oneshows': {
                     'base_url': 'https://www.1shows.org'
                 },
@@ -373,7 +376,7 @@ def run_config_wizard(config_file):
             }
         },
         'LoggerConfig': {
-            'log_dir': 'logs',
+            'log_dir': os.path.expanduser('~/.local/share/media-scraper/logs') if not os.path.exists('scraper.py') else 'logs',
             'log_level': log_level,
             'log_retention_days': 7,
             'log_backup_count': 3
@@ -398,10 +401,18 @@ def run_config_wizard(config_file):
 
 # load yaml config into dict
 def load_yaml(config_file):
-    if not os.path.isfile(config_file):
-        return run_config_wizard(config_file)
+    xdg_config = os.path.expanduser('~/.config/media-scraper/config_scraper.yaml')
+    target_path = None
 
-    with open(config_file, "r") as stream:
+    if os.path.isfile(config_file):
+        target_path = config_file
+    elif os.path.isfile(xdg_config):
+        target_path = xdg_config
+    else:
+        save_target = config_file if os.path.exists('scraper.py') else xdg_config
+        return run_config_wizard(save_target)
+
+    with open(target_path, "r", encoding="utf-8") as stream:
         try:
             return yaml.safe_load(stream)
         except yaml.YAMLError as exc:

@@ -37,4 +37,7 @@ py-modules = ["scraper"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["Clients*", "Utils*"]
+include = ["Core*", "Content*", "Clients*", "Utils*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.wasm", "*.js"]

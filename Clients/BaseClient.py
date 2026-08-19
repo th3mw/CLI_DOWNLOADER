@@ -121,7 +121,7 @@ class BaseClient():
         if response.status_code == 200:
             if return_type.lower() == 'text':
                 return response.text
-            elif return_type.lower() == 'bytes':
+            elif return_type.lower() in ('bytes', 'content'):
                 return response.content
             elif return_type.lower() == 'json':
                 try:

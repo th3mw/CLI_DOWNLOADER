@@ -509,6 +509,10 @@ Examples:
         season_ranges = client.get_season_ep_ranges(episodes)
         if series_type == 3 and len(season_ranges) > 1:
             selected_eps = get_ep_range_multiple(season_ranges, episodes)
+        elif len(episodes) == 1 or series_type in ('Movies', 2):
+            ep_start = episodes[0]['episode']
+            ep_end = episodes[-1]['episode']
+            selected_eps = {'start': ep_start, 'end': ep_end, 'specific_no': [ep_start]}
         else:
             selected_eps = get_ep_range(f"{episodes[0]['episode']}-{episodes[-1]['episode']}", 'Enter', episodes_predef)
 

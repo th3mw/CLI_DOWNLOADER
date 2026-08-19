@@ -50,7 +50,7 @@ class OneShowsClient(BaseClient):
                     return None
                 with open(manifest_path, 'w') as f:
                     json.dump(manifest, f)
-                wasm_bytes = self._send_request(self.base_url.rstrip('/') + manifest['url'], return_type='content')
+                wasm_bytes = self._send_request(self.base_url.rstrip('/') + manifest['url'], return_type='bytes')
                 if not wasm_bytes:
                     return None
                 with open(wasm_path, 'wb') as f:
@@ -256,17 +256,19 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
         
         # Display Available Download Varieties (Source + Res + Size)
         ep_title = episode.get('episodeName', f"Episode {ep_no}")
-        self._colprint('header', f"\nAvailable Download Varieties for {ep_title}:")
-        
+        variety_lines = []
         for i, s in enumerate(sources, start=1):
             label = s.get('label', 'Direct Link')
-            self._colprint('results', f"  {i:2d}: {label}")
+            variety_lines.append(f"\033[1m[{i:2d}]\033[0m  {label}")
+        
+        from Utils.commons import render_box
+        print('\n' + render_box('AVAILABLE DOWNLOAD VARIETIES', variety_lines))
 
         selected_idx = 1
         try:
             user_choice = self._colprint(
                 'user_input',
-                f"\nSelect download variety [1-{len(sources)}] [default=1]: ",
+                f"\n  ➜ Select download variety [1-{len(sources)}] [default=1]: ",
                 input_type='recurring',
                 input_dtype='int'
             )

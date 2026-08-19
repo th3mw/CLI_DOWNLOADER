@@ -54,6 +54,12 @@ CATEGORY_PROVIDERS = {
     ],
     'TV Shows': [
         {
+            'key': 'eztv',
+            'label': 'EZTV (TV Torrents)',
+            'class_path': 'Content.Series.Providers.EZTVClient.EZTVClient',
+            'content_filter': 'tv'
+        },
+        {
             'key': 'oneshows',
             'label': '1Shows (Series Only)',
             'class_path': 'Content.Series.Providers.OneShowsClient.OneShowsClient',

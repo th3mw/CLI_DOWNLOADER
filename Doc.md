@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **EZTV TV Shows Torrent Provider** | `Content/Series/Providers/EZTVClient.py`, `Core/provider_factory.py`, `Core/commons.py` | Added official EZTV & Apibay TV Shows torrent provider with TVMaze metadata, full multi-season pagination, resolution aggregation (4K, 1080p, 720p, 480p), and TorrentDownloader integration. |
 | **Torrent Client Mode Config & Standalone `aria2c` Auto-Provisioning** | `Core/aria2_provisioner.py`, `Content/Movies/Downloaders/TorrentDownloader.py`, `Core/commons.py`, `scraper.py` | Added `torrent_client` configuration (`aria2`, `system`, `auto`), `--torrent-client` CLI option, and zero-friction standalone static `aria2c` binary auto-provisioning for Linux and Windows. |
 | **`aria2c` In-Place Progress Stream & Terminal Output Fix** | `Content/Movies/Downloaders/TorrentDownloader.py` | Configured `--summary-interval=0`, `--console-log-level=error`, and `--show-console-readout=true` to update single-line download progress in place rather than printing periodic multi-line summary boxes. |
 | **Cross-Platform Magnet Handler (Windows, macOS, Linux)** | `Content/Movies/Downloaders/TorrentDownloader.py` | Added multi-OS default torrent client dispatching (`os.startfile` on Windows, `open` on macOS, `xdg-open` on Linux) with in-terminal `aria2c` support and copyable magnet card fallback. |

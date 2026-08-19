@@ -371,6 +371,9 @@ def run_config_wizard(config_file):
         'TV Shows': {
             'download_dir': shows_dir,
             'providers': {
+                'eztv': {
+                    'base_url': 'https://eztvx.to'
+                },
                 'oneshows': {
                     'base_url': 'https://www.1shows.org'
                 },

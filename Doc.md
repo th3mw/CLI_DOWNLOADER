@@ -115,6 +115,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **1Shows Movie WASM Decryption & Auto-Selection** | `Clients/OneShowsClient.py`, `Clients/BaseClient.py`, `scraper.py` | Fixed WASM bytes download in payload decryption, formatted variety selection menu in Unicode cards, and auto-selected single movies without redundant episode range prompts. |
 | **`KissKhClient` `get_season_ep_ranges` Missing Attribute** | `Clients/BaseClient.py` | Implemented `get_season_ep_ranges` on `BaseClient` so all providers inherit season/episode extraction. |
 | **Purged Duplicate Raw Search Output** | `AniDbClient.py`, `AnimeSugeClient.py`, `KissKhClient.py`, `OneShowsClient.py` | Removed raw `_colprint` in client `search()` methods so only the formatted Unicode card is rendered. |
 | **Terminal Margin Indentation & Breathing Room** | `Utils/commons.py`, `scraper.py`, `BaseDownloader.py` | Added 2-space left margin to cards (`render_box`), user prompts, and live progress bars so UI isn't glued to the terminal edge. |

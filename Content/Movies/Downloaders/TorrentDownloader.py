@@ -1,8 +1,9 @@
 import os
+import platform
 import shutil
 import subprocess
 import sys
-import time
+import webbrowser
 
 from Core.BaseDownloader import BaseDownloader
 from Core.commons import colprint, render_box
@@ -10,13 +11,34 @@ from Core.commons import colprint, render_box
 
 class TorrentDownloader(BaseDownloader):
     '''
-    Dedicated downloader engine for BitTorrent / Magnet links.
-    - Uses aria2c for high-speed terminal downloading with live seeds, peers, and speed metrics.
-    - Automatically opens default desktop torrent clients (qBittorrent/Transmission) via xdg-open if aria2c is not found.
+    Dedicated cross-platform downloader engine for BitTorrent / Magnet links.
+    - If aria2c is installed: Downloads directly in the terminal with live speeds, seeds/peers, and auto-quits.
+    - If aria2c is not installed: Seamlessly delegates to the system's default torrent client (FDM, qBittorrent,
+      Transmission, etc.) across Windows, macOS, and Linux via native system handlers.
     '''
     def __init__(self, dl_config, ep_details):
         super().__init__(dl_config, ep_details)
         self.aria_path = shutil.which('aria2c')
+
+    def _open_in_system_client(self, magnet_link):
+        '''Cross-platform launcher for default OS magnet handler'''
+        os_name = platform.system()
+        try:
+            if os_name == 'Windows':
+                os.startfile(magnet_link)
+                return True
+            elif os_name == 'Darwin':  # macOS
+                subprocess.Popen(['open', magnet_link], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return True
+            elif os_name == 'Linux':
+                if shutil.which('xdg-open'):
+                    subprocess.Popen(['xdg-open', magnet_link], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    return True
+            
+            # Universal fallback
+            return webbrowser.open(magnet_link)
+        except Exception:
+            return False
 
     def start_download(self, magnet_link):
         self._create_out_dirs()
@@ -62,27 +84,25 @@ class TorrentDownloader(BaseDownloader):
             except Exception as e:
                 return 1, str(e)
 
-        # Fallback if aria2c is not installed
+        # Instructions & fallback if aria2c is not found
         card_lines = [
             f"Movie: {title} [{quality}]",
             f"Size: {size} • Seeds: {seeds} • Peers: {peers}",
             "",
-            "ℹ️  To download directly in terminal at max speed, install aria2:",
-            "    Debian/Ubuntu:  sudo apt install aria2",
-            "    Arch Linux:     sudo pacman -S aria2",
-            "    Fedora:         sudo dnf install aria2",
+            "ℹ️  To download directly inside your terminal at max speed, install aria2:",
+            "    Linux:    sudo apt install aria2  (or pacman -S aria2 / dnf install aria2)",
+            "    macOS:    brew install aria2",
+            "    Windows:  winget install aria2  (or choco install aria2)",
             "",
-            "🔗 Magnet Link (click or copy into your torrent client):",
-            f"{magnet_link[:100]}..."
+            "🔗 Magnet Link (click to open or copy):",
+            f"{magnet_link[:120]}..."
         ]
         print('\n' + render_box('MAGNET LINK READY', card_lines))
 
-        # Attempt to launch system default torrent client via xdg-open
-        try:
-            if shutil.which('xdg-open'):
-                subprocess.Popen(['xdg-open', magnet_link], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                colprint('results', "  [✓] Sent magnet link to default system torrent client (xdg-open).")
-        except Exception:
-            pass
+        opened = self._open_in_system_client(magnet_link)
+        if opened:
+            colprint('results', "  [✓] Sent magnet link to default system torrent client.")
+        else:
+            colprint('results', "  [✓] Magnet link generated. Copy the link above into your torrent client.")
 
         return 0, 'Magnet link delivered'

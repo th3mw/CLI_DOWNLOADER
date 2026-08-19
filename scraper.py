@@ -7,7 +7,7 @@ import traceback
 # Note: For optimization, custom modules are imported as required
 from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box
 from Core.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
-from Core.provider_factory import CATEGORIES, get_providers_for_category, create_client, get_downloader
+from Core.provider_factory import CATEGORIES, CATEGORY_PROVIDERS, get_providers_for_category, create_client, get_downloader
 
 series_type = None
 config = None
@@ -387,7 +387,8 @@ Examples:
                          help='configuration file (default: config_scraper.yaml)')
         parser.add_argument('-l', '--log-file', help='custom file name for logging (default: scraper_{YYYYMMDDHHMMSS}.log)')
         parser.add_argument('-s', '--series-type', type=str, help='type of content (1/anime, 2/movies, 3/tv)')
-        parser.add_argument('-p', '--provider', choices=['anime_suge', 'anidb', 'kisskh', 'oneshows'], help='provider to use for downloading')
+        all_provider_keys = list(dict.fromkeys([p['key'] for cat_providers in CATEGORY_PROVIDERS.values() for p in cat_providers]))
+        parser.add_argument('-p', '--provider', choices=all_provider_keys, help='provider to use for downloading')
         parser.add_argument('-n', '--series-name', help='name of the series to search')
         parser.add_argument('-S', '--seasons', action='append', help='seasons number to download (only applicable for TV Shows)')
         parser.add_argument('-e', '--episodes', action='append', help='episodes number to download (e.g. 1-12, 1,3,5)')

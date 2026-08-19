@@ -126,6 +126,7 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 
 | Issue | Commit / File | Summary & Fix |
 |-------|---------------|---------------|
+| **YTS Movie Torrents Provider & TorrentDownloader Engine** | `Content/Movies/Providers/YTSClient.py`, `Content/Movies/Downloaders/TorrentDownloader.py`, `Core/provider_factory.py`, `scraper.py` | Added official YTS/YIFY multi-mirror torrent provider (720p, 1080p, 4K UHD) with seed/peer metrics, 14 public trackers, and `TorrentDownloader` engine with `aria2c` / `xdg-open` fallback. |
 | **Domain-Modular Architecture & Dedicated MovieDownloader** | `Core/`, `Anime/`, `Movies/`, `Series/`, `scraper.py` | Restructured codebase into domain folders (`Anime/Providers/`, `Anime/Downloaders/`, `Movies/Providers/`, `Movies/Downloaders/`, `Series/Providers/`, `Series/Downloaders/`, and `Core/`), and implemented dedicated streaming `MovieDownloader` with HTTP range resume support. |
 | **AnimeSuge Multi-Resolution Aggregation** | `Clients/AnimeSugeClient.py` | Aggregated available resolutions (1080p, 720p, 480p, 360p) across available servers instead of returning early on single-resolution master streams. |
 | **1Shows Movie WASM Decryption & Auto-Selection** | `Clients/OneShowsClient.py`, `Clients/BaseClient.py`, `scraper.py` | Fixed WASM bytes download in payload decryption, formatted variety selection menu in Unicode cards, and auto-selected single movies without redundant episode range prompts. |

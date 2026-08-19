@@ -34,6 +34,12 @@ CATEGORY_PROVIDERS = {
     ],
     'Movies': [
         {
+            'key': 'yts',
+            'label': 'YTS / YIFY (Movie Torrents)',
+            'class_path': 'Content.Movies.Providers.YTSClient.YTSClient',
+            'content_filter': 'movie'
+        },
+        {
             'key': 'oneshows',
             'label': '1Shows (Movies Only)',
             'class_path': 'Content.Movies.Providers.OneShowsClient.OneShowsClient',
@@ -65,15 +71,18 @@ CATEGORY_PROVIDERS = {
 CATEGORY_DOWNLOADERS = {
     'Anime': {
         'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
-        'http': 'Core.BaseDownloader.BaseDownloader'
+        'http': 'Core.BaseDownloader.BaseDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     },
     'Movies': {
         'hls': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
-        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader'
+        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     },
     'TV Shows': {
         'hls': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
-        'http': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader'
+        'http': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     }
 }
 

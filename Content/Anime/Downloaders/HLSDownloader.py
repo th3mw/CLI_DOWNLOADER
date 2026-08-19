@@ -94,8 +94,8 @@ class HLSDownloader(BaseDownloader):
         # Improved regex to handle all cases. (get all lines except those starting with #)
         base_url = '/'.join(m3u8_link.split('/')[:-1])
         normalize_url = lambda url, base_url: (url if url.startswith('http') else 'https:' + url if url.startswith('//') else base_url + '/' + url)
-        # Some m3u8 files have duplicate urls, so using set to remove duplicates
-        urls = list(set( normalize_url(m.group(0), base_url) for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE) ))
+        # Preserve exact playlist order while removing duplicates
+        urls = list(dict.fromkeys(normalize_url(m.group(0), base_url) for m in re.finditer("^(?!#).+$", m3u8_data, re.MULTILINE)))
 
         return urls
 

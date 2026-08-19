@@ -16,7 +16,7 @@ class ProgressBar:
     Built-in full-featured progress bar with download speed, ETA, and graphical bar.
     Provides identical API to tqdm without requiring external packages.
     '''
-    _lock = threading.Lock()
+    _lock = threading.RLock()
 
     def __init__(self, total=100, desc='Downloading', unit='seg', unit_scale=False, unit_divisor=1024, bar_format=None, **kwargs):
         self.total = max(1, total) if total else 0
@@ -151,10 +151,10 @@ class BaseDownloader():
         # add extra folder for season
         if ep_details.get('type', '') == 'tv':
             self.out_dir = f"{self.out_dir}{os.sep}Season-{ep_details['season']}"
-        self.concurrency = None if dl_config.get('concurrency_per_file', 'auto') == 'auto' else dl_config['concurrency_per_file']
+        self.concurrency = dl_config.get('concurrency_per_file', 6) if dl_config.get('concurrency_per_file', 'auto') != 'auto' else 6
         self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if dl_config.get('temp_download_dir', 'auto') == 'auto' else dl_config['temp_download_dir']
         self.temp_dir = os.path.join(f"{self.parent_temp_dir}", f"{self.out_file.rsplit('.', 1)[0]}") #create temp directory per episode
-        self.request_timeout = dl_config.get('request_timeout', 30)
+        self.request_timeout = dl_config.get('request_timeout', 20)
         self.series_type = ep_details.get('type', 'series')
         self.subtitles = ep_details.get('subtitles', {})
         # special case for encrypted subtitles in kisskh client
@@ -163,6 +163,9 @@ class BaseDownloader():
 
         # create a requests session and use across to re-use cookies
         self.req_session = session if session else requests.Session()
+        adapter = requests.adapters.HTTPAdapter(pool_connections=64, pool_maxsize=64, max_retries=3)
+        self.req_session.mount('http://', adapter)
+        self.req_session.mount('https://', adapter)
 
         # set http client usage based on config. As on Feb 21 2025, kisskh works with only http.client
         self.use_http_client = dl_config.get('use_http_client', False)

@@ -7,7 +7,8 @@ import tempfile
 import urllib.request
 import zipfile
 
-from Core.commons import colprint, ProgressBar
+from Core.commons import colprint
+from Core.BaseDownloader import ProgressBar
 
 # Official & verified static standalone binary releases
 STATIC_ARIA2_URLS = {

@@ -442,7 +442,7 @@ Examples:
         # Display hero banner
         if not args.quiet:
             hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.2\033[0m',
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.3\033[0m',
                 '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows\033[0m'
             ])
             print(f'\n{hero_box}\n')

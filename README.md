@@ -120,51 +120,63 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | `-h` | `--help` | Display help message and options |
 | `-c` | `--conf` | Custom configuration file (default: `config_scraper.yaml`) |
 | `-l` | `--log-file` | Custom log file name |
-| `-s` | `--series-type` | Content type: `1` for Anime, `2` for Movies & Shows |
-| `-p` | `--provider` | Specific provider client (e.g. `anime_suge`, `anidb`, `kisskh`, `oneshows`) |
+| `-s` | `--series-type` | Content type: `1`/`anime`, `2`/`movies`, `3`/`tv` |
+| `-p` | `--provider` | Specific provider client (`nyaa`, `anime_suge`, `anidb`, `kisskh`, `yts`, `oneshows`, `eztv`) |
 | `-n` | `--series-name` | Title search query string |
 | `-S` | `--seasons` | Season numbers to download (e.g. `1` or `1-3`) |
 | `-e` | `--episodes` | Episode numbers to download (e.g. `1-5` or `1,3,5`) |
-| `-r` | `--resolution` | Download resolution (`360`, `720`, `1080`) |
+| `-r` | `--resolution` | Download resolution (`360`, `720`, `1080`, `2160`) |
 | `-d` | `--start-download` | Start downloading immediately without prompts |
 | `-dc` | `--disable-colors` | Disable ANSI colored output |
+| `-q` | `--quiet` | Suppress hero banner and non-essential decoration |
+| `--search-only` | | Search and display results without prompting to download |
+| `--dry-run` | | Resolve streams and show pre-download inspection without downloading |
+| `-tc` | `--torrent-client` | Preferred torrent engine (`aria2`, `system`, `auto`) |
 | `-dl` | `--disable-looping` | Disable auto-restart loop after download completes |
 
 ### Example CLI Commands
 
 1. **Interactive Mode**:
    ```bash
-   python scraper.py
+   media-scraper
    ```
 
 2. **Download Anime Episodes (Continuous Range)**:
    ```bash
-   python scraper.py -s 1 -p anidb -n "Solo Leveling" -e "1-5" -r 1080 -d
+   media-scraper -s anime -p anidb -n "Solo Leveling" -e "1-5" -r 1080 -d
    ```
 
-3. **Download Specific Episodes (Comma-Separated)**:
+3. **Download Anime via Torrents (Nyaa)**:
    ```bash
-   python scraper.py -s 1 -p anime_suge -n "Solo Leveling" -e "1,5,7" -r 720 -d
+   media-scraper -s anime -p nyaa -n "Solo Leveling" -e "1" -r 1080 -d
    ```
 
-4. **Download TV Show Season (Non-Interactive)**:
+4. **Download Movie via Torrents (YTS)**:
    ```bash
-   python scraper.py -s 2 -p kisskh -n "Breaking Bad" -S "1" -e "1-7" -r 1080 -d
+   media-scraper -s movies -p yts -n "Inception" -r 1080 -d
+   ```
+
+5. **Download TV Show Season Batch (EZTV)**:
+   ```bash
+   media-scraper -s tv -p eztv -n "Breaking Bad" -S "1" -e "1-7" -r 1080 -d
    ```
 
 ---
 
 ## 🌐 Supported Providers
 
-| Category | Provider Client | Key Features |
-|----------|-----------------|--------------|
-| **Anime** | `AniDB` (`anidb.app`) | Fast HLS master stream resolution, multi-language audio tracks (`jpn`, `eng`), clean API |
-| **Anime** | `AnimeSuge` (`animesuge.cz`) | 2-Line search cards, multi-domain dynamic embeds, multi-server fallbacks, HLS links |
-| **Anime** | `KissKh` (`kisskh.co`) | Anime-filtered search, episode list fetching, encrypted subtitles |
-| **Movies** | `1Shows` (`1shows.org`) | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads with interactive Source + RES + Size variety selection |
-| **Movies** | `KissKh` (`kisskh.co`) | Asian Drama movies & Hollywood films |
-| **TV Shows** | `1Shows` (`1shows.org`) | TMDb series metadata, season/episode list fetching, WebAssembly decryption, direct HTTP downloads |
-| **TV Shows** | `KissKh` (`kisskh.co`) | Asian Drama series, season breakdowns, encrypted subtitle support |
+| Category | Provider Client | Engine / Type | Key Features |
+|----------|-----------------|---------------|--------------|
+| **Anime** | `🧲 Nyaa` (`nyaa.si`) | Torrent / `aria2c` | Kitsu API metadata, multi-resolution (1080p, 720p, 480p), Complete Season Batches |
+| **Anime** | `AniDB` (`anidb.app`) | HLS Stream | Fast HLS master stream resolution, multi-language audio tracks (`jpn`, `eng`), clean API |
+| **Anime** | `AnimeSuge` (`animesuge.cz`) | HLS Stream | 2-Line search cards, multi-domain dynamic embeds, multi-server fallbacks, HLS links |
+| **Anime** | `KissKh` (`kisskh.co`) | HLS Stream | Anime-filtered search, episode list fetching, encrypted subtitles |
+| **Movies** | `🧲 YTS / YIFY` (`yts.lt`) | Torrent / `aria2c` | IMDb metadata, 720p, 1080p, 2160p (4K), 3D torrent qualities |
+| **Movies** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads |
+| **Movies** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama movies & Hollywood films |
+| **TV Shows** | `🧲 EZTV` (`eztvx.to`) | Torrent / `aria2c` | TVMaze metadata, multi-season pagination, Complete Season Batch Packs (`S01 COMPLETE`) |
+| **TV Shows** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb series metadata, season/episode list fetching, WebAssembly decryption, direct HTTP downloads |
+| **TV Shows** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama series, season breakdowns, encrypted subtitle support |
 
 ---
 
@@ -175,8 +187,9 @@ Custom settings are defined in [`config_scraper.yaml`](config_scraper.yaml):
 ```yaml
 DownloaderConfig:
   download_dir: "~/Videos"       # Root download directory
-  concurrency_per_file: 5         # Parallel segment download threads
-  max_parallel_downloads: 3       # Concurrent episode downloads
+  concurrency_per_file: 6         # Parallel segment download threads
+  max_parallel_downloads: 2       # Concurrent episode downloads
+  torrent_client: "auto"          # Options: "aria2" (in-terminal), "system" (default desktop app), "auto"
 
 Anime:
   download_dir: "~/Videos/Anime"  # Folder for Anime downloads
@@ -207,11 +220,10 @@ Downloaded video files are saved in the **MKV (`.mkv`)** container with embedded
 
 ---
 
-## 🛠️ Technical Documentation
+## 🛠️ Documentation & Changelog
 
-For detailed architecture diagrams, client provider implementation mechanics, HLS segment obfuscation stripping algorithms, and complete bug fix history, see the technical documentation:
-
-👉 **[Technical Documentation (`Doc.md`)](Doc.md)**
+- 📜 **[Version Changelog (`CHANGELOG.md`)](CHANGELOG.md)**: Full release notes for all versions (v1.0.0 through v1.3.0).
+- 👉 **[Technical Architecture Documentation (`Doc.md`)](Doc.md)**: Detailed system architecture, provider client implementation mechanics, HLS segment obfuscation stripping algorithms, and complete bug fix history.
 
 ---
 

@@ -159,17 +159,32 @@ class KissKhClient(BaseClient):
     def fetch_episodes_list(self, target):
         '''Fetch episode information'''
         all_episodes_list = []
-        episodes = target['episodes']
+        episodes = target.get('episodes', [])
+        title = target.get('title', 'Unknown')
+        is_movie = str(target.get('series_type', '')).lower() == 'movie' or str(target.get('type', '')).lower() == 'movie'
 
-        self.logger.debug(f'Extracting episode details for {target["title"]}')
+        self.logger.debug(f'Extracting episode details for {title}')
         for episode in episodes:
-            ep_no = int(episode['number']) if str(episode['number']).endswith('.0') else episode['number']
-            ep_name = f"{target['title']} Movie" if target['series_type'].lower() == 'movie' else f"{target['title']} Episode {ep_no}"
+            try:
+                raw_num = episode.get('number')
+                ep_no = int(float(raw_num)) if str(raw_num).replace('.', '').isdigit() else raw_num
+            except Exception:
+                ep_no = episode.get('number', 1)
+
+            ep_name = self.format_media_filename(
+                series_title=title,
+                season=1,
+                episode=ep_no,
+                is_movie=is_movie
+            )
             all_episodes_list.append({
                 'episode': ep_no,
-                'episodeName': self._windows_safe_string(ep_name),
+                'season': 1,
+                'type': 'tv' if not is_movie else 'movie',
+                'title': title,
+                'episodeName': ep_name,
                 'episodeId': episode['id'],
-                'episodeSubs': episode['sub']
+                'episodeSubs': episode.get('sub', 0)
             })
 
         return all_episodes_list[::-1]   # return episodes in ascending
@@ -178,113 +193,170 @@ class KissKhClient(BaseClient):
         '''Display episode list'''
         if not items:
             return
-        display_prefix = 'Movie' if items[0].get('episodeName', '').endswith('Movie') else 'Episode'
         if len(items) <= 24:
             for item in items:
-                fmted_name = re.sub(r'\b(\d$)', r'0\1', item.get('episodeName', ''))
-                self._colprint('results', f"  {display_prefix}: {fmted_name}")
+                ep_num = item.get('episode', 1)
+                try:
+                    ep_str = f"Episode {int(float(ep_num)):02d}"
+                except Exception:
+                    ep_str = f"Episode {ep_num}"
+                self._colprint('results', f"  {ep_str}")
         else:
             first_ep = items[0].get('episode', 1)
             last_ep = items[-1].get('episode', len(items))
-            self._colprint('results', f"  Episodes {first_ep} – {last_ep} ({len(items)} episodes ready)")
+            try:
+                f_str = f"{int(float(first_ep)):02d}"
+                l_str = f"{int(float(last_ep)):02d}"
+            except Exception:
+                f_str = str(first_ep)
+                l_str = str(last_ep)
+            self._colprint('results', f"  Episodes {f_str} – {l_str} ({len(items)} episodes ready)")
 
     def _fetch_single_episode_link(self, episode):
         ep_no = episode.get('episode')
-        self.logger.debug(f'Processing {episode = }')
-        token = self._get_token(episode.get('episodeId'), self.viGuid)
-        if token is None:
-            self.logger.warning(f'Failed to generate token for episode: {ep_no}')
-            return ep_no, None, {'error': 'Failed to generate token'}
-        dl_links = self._send_request(self.episode_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
-        if dl_links is None:
-            self.logger.warning(f'Failed to fetch stream link for episode: {ep_no}')
-            return ep_no, None, {'error': 'Failed to fetch stream link'}
+        try:
+            self.logger.debug(f'Processing {episode = }')
+            token = self._get_token(episode.get('episodeId'), self.viGuid)
+            if token is None:
+                self.logger.warning(f'Failed to generate token for episode: {ep_no}')
+                return ep_no, None, {'error': 'Failed to generate token'}
+            dl_links = self._send_request(self.episode_url.format(id=str(episode.get('episodeId'))) + token, return_type='json', silent=True)
+            if dl_links is None:
+                self.logger.warning(f'Failed to fetch stream link for episode: {ep_no}')
+                return ep_no, None, {'error': 'Failed to fetch stream link'}
 
-        video_data = dl_links.get('Video', {})
-        if isinstance(video_data, str):
-            if video_data.startswith('http'):
-                link = video_data
-            elif video_data:
-                try:
-                    link = self._aes_decrypt(video_data, self.DECRYPT_VIDEO_KEY, self.DECRYPT_VIDEO_IV)
-                except Exception as e:
-                    self.logger.error(f'Failed to decrypt video payload: {e}')
+            video_data = dl_links.get('Video', {})
+            if isinstance(video_data, str):
+                if video_data.startswith('http'):
+                    link = video_data
+                elif video_data:
+                    try:
+                        link = self._aes_decrypt(video_data, self.DECRYPT_VIDEO_KEY, self.DECRYPT_VIDEO_IV)
+                    except Exception as e:
+                        self.logger.error(f'Failed to decrypt video payload: {e}')
+                        link = None
+                else:
                     link = None
+            elif isinstance(video_data, dict):
+                qualities = video_data.get('qualities', {})
+                link = qualities.get('1080', qualities.get('720', qualities.get('480', video_data.get('url'))))
             else:
                 link = None
-        elif isinstance(video_data, dict):
-            qualities = video_data.get('qualities', {})
-            link = qualities.get('1080', qualities.get('720', qualities.get('480', video_data.get('url'))))
-        else:
-            link = None
 
-        if link is None:
-            return ep_no, None, {'error': 'No stream link found'}
+            if link is None:
+                return ep_no, None, {'error': 'No stream link found'}
 
-        if 'tickcounter.com' in link:
-            return ep_no, None, {'error': 'Not Released Yet'}
+            if 'tickcounter.com' in link:
+                return ep_no, None, {'error': 'Not Released Yet'}
 
-        self._update_scraper_dict(ep_no, episode)
-        self._update_scraper_dict(ep_no, {'streamLink': link, 'refererLink': self.base_url})
+            self._update_scraper_dict(ep_no, episode)
+            self._update_scraper_dict(ep_no, {'streamLink': link, 'refererLink': self.base_url})
 
-        if episode.get('episodeSubs', 0) > 0:
-            token = self._get_token(episode.get('episodeId'), self.subGuid)
-            if token is not None:
-                subtitles = self._send_request(self.subtitles_url.format(id=str(episode.get('episodeId'))) + token, return_type='json')
-                if subtitles:
-                    subtitles_dict = {sub['label']: sub['src'] for sub in subtitles}
-                    self._update_scraper_dict(ep_no, {'subtitles': subtitles_dict})
+            if episode.get('episodeSubs', 0) > 0:
+                token = self._get_token(episode.get('episodeId'), self.subGuid)
+                if token is not None:
+                    subtitles = self._send_request(self.subtitles_url.format(id=str(episode.get('episodeId'))) + token, return_type='json', silent=True)
+                    if subtitles:
+                        subtitles_dict = {sub['label']: sub['src'] for sub in subtitles}
+                        self._update_scraper_dict(ep_no, {'subtitles': subtitles_dict})
 
-                encrypted_subs_details = {}
-                for k, v in subtitles_dict.items():
-                    encryption_type = v.split('?')[0].split('.')[-1]
-                    if encryption_type == 'txt':
-                        encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY, 'iv': self.DECRYPT_SUBS_IV, 'decrypter': self._aes_decrypt}
-                    elif encryption_type == 'txt1':
-                        encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY2, 'iv': self.DECRYPT_SUBS_IV2, 'decrypter': self._aes_decrypt}
+                        encrypted_subs_details = {}
+                        for k, v in subtitles_dict.items():
+                            encryption_type = v.split('?')[0].split('.')[-1]
+                            if encryption_type == 'txt':
+                                encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY, 'iv': self.DECRYPT_SUBS_IV, 'decrypter': self._aes_decrypt}
+                            elif encryption_type == 'txt1':
+                                encrypted_subs_details[k] = {'key': self.DECRYPT_SUBS_KEY2, 'iv': self.DECRYPT_SUBS_IV2, 'decrypter': self._aes_decrypt}
 
-                if encrypted_subs_details:
-                    self._update_scraper_dict(ep_no, {'encrypted_subs_details': encrypted_subs_details})
+                        if encrypted_subs_details:
+                            self._update_scraper_dict(ep_no, {'encrypted_subs_details': encrypted_subs_details})
 
-        if isinstance(dl_links.get('Video'), dict):
-            qualities = dl_links['Video'].get('qualities', {})
-            m3u8_links = {}
-            for quality, quality_link in qualities.items():
-                m3u8_links[quality] = {'downloadLink': quality_link, 'downloadType': 'mp4' if '.mp4' in quality_link else 'hls', 'resolution_size': f'{quality}x0'}
-        else:
-            link_type = 'mp4' if '.mp4' in link else 'hls'
-            m3u8_links = {'720': {'downloadLink': link, 'downloadType': link_type, 'resolution_size': '1280x720'}}
+            if isinstance(dl_links.get('Video'), dict):
+                qualities = dl_links['Video'].get('qualities', {})
+                m3u8_links = {}
+                for quality, quality_link in qualities.items():
+                    m3u8_links[quality] = {
+                        'downloadLink': quality_link,
+                        'downloadType': 'mp4' if '.mp4' in quality_link else 'hls',
+                        'resolution_size': f'{quality}x0',
+                        'refererLink': self.base_url
+                    }
+            else:
+                link_type = 'mp4' if '.mp4' in link else 'hls'
+                m3u8_links = {
+                    '720': {
+                        'downloadLink': link,
+                        'downloadType': link_type,
+                        'resolution_size': '1280x720',
+                        'refererLink': self.base_url
+                    }
+                }
 
-        return ep_no, m3u8_links, None
+            return ep_no, m3u8_links, None
+        except Exception as e:
+            self.logger.warning(f'Episode {ep_no} processing failed: {e}')
+            return ep_no, None, {'error': str(e)}
+
+    def _is_episode_selected(self, ep_no, ep_ranges):
+        if ep_ranges is None:
+            return True
+        if isinstance(ep_ranges, dict):
+            if 1 in ep_ranges and isinstance(ep_ranges[1], dict):
+                ep_ranges = ep_ranges[1]
+            try:
+                ep_f = float(ep_no)
+            except Exception:
+                return True
+            if 'start' in ep_ranges and 'end' in ep_ranges:
+                if ep_ranges['start'] <= ep_f <= ep_ranges['end']:
+                    return True
+            if 'specific_no' in ep_ranges and ep_f in [float(x) for x in ep_ranges['specific_no']]:
+                return True
+            return False
+        return True
 
     def fetch_episode_links(self, episodes, ep_ranges):
         '''Fetch download links for episodes in parallel'''
         download_links = {}
-        ep_start, ep_end, specific_eps = ep_ranges['start'], ep_ranges['end'], ep_ranges.get('specific_no', [])
-        display_prefix = 'Movie' if episodes[0].get('episodeName').endswith('Movie') else 'Episode'
+        display_prefix = 'Movie' if episodes and episodes[0].get('type') == 'movie' else 'Episode'
 
-        selected_eps = [
-            ep for ep in episodes
-            if (float(ep.get('episode')) >= ep_start and float(ep.get('episode')) <= ep_end) or (float(ep.get('episode')) in specific_eps)
-        ]
+        selected_eps = [ep for ep in episodes if self._is_episode_selected(ep.get('episode'), ep_ranges)]
         if not selected_eps:
             return {}
 
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=min(10, len(selected_eps))) as executor:
+        workers = min(6, len(selected_eps))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
-        for ep_no, m3u8_links, err_dict in sorted(results, key=lambda x: float(x[0])):
+        for ep_no, m3u8_links, err_dict in sorted(results, key=lambda x: float(x[0]) if str(x[0]).replace('.', '').isdigit() else 0):
             if m3u8_links:
                 download_links[ep_no] = m3u8_links
-                self._show_episode_links(ep_no, m3u8_links, display_prefix)
             elif err_dict:
                 self._show_episode_links(ep_no, err_dict, display_prefix)
 
         return download_links
 
     def set_out_names(self, target_series):
-        '''Set output names for downloads'''
-        drama_title = self._windows_safe_string(target_series['title'])
-        target_dir = drama_title if drama_title.endswith(')') else f"{drama_title} ({target_series['year']})"
-        return target_dir, None
+        '''Set output directory and episode prefix'''
+        title = self._windows_safe_string(target_series['title'])
+        series_dir = title if title.endswith(')') else f"{title} ({target_series.get('year', '')})".strip()
+        episode_prefix = f"{title} -"
+        return series_dir, episode_prefix
+
+    def get_season_ep_ranges(self, episodes):
+        '''Return episode ranges organized by season'''
+        season_ep_ranges = {}
+        for ep in episodes:
+            season = ep.get('season', 1)
+            ep_val = ep.get('episode', 1)
+            try:
+                ep_num = int(float(ep_val))
+            except Exception:
+                ep_num = 1
+            if season not in season_ep_ranges:
+                season_ep_ranges[season] = {'start': ep_num, 'end': ep_num}
+            else:
+                season_ep_ranges[season]['start'] = min(season_ep_ranges[season]['start'], ep_num)
+                season_ep_ranges[season]['end'] = max(season_ep_ranges[season]['end'], ep_num)
+        return season_ep_ranges

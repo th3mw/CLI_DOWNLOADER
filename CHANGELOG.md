@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced with a concise `AVAILABLE EPISODES` overview box and an immediate prompt for the episodes to download in a single step.
 
 ### 🐛 Fixed
+- **AnimeSuge HTTP 429 Rate Limit Crash**: Implemented progressive backoff, adaptive server `Retry-After` header parsing, silent error suppression for optional mirror probes, and controlled concurrency to eliminate HTTP 429 crashes during batch episode link resolution.
 - **Missing `re` Module Import in `BaseDownloader`**: Resolved `NameError` in `_get_display_prefix` when parsing standardized episode tokens.
 - **Global `max_parallel_downloads` Scope in Downloader**: Added defensive retrieval of `max_parallel_downloads` from download configuration inside worker routines.
 

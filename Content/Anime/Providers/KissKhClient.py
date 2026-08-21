@@ -176,13 +176,17 @@ class KissKhClient(BaseClient):
 
     def show_episode_results(self, items, *predefined_range):
         '''Display episode list'''
-        start, end = self._get_episode_range_to_show(items[0].get('episode'), items[-1].get('episode'), predefined_range[1], threshold=24)
-        display_prefix = 'Movie' if items[0].get('episodeName').endswith('Movie') else 'Episode'
-
-        for item in items:
-            if item.get('episode') >= start and item.get('episode') <= end:
-                fmted_name = re.sub(r'\b(\d$)', r'0\1', item.get('episodeName'))
-                self._colprint('results', f"{display_prefix}: {fmted_name}")
+        if not items:
+            return
+        display_prefix = 'Movie' if items[0].get('episodeName', '').endswith('Movie') else 'Episode'
+        if len(items) <= 24:
+            for item in items:
+                fmted_name = re.sub(r'\b(\d$)', r'0\1', item.get('episodeName', ''))
+                self._colprint('results', f"  {display_prefix}: {fmted_name}")
+        else:
+            first_ep = items[0].get('episode', 1)
+            last_ep = items[-1].get('episode', len(items))
+            self._colprint('results', f"  Episodes {first_ep} – {last_ep} ({len(items)} episodes ready)")
 
     def _fetch_single_episode_link(self, episode):
         ep_no = episode.get('episode')

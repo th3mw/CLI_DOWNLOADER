@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v1.4.0] - 2026-08-21
+
+### 🚀 Added
+- **Single-Screen Step-by-Step Clean UX**:
+  - Implemented `clear_screen` and `render_step_header` to clear the terminal between interactive steps while keeping the top Hero Header persistent.
+  - Added dynamic breadcrumb navigation trails (e.g. `📍 Location: Anime › Nyaa › Solo Leveling › Select Episodes`).
+- **Standardized Media Library File Naming**:
+  - Automated Plex/Jellyfin/Kodi compliant naming: `{Series Title} - S{season:02d} - E{episode:02d}.mkv` across all Anime, TV Shows, and Movie providers.
+  - Handled multi-part episodes (`- E01-E02.mkv`) and movie releases (`{Movie Title}.mkv`).
+- **In-Place Concurrent Progress Dashboard**:
+  - Eliminated loose pre-download printing tags (`➜ Downloading: ...`) outside the progress manager.
+  - Multi-slot progress bars now manage their lines completely in place with dedicated episode descriptors (`S01-E01`, `S01-E02`).
+
+### 🛠️ Changed
+- **Direct Episode Selection Workflow**:
+  - Completely eliminated the redundant intermediate `Enter episodes range to display (ex: 1-16)` prompt for series with many episodes (>24).
+  - Replaced with a concise `AVAILABLE EPISODES` overview box and an immediate prompt for the episodes to download in a single step.
+
+### 🐛 Fixed
+- **Missing `re` Module Import in `BaseDownloader`**: Resolved `NameError` in `_get_display_prefix` when parsing standardized episode tokens.
+- **Global `max_parallel_downloads` Scope in Downloader**: Added defensive retrieval of `max_parallel_downloads` from download configuration inside worker routines.
+
+---
+
 ## [v1.3.0] - 2026-08-20
 
 ### 🚀 Added

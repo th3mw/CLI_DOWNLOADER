@@ -584,18 +584,54 @@ class BaseClient():
 
         self._colprint('results', info)
 
+    def format_media_filename(self, series_title: str, season=1, episode=1, number2=None, is_movie=False, ext='.mkv') -> str:
+        '''
+        Format standardized Plex/Jellyfin filename:
+        Series/Anime: '{Series Title} - S01 - E01.mkv'
+        Multi-part:   '{Series Title} - S01 - E01-E02.mkv'
+        Movie:        '{Movie Title}.mkv'
+        '''
+        clean_title = self._windows_safe_string(series_title).strip()
+        if is_movie:
+            return f"{clean_title}{ext}"
+
+        try:
+            s_val = int(season)
+        except Exception:
+            s_val = 1
+
+        s_str = f"S{s_val:02d}"
+
+        if number2 and str(number2) != str(episode) and str(number2) not in ('0', 'None'):
+            try:
+                e1 = int(float(episode))
+                e2 = int(float(number2))
+                e_str = f"E{e1:02d}-E{e2:02d}"
+            except Exception:
+                e_str = f"E{episode}-E{number2}"
+        else:
+            try:
+                e_int = int(float(episode))
+                e_str = f"E{e_int:02d}"
+            except Exception:
+                e_str = f"E{episode}"
+
+        return f"{clean_title} - {s_str} - {e_str}{ext}"
+
     def fetch_m3u8_links(self, target_links, resolution, episode_prefix):
         '''
         return dict containing m3u8 links based on resolution. (this is a default method. override if required)
         '''
-        _get_ep_name = lambda resltn: f"{self.scraper_episode_dict.get(ep, {}).get('episodeName', f'Episode {ep}')} - {resltn}P.mkv"
-
+        series_title = episode_prefix.rstrip(' -').strip()
         display_prefix = 'Episode'
         series_flag = True if str(next(iter(target_links.keys()))).startswith('s') else False
         if series_flag: prev_season = None
 
         for ep, link in target_links.items():
             error = None
+            ep_dict_info = self.scraper_episode_dict.get(ep, {})
+            cur_season = ep_dict_info.get('season', 1)
+            num2 = ep_dict_info.get('number2')
 
             if series_flag:
                 cur_season = int(ep.split('e')[0].replace('s', ''))
@@ -606,7 +642,7 @@ class BaseClient():
             elif type(ep) == str and ep.startswith('m'):
                 display_prefix = 'Movie'
                 ep_no = int(ep.replace('m', ''))
-            elif self.scraper_episode_dict.get(ep, {}).get('episodeName', '').endswith('Movie'):
+            elif ep_dict_info.get('episodeName', '').endswith('Movie'):
                 display_prefix = 'Movie'
                 ep_no = ep
             else:
@@ -620,6 +656,14 @@ class BaseClient():
             res_dict = link.get(selected_resolution)
             self.logger.debug(f'{selected_resolution = } based on {self.selector_strategy = }, Data: {res_dict = }')
 
+            ep_name = self.format_media_filename(
+                series_title=series_title,
+                season=cur_season,
+                episode=ep_no,
+                number2=num2,
+                is_movie=(display_prefix == 'Movie')
+            )
+
             if 'error' in link:
                 error = link.get('error')
 
@@ -629,7 +673,6 @@ class BaseClient():
             else:
                 info = f'{info} {selected_resolution}P |'
                 try:
-                    ep_name = _get_ep_name(selected_resolution)
                     ep_link = res_dict['downloadLink']
                     link_type = res_dict['downloadType']
 
@@ -650,7 +693,6 @@ class BaseClient():
 
             if error:
                 # add error message and log it
-                ep_name = _get_ep_name(resolution)
                 self._update_scraper_dict(ep, {'episodeName': ep_name, 'error': error})
                 self.logger.error(f'{info} {error}')
 
@@ -693,36 +735,8 @@ class BaseClient():
 
     def _get_episode_range_to_show(self, start, end, predefined_range=None, threshold=24, type='episodes'):
         '''
-        Get the range of episodes from user and return the range to display
+        Return episode range to display directly without prompting user.
         '''
-        if end - start <= threshold:        # if episode range is within threshold, display all
-            return start, end
-
-        default_range = f'{start}-{end}'
-        if predefined_range:
-            # display only required episodes if specified from cli
-            show_range = predefined_range
-        else:
-            show_range = self._colprint('user_input', f'Enter {type} range to display (ex: 1-16) [default={default_range}]: ', input_type='recurring', input_dtype='range') or 'all'
-            if show_range.lower() == 'all':
-                show_range = default_range
-
-        # fill the range if it is a relative range
-        if show_range.startswith('-'):
-            show_range = f'{start}{show_range}'
-        elif show_range.endswith('-'):
-            show_range = f'{show_range}{end}'
-        # flatten the episode ranges into a sorted list and pick the first and last
-        ep_selected_for_display = sorted([ float(i) for i in show_range.replace('-', ',').split(',') ])
-        start, end = int(ep_selected_for_display[0]), int(ep_selected_for_display[-1])
-
-        if show_range == default_range:
-            self._colprint('header', 'Showing all episodes:')
-        elif type != 'episodes':
-            self._colprint('header', f'Showing episodes for {type} [{start} - {end}]:')
-        else:
-            self._colprint('header', f'Showing episodes from {start} to {end}:')
-
         return start, end
 
     def get_season_ep_ranges(self, episodes: list) -> dict:

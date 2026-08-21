@@ -358,17 +358,18 @@ class AnimeSugeClient(BaseClient):
 
     def show_episode_results(self, items, *predefined_range):
         '''Pretty print episode list'''
-        start, end = self._get_episode_range_to_show(
-            items[0]['episode'], items[-1]['episode'],
-            predefined_range[0] if predefined_range else None
-        )
-
-        for ep in items:
-            if start <= ep['episode'] <= end:
-                ep_label = f'Episode {ep["episode"]}'
+        if not items:
+            return
+        if len(items) <= 24:
+            for ep in items:
+                ep_label = f'  Episode {ep["episode"]:02d}'
                 if ep.get('type'):
                     ep_label += f' ({ep["type"]})'
                 self._colprint('results', ep_label)
+        else:
+            first_ep = items[0].get('episode', 1)
+            last_ep = items[-1].get('episode', len(items))
+            self._colprint('results', f"  Episodes {first_ep:02d} – {last_ep:02d} ({len(items)} episodes ready)")
 
     def _fetch_single_episode_link(self, ep):
         ep_no = ep.get('episode')

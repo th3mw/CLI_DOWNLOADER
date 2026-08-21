@@ -1,10 +1,11 @@
+import http.client
 import logging
 import os
+import re
 import requests
 import sys
 import threading
 import time
-import http.client
 from urllib.parse import quote
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from shutil import rmtree
@@ -288,27 +289,19 @@ class BaseDownloader():
         return exec_os_cmd(cmd)
 
     def _get_display_prefix(self):
-        # shorten the name to show only ep number
         try:
-            # set display prefix based on series type if defined
-            if self.series_type.lower() == 'tv':
-                ss_no = self.out_dir.split('-')[-1]
-                ep_no = self.out_file.split()[1]
-                return f'S{int(ss_no):02d}E{int(ep_no):02d}'
-            elif self.series_type.lower() == 'movie':
+            if self.series_type.lower() == 'movie':
                 return 'Movie'
-
-            ep_no = self.out_file.split()[-3]
-
-            try:
-                display_prefix = f'Episode-{int(ep_no):02d}'
-            except ValueError as ve:
-                display_prefix = f'Movie' if ep_no.lower() == 'movie' else f'Episode-{ep_no}'
-
-        except:
-            display_prefix = 'Movie'
-
-        return display_prefix
+            base_name = self.out_file.rsplit('.', 1)[0]
+            m = re.search(r'(S\d+\s*-\s*E\d+|S\d+E\d+|E\d+)', base_name, re.IGNORECASE)
+            if m:
+                return m.group(1).replace(' ', '')
+            ep_match = re.search(r'Episode\s*(\d+)', base_name, re.IGNORECASE)
+            if ep_match:
+                return f"Episode-{int(ep_match.group(1)):02d}"
+            return base_name
+        except Exception:
+            return 'Downloading'
 
     def _create_chunk_header(self, start):
         end = start + self.chunk_size - 1

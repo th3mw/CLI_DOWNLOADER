@@ -77,6 +77,33 @@ def render_box(title, lines, max_width=76, indent=2):
 
     out.append(f'{pad_left}{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
     return '\n'.join(out)
+
+def clear_screen(disable_clear=False):
+    '''Clear terminal screen buffer while preserving cross-platform compatibility'''
+    if disable_clear or os.environ.get('NO_CLEAR') or not sys.stdout.isatty():
+        return
+    sys.stdout.write('\033[2J\033[H')
+    sys.stdout.flush()
+
+def render_step_header(breadcrumbs=None, step_title=None):
+    '''Render persistent top hero header and dynamic breadcrumb trail'''
+    c_blue = PRINT_THEMES['header'] if DISPLAY_COLORS else ''
+    c_muted = PRINT_THEMES['muted'] if DISPLAY_COLORS else ''
+    c_reset = PRINT_THEMES['reset'] if DISPLAY_COLORS else ''
+    c_green = PRINT_THEMES['results'] if DISPLAY_COLORS else ''
+    c_yellow = PRINT_THEMES['user_input'] if DISPLAY_COLORS else ''
+
+    banner = render_box('', [
+        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4{c_reset}',
+        f'{c_muted}Anime • Asian Dramas • Movies • TV Shows{c_reset}'
+    ], max_width=76, indent=0)
+    print(f'\n{banner}\n')
+    if breadcrumbs:
+        trail = f' {c_muted}›{c_reset} '.join(f'{c_green}{b}{c_reset}' for b in breadcrumbs if b)
+        print(f"  {c_muted}📍 Location:{c_reset} {trail}\n")
+    elif step_title:
+        print(f"  {c_yellow}➜ {step_title}{c_reset}\n")
+
 class ExitException(Exception):
     '''
     Custom exception which forces UDB to exit. Requires status code as argument.

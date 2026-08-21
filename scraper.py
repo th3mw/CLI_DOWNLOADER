@@ -6,10 +6,11 @@ from time import time
 import traceback
 
 # Note: For optimization, custom modules are imported as required
-from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box
+from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box, clear_screen, render_step_header
 from Core.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
 from Core.provider_factory import CATEGORIES, CATEGORY_PROVIDERS, get_providers_for_category, create_client, get_downloader
 
+args = None
 series_type = None
 config = None
 logger = None
@@ -31,10 +32,14 @@ def get_provider(category_name, predefined_provider=None):
         logger.error(f'No providers available for category: {category_name}')
         raise ExitException(0)
 
+    if predefined_provider is None and (args is None or not getattr(args, 'quiet', False)):
+        clear_screen()
+        render_step_header(breadcrumbs=[category_name, 'Select Provider'])
+
     # Show provider selection menu
     menu_lines = []
     choices = {}
-    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿'}
+    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿', 'nyaa': '🧲', 'yts': '🧲', 'eztv': '🧲'}
     for idx, prov in enumerate(providers):
         icon = icons.get(prov['key'], '▸')
         label = prov['label']
@@ -116,6 +121,10 @@ def get_series_type(keys, predefined_input=None):
             colprint('predefined', f'\n  Using Predefined Content Type: {type_aliases[pre_str]}')
             return type_aliases[pre_str]
 
+    if args is None or not getattr(args, 'quiet', False):
+        clear_screen()
+        render_step_header(step_title='Select Content Category')
+
     menu_lines = [
         f"\033[1m[1]\033[0m  🎬  Anime",
         f"\033[1m[2]\033[0m  🍿  Movies",
@@ -139,6 +148,10 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
             colprint('predefined', f'\n  🔍 Using Predefined Input for search: {predefined_search_input}')
             keyword = predefined_search_input
         else:
+            if args is None or not getattr(args, 'quiet', False):
+                clear_screen()
+                prov_name = getattr(client, 'name', '') or str(series_type)
+                render_step_header(breadcrumbs=[str(series_type), prov_name, 'Search'])
             keyword = colprint('user_input', "\n  🔍 Enter series/movie name: ")
 
         colprint('header', f"\n  Searching for '{keyword}'...")
@@ -283,6 +296,7 @@ def downloader(ep_details, dl_config):
     start_epoch = int(time())
 
     out_file = ep_details['episodeName']
+    max_parallel_downloads = dl_config.get('max_parallel_downloads', 1)
 
     if 'downloadLink' not in ep_details:
         return f'{error_clr}[{start}] Download skipped for {out_file}, due to error: {ep_details.get("error", "Unknown")}{reset_clr}'
@@ -301,7 +315,8 @@ def downloader(ep_details, dl_config):
     dlClient = downloader_cls(dl_config, ep_details)
 
     logger.info(f'Download started for {out_file}...')
-    colprint('header', f"\n  ➜ Downloading: {out_file}")
+    if max_parallel_downloads <= 1:
+        colprint('header', f"\n  ➜ Downloading: {out_file}")
 
     if os.path.isfile(os.path.join(f'{out_dir}', f'{out_file}')) and os.path.getsize(os.path.join(f'{out_dir}', f'{out_file}')) > 0:
         # skip file if already exists
@@ -327,7 +342,8 @@ def downloader(ep_details, dl_config):
 
         end_epoch = int(time())
         download_time = pretty_time(end_epoch-start_epoch, fmt='h m s')
-        colprint('results', f"  [✓] Completed: {out_file} ({download_time})\n")
+        if max_parallel_downloads <= 1:
+            colprint('results', f"  [✓] Completed: {out_file} ({download_time})\n")
         return f'{success_clr}[{end}] Download completed for {out_file} in {download_time}!{reset_clr}'
 
 def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
@@ -416,6 +432,7 @@ Examples:
         parser.add_argument('-tc', '--torrent-client', choices=['aria2', 'system', 'auto'], help='preferred torrent engine (aria2 for in-terminal, system for desktop app, auto for automatic)')
         parser.add_argument('-dl', '--disable-looping', default=False, action='store_true', help='disable auto-restart')
 
+        global args
         args = parser.parse_args()
         config_file = args.conf
         log_file_name = args.log_file
@@ -440,9 +457,9 @@ Examples:
         colprint_init(disable_colors)
 
         # Display hero banner
-        if not args.quiet:
+        if not args.quiet and series_type_predef is not None:
             hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.3\033[0m',
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4\033[0m',
                 '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows\033[0m'
             ])
             print(f'\n{hero_box}\n')
@@ -509,6 +526,11 @@ Examples:
             logger.error('No episodes found in selected series!')
             raise ExitException(1)
 
+        if not args.quiet and not episodes_predef:
+            clear_screen()
+            prov_name = getattr(client, 'name', '') or str(series_type)
+            render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Episodes'])
+
         ep_overview = [
             f"\033[1mSeries:\033[0m \033[38;5;39m{target_series.get('title', 'Unknown')}\033[0m",
             f"\033[1mTotal Episodes Available:\033[0m \033[38;5;82m{len(episodes)}\033[0m (1 - {len(episodes)})"
@@ -567,6 +589,10 @@ Examples:
             resolution = valid_resolutions[0]
             logger.debug(f'Auto-selected single available resolution: {resolution}P')
         else:
+            if not args.quiet:
+                clear_screen()
+                prov_name = getattr(client, 'name', '') or str(series_type)
+                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
             res_lines = []
             for r in valid_resolutions:
                 label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
@@ -627,6 +653,11 @@ Examples:
             raise ExitException(1)
 
         # Display Pre-Download Checklist Card
+        if not args.quiet and not start_download_predef:
+            clear_screen()
+            prov_name = getattr(client, 'name', '') or str(series_type)
+            render_step_header(breadcrumbs=[str(series_type), prov_name, series_title, 'Download Inspection'])
+
         checklist_lines = [
             f"\033[1mSeries:\033[0m     \033[38;5;39m{series_title}\033[0m",
             f"\033[1mSave Path:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",

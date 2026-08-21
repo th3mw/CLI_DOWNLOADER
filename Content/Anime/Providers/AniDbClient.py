@@ -178,21 +178,18 @@ class AniDbClient(BaseClient):
         '''
         if not items:
             return
-        ep_predef = predefined_range[1] if len(predefined_range) > 1 else (predefined_range[0] if predefined_range else None)
-        start, end = self._get_episode_range_to_show(
-            items[0].get('episode', 1),
-            items[-1].get('episode', len(items)),
-            ep_predef,
-            threshold=24
-        )
-        for ep in items:
-            ep_no = ep.get('episode')
-            if start <= ep_no <= end:
+        if len(items) <= 24:
+            for ep in items:
+                ep_no = ep.get('episode')
                 n2 = ep.get('number2')
-                ep_label = f"Episode {ep_no}" if not n2 or n2 == ep_no else f"Episode {ep_no}–{n2}"
+                ep_label = f"  Episode {ep_no:02d}" if not n2 or n2 == ep_no else f"  Episode {ep_no:02d}–{n2:02d}"
                 if ep.get('filler'):
                     ep_label += ' (Filler)'
                 self._colprint('results', ep_label)
+        else:
+            first_ep = items[0].get('episode', 1)
+            last_ep = items[-1].get('episode', len(items))
+            self._colprint('results', f"  Episodes {first_ep:02d} – {last_ep:02d} ({len(items)} episodes ready)")
 
     def _fetch_single_episode_link(self, ep: dict):
         '''

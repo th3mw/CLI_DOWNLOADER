@@ -129,10 +129,15 @@ class NyaaClient(BaseClient):
         return episodes
 
     def show_episode_results(self, items, *predefined_range):
-        start, end = self._get_episode_range_to_show(items[0].get('episode'), items[-1].get('episode'), predefined_range[1] if len(predefined_range) > 1 else None, threshold=24)
-        for item in items:
-            if item.get('episode') >= start and item.get('episode') <= end:
-                self._colprint('results', f"Episode: {item.get('episodeName')}")
+        if not items:
+            return
+        if len(items) <= 24:
+            for item in items:
+                self._colprint('results', f"  Episode: {item.get('episodeName')}")
+        else:
+            first_ep = items[0].get('episode', 1)
+            last_ep = items[-1].get('episode', len(items))
+            self._colprint('results', f"  Episodes {first_ep:02d} – {last_ep:02d} ({len(items)} episodes ready)")
 
     def _query_nyaa(self, query):
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -284,7 +289,7 @@ class NyaaClient(BaseClient):
             t_info = res_dict.get('torrent_info', {})
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}{ep_no:02d} [{res_key}P].mkv"
+            title = f"{title_clean} - S01 - E{ep_no:02d}.mkv"
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')

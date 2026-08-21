@@ -272,7 +272,7 @@ def colprint(theme, text, **kwargs):
         print(f'{c_strt}{formatted_text}{c_end}', end=line_end)
 
 # custom decorator for retring of a function
-def retry(exceptions=(Exception,), tries=3, delay=2, backoff=2, print_errors=False):
+def retry(exceptions=(Exception,), tries=4, delay=1.5, backoff=1.8, print_errors=False):
     """
     Retry Decorator
     Retries the wrapped function/method `times` times if the exceptions listed
@@ -291,12 +291,15 @@ def retry(exceptions=(Exception,), tries=3, delay=2, backoff=2, print_errors=Fal
                         raise Exception(return_status)
                     return return_status
                 except exceptions as e:
-                    # colprint('error', f'{e} | Attempt: {attempt} / {tries}')
-                    sleep(mdelay)
                     attempt += 1
+                    if attempt >= tries:
+                        if kwargs.get('silent', False):
+                            return None
+                        if print_errors:
+                            colprint('error', f'{e} | Final Attempt: {attempt} / {tries}')
+                        raise e
+                    sleep(mdelay)
                     mdelay *= backoff
-                    if attempt >= tries and print_errors:
-                        colprint('error', f'{e} | Final Attempt: {attempt} / {tries}')
             return func(*args, **kwargs)
         return wrapper
     return decorator

@@ -96,7 +96,8 @@ class AnimeSugeClient(BaseClient):
             f'{self.server_list_url}{encoded_ids}',
             referer=f'{self.base_url}/anime',
             extra_headers={'X-Requested-With': 'XMLHttpRequest'},
-            return_type='json'
+            return_type='json',
+            silent=True
         )
         if resp and resp.get('status') == 200:
             return resp.get('result', '')
@@ -114,7 +115,8 @@ class AnimeSugeClient(BaseClient):
             f'{self.server_url}{encoded_link}',
             referer=f'{self.base_url}/anime',
             extra_headers={'X-Requested-With': 'XMLHttpRequest'},
-            return_type='json'
+            return_type='json',
+            silent=True
         )
         if resp and resp.get('status') == 200:
             return resp.get('result', {}).get('url')
@@ -373,76 +375,80 @@ class AnimeSugeClient(BaseClient):
 
     def _fetch_single_episode_link(self, ep):
         ep_no = ep.get('episode')
-        self.logger.debug(f'Fetching server list for episode {ep_no}')
-        server_html = self._get_server_list(ep.get('anime_id', 0), ep['data_ids'])
-        if not server_html:
-            return ep_no, {'error': 'Failed to fetch server list'}
+        try:
+            self.logger.debug(f'Fetching server list for episode {ep_no}')
+            server_html = self._get_server_list(ep.get('anime_id', 0), ep['data_ids'])
+            if not server_html:
+                return ep_no, {'error': 'Failed to fetch server list'}
 
-        servers = []
-        for type_match in re.finditer(r'data-type="(sub|hsub|dub)"[^>]*>.*?<div class="server-list">(.*?)</div>\s*</div>\s*</div>', server_html, re.DOTALL):
-            srv_type = type_match.group(1)
-            srv_list_html = type_match.group(2)
-            for link_match in re.finditer(r'data-link-id="([^"]+)"', srv_list_html):
-                servers.append((srv_type, link_match.group(1)))
+            servers = []
+            for type_match in re.finditer(r'data-type="(sub|hsub|dub)"[^>]*>.*?<div class="server-list">(.*?)</div>\s*</div>\s*</div>', server_html, re.DOTALL):
+                srv_type = type_match.group(1)
+                srv_list_html = type_match.group(2)
+                for link_match in re.finditer(r'data-link-id="([^"]+)"', srv_list_html):
+                    servers.append((srv_type, link_match.group(1)))
 
-        if not servers:
-            return ep_no, {'error': 'No servers found for this episode'}
+            if not servers:
+                return ep_no, {'error': 'No servers found for this episode'}
 
-        # Build prioritized list of server link_ids
-        ordered_servers = []
-        for preferred_type in self.preferred_server_types:
-            for srv_type, lid in servers:
-                if srv_type == preferred_type and lid not in [s[1] for s in ordered_servers]:
-                    ordered_servers.append((srv_type, lid))
-        for srv in servers:
-            if srv[1] not in [s[1] for s in ordered_servers]:
-                ordered_servers.append(srv)
+            # Build prioritized list of server link_ids
+            ordered_servers = []
+            for preferred_type in self.preferred_server_types:
+                for srv_type, lid in servers:
+                    if srv_type == preferred_type and lid not in [s[1] for s in ordered_servers]:
+                        ordered_servers.append((srv_type, lid))
+            for srv in servers:
+                if srv[1] not in [s[1] for s in ordered_servers]:
+                    ordered_servers.append(srv)
 
-        merged_m3u8_links = {}
-        all_subtitles = {}
+            merged_m3u8_links = {}
+            all_subtitles = {}
 
-        for srv_type, link_id in ordered_servers:
-            stream_url = self._get_stream_url(link_id)
-            if not stream_url:
-                continue
+            for srv_type, link_id in ordered_servers:
+                stream_url = self._get_stream_url(link_id)
+                if not stream_url:
+                    continue
 
-            m3u8_url, subtitles, stream_origin = self._get_m3u8_from_stream(stream_url)
-            if not m3u8_url:
-                continue
+                m3u8_url, subtitles, stream_origin = self._get_m3u8_from_stream(stream_url)
+                if not m3u8_url:
+                    continue
 
-            if subtitles:
-                all_subtitles.update(subtitles)
+                if subtitles:
+                    all_subtitles.update(subtitles)
 
-            stream_referer = stream_origin.rstrip('/') + '/'
-            m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
-            if m3u8_links:
-                for res_k, res_v in m3u8_links.items():
-                    if res_k not in merged_m3u8_links:
-                        merged_m3u8_links[res_k] = res_v
-            elif not merged_m3u8_links:
-                merged_m3u8_links['720'] = {
-                    'downloadLink': m3u8_url,
-                    'downloadType': 'hls',
-                    'refererLink': stream_referer,
-                    'duration': 0,
-                }
+                stream_referer = stream_origin.rstrip('/') + '/'
+                m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
+                if m3u8_links:
+                    for res_k, res_v in m3u8_links.items():
+                        if res_k not in merged_m3u8_links:
+                            merged_m3u8_links[res_k] = res_v
+                elif not merged_m3u8_links:
+                    merged_m3u8_links['720'] = {
+                        'downloadLink': m3u8_url,
+                        'downloadType': 'hls',
+                        'refererLink': stream_referer,
+                        'duration': 0,
+                    }
 
-            # Stop scanning if we already have 1080p, 720p, and 360p/480p
-            if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p']) and any(r in merged_m3u8_links for r in ['360', '360p', '480', '480p']):
-                break
+                # Stop scanning if we already have 1080p, 720p, and 360p/480p
+                if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p']) and any(r in merged_m3u8_links for r in ['360', '360p', '480', '480p']):
+                    break
 
-        if merged_m3u8_links:
-            if all_subtitles:
-                for res_dict in merged_m3u8_links.values():
-                    res_dict['subtitles'] = all_subtitles
-            return ep_no, merged_m3u8_links
+            if merged_m3u8_links:
+                if all_subtitles:
+                    for res_dict in merged_m3u8_links.values():
+                        res_dict['subtitles'] = all_subtitles
+                return ep_no, merged_m3u8_links
 
-        return ep_no, {'error': 'Failed to fetch m3u8 link from available servers'}
+            return ep_no, {'error': 'Failed to fetch m3u8 link from available servers'}
+        except Exception as e:
+            self.logger.warning(f'Episode {ep_no} resolution failed: {e}')
+            return ep_no, {'error': str(e)}
 
     def fetch_episode_links(self, episodes, ep_ranges):
         '''
         Fetch download links (m3u8 URLs) for selected episodes in parallel.
-        Returns dict: {ep_no: {'original': {'downloadLink': m3u8, 'downloadType': 'hls', 'refererLink': referer}}}
+        Uses controlled concurrency (max 3 workers) to prevent rate limits.
         '''
         selected_eps = [ep for ep in episodes if self._is_episode_selected(ep.get('episode'), ep_ranges)]
         if not selected_eps:
@@ -450,7 +456,8 @@ class AnimeSugeClient(BaseClient):
 
         target_links = {}
         from concurrent.futures import ThreadPoolExecutor
-        with ThreadPoolExecutor(max_workers=min(5, len(selected_eps))) as executor:
+        workers = min(3, len(selected_eps))
+        with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
         for ep_no, res_dict in sorted(results, key=lambda x: x[0]):

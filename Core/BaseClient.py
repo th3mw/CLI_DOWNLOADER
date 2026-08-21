@@ -131,7 +131,21 @@ class BaseClient():
             elif return_type.lower() == 'raw':
                 return response
 
-        elif response.status_code == 429 or str(response.status_code).startswith('5'):     # retry if status code is 429 or 5xx
+        elif response.status_code == 429:
+            retry_after = response.headers.get('Retry-After')
+            try:
+                backoff = float(retry_after) if retry_after else (2.0 + random.random() * 2.5)
+            except Exception:
+                backoff = 2.0 + random.random() * 2.5
+            msg = f'Failed with code: 429 (Rate limited on {url})'
+            if silent:
+                self.logger.warning(f'[Suppressed] Rate limited on {url}. Retrying in {backoff:.1f}s...')
+            else:
+                self.logger.warning(f'Rate limited on {url}. Retrying in {backoff:.1f}s...')
+            time.sleep(backoff)
+            raise Exception(msg)
+
+        elif str(response.status_code).startswith('5'):
             msg = f'Failed with code: {response.status_code}'
             backoff = 1.5 + random.random() * 2.0
             self.logger.warning(f'{msg}. Retrying in {backoff:.1f} seconds...')
@@ -140,11 +154,12 @@ class BaseClient():
 
         elif response.status_code == 404:                   # raise exception if status code is 4xx
             msg = f'Failed with code: {response.status_code}. Page not found for {url}'
-            self.logger.error(msg)
-            # raise Exception(msg)
+            _conditional_logger(silent, msg)
+            return None
 
         else:
             _conditional_logger(silent, f'Failed with code: {response.status_code}')
+            return None
 
     def _get_bsoup(self, search_url, referer=None, request_type='get', extra_headers=None, cookies={}, post_data=None, upload_data=None, silent=False):
         '''

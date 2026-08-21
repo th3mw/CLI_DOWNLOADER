@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v2.0.0] - Planned Milestone (Interactive TUI Dashboard)
+
+### 🎯 Planned Features
+- **Full Textual Terminal User Interface (TUI)**:
+  - Multi-screen dashboard with split-pane layout, mouse & keyboard navigation (`Vim` keys / arrow keys).
+  - **Live Search & Catalog Browser**: Real-time debounced fuzzy search results with metadata drawers and genre badges.
+  - **Interactive Episode Picker**: Visual multi-select checkboxes with one-key batch toggling (`Space` to select, `A` for All).
+  - **Live Download Center**: Animated progress gauges, real-time speed charts, and active queue management (Pause / Resume / Cancel).
+  - **Dual Execution Modes**: Launch full TUI with `media-scraper --tui` while retaining zero-dependency headless CLI mode for automated scripts.
+
+---
+
 ## [v1.4.0] - 2026-08-21
 
 ### 🚀 Added

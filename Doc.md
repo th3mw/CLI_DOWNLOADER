@@ -176,3 +176,16 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 | **AnimeSuge Structured 2-Line Cards** | `Clients/AnimeSugeClient.py` | Extracted status, year, sub/dub counts, and formatted 2-line UI cards. |
 | **Parallel Link Fetching** | `AnimeSugeClient.py`, `KissKhClient.py`, `OneShowsClient.py` | Added `ThreadPoolExecutor` concurrent link resolution (~9x speedup). |
 | **VTT to SRT Conversion** | `Utils/BaseDownloader.py` | Added automatic VTT -> SRT conversion prior to MP4 remuxing. |
+
+---
+
+## 4. Version Roadmap & Milestones
+
+### 📌 Milestone v2.0.0 — Full Interactive TUI Dashboard
+- **Framework**: Built on [Textual](https://textual.textualize.io/) (async Python TUI engine).
+- **Core Features**:
+  - **Live Search & Catalog**: Sidebar provider switching, debounced search table with genre/status badges, and detail metadata drawer.
+  - **Visual Episode Picker**: Multi-select checkbox tree (`Space` to toggle, `A` for all) with instant season filtering.
+  - **Live Download Center**: Real-time progress gauges, bandwidth speed meters, and active queue controls (Pause / Resume / Cancel).
+  - **Dual-Mode Architecture**: Run interactive TUI via `media-scraper --tui` or headless zero-dependency CLI (`media-scraper -n ...`).
+

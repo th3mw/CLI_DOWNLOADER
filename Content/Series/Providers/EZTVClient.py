@@ -506,7 +506,7 @@ class EZTVClient(BaseClient):
             raw_ep_name = ep_item.get('raw_name', f"Episode {e_num}")
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}S{s_num:02d}E{e_num:02d} - {raw_ep_name} [{res_key}P].mkv"
+            title = f"{title_clean} - S{s_num:02d} - E{e_num:02d} - {res_key}P.mkv"
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')

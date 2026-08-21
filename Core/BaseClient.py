@@ -584,16 +584,23 @@ class BaseClient():
 
         self._colprint('results', info)
 
-    def format_media_filename(self, series_title: str, season=1, episode=1, number2=None, is_movie=False, ext='.mkv') -> str:
+    def format_media_filename(self, series_title: str, season=1, episode=1, number2=None, resolution=None, is_movie=False, ext='.mkv') -> str:
         '''
-        Format standardized Plex/Jellyfin filename:
-        Series/Anime: '{Series Title} - S01 - E01.mkv'
-        Multi-part:   '{Series Title} - S01 - E01-E02.mkv'
-        Movie:        '{Movie Title}.mkv'
+        Format standardized filename:
+        Series/Anime: '{Series Title} - S01 - E01 - 1080P.mkv'
+        Multi-part:   '{Series Title} - S01 - E01-E02 - 1080P.mkv'
+        Movie:        '{Movie Title} - 1080P.mkv' or '{Movie Title}.mkv'
         '''
         clean_title = self._windows_safe_string(series_title).strip()
+        res_str = ''
+        if resolution:
+            r = str(resolution).strip().upper()
+            if not r.endswith('P') and r.isdigit():
+                r = f"{r}P"
+            res_str = f" - {r}"
+
         if is_movie:
-            return f"{clean_title}{ext}"
+            return f"{clean_title}{res_str}{ext}"
 
         try:
             s_val = int(season)
@@ -616,7 +623,7 @@ class BaseClient():
             except Exception:
                 e_str = f"E{episode}"
 
-        return f"{clean_title} - {s_str} - {e_str}{ext}"
+        return f"{clean_title} - {s_str} - {e_str}{res_str}{ext}"
 
     def fetch_m3u8_links(self, target_links, resolution, episode_prefix):
         '''
@@ -661,6 +668,7 @@ class BaseClient():
                 season=cur_season,
                 episode=ep_no,
                 number2=num2,
+                resolution=selected_resolution,
                 is_movie=(display_prefix == 'Movie')
             )
 

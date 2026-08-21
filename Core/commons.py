@@ -42,7 +42,7 @@ def visible_len(text):
     '''Calculate visible display length of string ignoring ANSI codes'''
     return len(strip_ansi(text))
 
-def render_box(title, lines, max_width=76, indent=2):
+def render_box(title, lines, max_width=76, indent=2, center=False):
     '''
     Render a clean Unicode bordered card container.
     Adapts dynamically to terminal width without line overflow.
@@ -73,7 +73,12 @@ def render_box(title, lines, max_width=76, indent=2):
         else:
             line_str = line
         pad = max(0, inner_width - vlen)
-        out.append(f'{pad_left}{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
+        if center:
+            pad_l = ' ' * (pad // 2)
+            pad_r = ' ' * (pad - len(pad_l))
+            out.append(f'{pad_left}{c_border}│{c_reset} {pad_l}{line_str}{pad_r} {c_border}│{c_reset}')
+        else:
+            out.append(f'{pad_left}{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
 
     out.append(f'{pad_left}{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
     return '\n'.join(out)
@@ -96,7 +101,7 @@ def render_step_header(breadcrumbs=None, step_title=None):
     banner = render_box('', [
         f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4{c_reset}',
         f'{c_muted}Anime • Asian Dramas • Movies • TV Shows{c_reset}'
-    ], max_width=76, indent=0)
+    ], max_width=76, indent=0, center=True)
     print(f'\n{banner}\n')
     if breadcrumbs:
         trail = f' {c_muted}›{c_reset} '.join(f'{c_green}{b}{c_reset}' for b in breadcrumbs if b)

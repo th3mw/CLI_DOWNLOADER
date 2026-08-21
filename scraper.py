@@ -461,7 +461,7 @@ Examples:
             hero_box = render_box('', [
                 '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4\033[0m',
                 '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows\033[0m'
-            ])
+            ], center=True)
             print(f'\n{hero_box}\n')
 
         # load config from yaml to dict using yaml

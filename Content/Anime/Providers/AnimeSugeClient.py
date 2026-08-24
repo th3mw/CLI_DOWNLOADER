@@ -430,8 +430,8 @@ class AnimeSugeClient(BaseClient):
                         'duration': 0,
                     }
 
-                # Stop scanning as soon as we have valid parsed stream links/qualities
-                if merged_m3u8_links:
+                # Stop scanning if we have collected both high and standard qualities
+                if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p', '360', '360p', '480', '480p']):
                     break
 
             if merged_m3u8_links:

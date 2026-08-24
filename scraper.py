@@ -584,23 +584,61 @@ Examples:
                 valid_resolutions = _valid_res
                 if len(valid_resolutions) > 0:
                     break
-            else:
-                valid_resolutions = ['360', '480', '720', '1080']
+            # Clean and deduplicate valid resolutions in descending quality order (2160, 1080, 720, 480, 360)
+            res_order_pref = ['2160', '1080', '720', '480', '360']
+            discovered = [r.lower().replace('p', '').strip() for r in valid_resolutions if r]
+            
+            ordered_res = []
+            for pref in res_order_pref:
+                if pref in discovered:
+                    ordered_res.append(pref)
+            for d in discovered:
+                if d not in ordered_res:
+                    ordered_res.append(d)
+            if not ordered_res:
+                ordered_res = ['1080', '720', '480', '360']
 
-            if len(valid_resolutions) == 1:
-                resolution = valid_resolutions[0]
-                logger.debug(f'Auto-selected single available resolution: {resolution}P')
-            else:
-                if not args.quiet:
-                    clear_screen()
-                    prov_name = getattr(client, 'name', '') or str(series_type)
-                    render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
-                res_lines = []
-                for r in valid_resolutions:
-                    label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
-                    res_lines.append(f"\033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m")
-                print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
-                resolution = str(colprint('user_input', f"\n  ➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
+            default_res = '1080' if '1080' in ordered_res else ('720' if '720' in ordered_res else ordered_res[0])
+
+            if not args.quiet:
+                clear_screen()
+                prov_name = getattr(client, 'name', '') or str(series_type)
+                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
+
+            res_lines = []
+            res_map = {}
+            for idx, r in enumerate(ordered_res, start=1):
+                res_map[str(idx)] = r
+                res_map[r] = r
+                res_map[f"{r}p"] = r
+                res_map[f"{r}P"] = r
+
+                label = '4K UHD' if r == '2160' else ('Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD'))
+                def_tag = ' \033[38;5;39m[default]\033[0m' if r == default_res else ''
+                res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+
+            print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+
+            while True:
+                try:
+                    raw_input_val = input(f"\n  ➜ Select resolution [1-{len(ordered_res)} or quality, default={default_res}P]: ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print()
+                    raise ExitException(0)
+
+                if not raw_input_val:
+                    resolution = default_res
+                    break
+
+                cleaned = raw_input_val.lower().replace('p', '').strip()
+                if raw_input_val in res_map:
+                    resolution = res_map[raw_input_val]
+                    break
+                elif cleaned in res_map:
+                    resolution = res_map[cleaned]
+                    break
+                else:
+                    print(f"\033[38;5;196m  ❌ Invalid resolution '{raw_input_val}'. Please enter a number (1-{len(ordered_res)}) or resolution ({'/'.join(ordered_res)}).\033[0m")
 
         logger.info(f'Selected download resolution: {resolution}')
 

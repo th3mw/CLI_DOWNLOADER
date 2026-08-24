@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Standardized Media Library File Naming**:
   - Automated Plex/Jellyfin/Kodi compliant naming: `{Series Title} - S{season:02d} - E{episode:02d}.mkv` across all Anime, TV Shows, and Movie providers.
   - Handled multi-part episodes (`- E01-E02.mkv`) and movie releases (`{Movie Title}.mkv`).
+- **Numbered Resolution Selection & Robust Validation**:
+  - Rendered clean numbered choices (`[1] 1080P • Full HD (Recommended) [default]`, `[2] 720P`, etc.) in the `AVAILABLE RESOLUTIONS` card.
+  - Supported selecting by index number (`1`, `2`, `3`), by typing resolution string (`1080`, `720p`, `360`), or by pressing Enter for default.
+  - Added robust input validation re-prompting with contextual error messages upon invalid user entries.
 - **In-Place Concurrent Progress Dashboard**:
   - Eliminated loose pre-download printing tags (`➜ Downloading: ...`) outside the progress manager.
   - Multi-slot progress bars now manage their lines completely in place with dedicated episode descriptors (`S01-E01`, `S01-E02`).

@@ -95,7 +95,25 @@ class NyaaClient(BaseClient):
                         'card_meta': card_meta
                     }
         except Exception as e:
-            self.logger.error(f"Kitsu search failed: {e}")
+            self.logger.warning(f"Kitsu search failed/timed out ({e}), falling back to direct Nyaa search")
+
+        if not results:
+            # Fallback: Query Nyaa directly for the search term
+            nyaa_items = self._query_nyaa(search_term)
+            if nyaa_items:
+                results[1] = {
+                    'title': f"{search_term} (Nyaa Releases)",
+                    'raw_title': search_term,
+                    'canonical_title': search_term,
+                    'jp_title': '',
+                    'year': '2024',
+                    'score': None,
+                    'episodes_count': '12',
+                    'type': 'ANIME',
+                    'media_type': 'anime',
+                    'card_title': f"{search_term} (Nyaa Releases)",
+                    'card_meta': f"[ANIME] • Releases: {len(nyaa_items)}"
+                }
 
         if not results:
             self.logger.warning(f"No Anime found for '{search_term}'")

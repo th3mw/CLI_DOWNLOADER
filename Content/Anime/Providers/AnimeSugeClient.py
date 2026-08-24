@@ -430,8 +430,8 @@ class AnimeSugeClient(BaseClient):
                         'duration': 0,
                     }
 
-                # Stop scanning if we already have 1080p, 720p, and 360p/480p
-                if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p']) and any(r in merged_m3u8_links for r in ['360', '360p', '480', '480p']):
+                # Stop scanning as soon as we have valid parsed stream links/qualities
+                if merged_m3u8_links:
                     break
 
             if merged_m3u8_links:
@@ -448,7 +448,7 @@ class AnimeSugeClient(BaseClient):
     def fetch_episode_links(self, episodes, ep_ranges):
         '''
         Fetch download links (m3u8 URLs) for selected episodes in parallel.
-        Uses controlled concurrency (max 3 workers) to prevent rate limits.
+        Uses controlled concurrency (max 5 workers).
         '''
         selected_eps = [ep for ep in episodes if self._is_episode_selected(ep.get('episode'), ep_ranges)]
         if not selected_eps:
@@ -456,7 +456,7 @@ class AnimeSugeClient(BaseClient):
 
         target_links = {}
         from concurrent.futures import ThreadPoolExecutor
-        workers = min(3, len(selected_eps))
+        workers = min(5, len(selected_eps))
         with ThreadPoolExecutor(max_workers=workers) as executor:
             results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 

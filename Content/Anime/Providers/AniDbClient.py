@@ -270,7 +270,7 @@ class AniDbClient(BaseClient):
             return {}
 
         target_links = {}
-        with ThreadPoolExecutor(max_workers=min(5, len(selected_eps))) as executor:
+        with ThreadPoolExecutor(max_workers=min(8, len(selected_eps))) as executor:
             results = list(executor.map(self._fetch_single_episode_link, selected_eps))
 
         for ep_no, res_dict in sorted(results, key=lambda x: x[0]):

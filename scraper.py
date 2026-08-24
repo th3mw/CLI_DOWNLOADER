@@ -549,16 +549,6 @@ Examples:
         else:
             selected_eps = get_ep_range(f"{episodes[0]['episode']}-{episodes[-1]['episode']}", 'Enter', episodes_predef)
 
-        # filter required episode links and print
-        logger.info(f'Fetching episodes based on {selected_eps = }')
-        colprint('header', "\nFetching Episodes & Available Resolutions:")
-        target_ep_links = client.fetch_episode_links(episodes, selected_eps)
-        logger.debug(f'Fetched episodes: {target_ep_links}')
-
-        if len(target_ep_links) == 0:
-            logger.error("No episodes are available for download!")
-            raise ExitException(1)
-
         # set output names & make it windows safe
         logger.debug(f'Set output names based on {target_series}')
         series_title, episode_prefix = client.set_out_names(target_series)
@@ -568,43 +558,66 @@ Examples:
         downloader_config['download_dir'] = os.path.join(f"{downloader_config['download_dir']}", f"{series_title}")
         logger.debug(f"Final download dir: {downloader_config['download_dir']}")
 
-        # get available resolutions
-        valid_resolutions = []
-        valid_resolutions_gen = get_resolutions(target_ep_links.values())
-        for _valid_res in valid_resolutions_gen:
-            valid_resolutions = _valid_res
-            if len(valid_resolutions) > 0:
-                break   # get the resolutions from the first non-empty episode
-        else:
-            # set to default if empty
-            valid_resolutions = ['360','480','720','1080']
-
-        logger.debug(f'{valid_resolutions = }')
-
-        # get valid resolution from user
+        # 1. Fast Resolution Discovery (Probe 1 sample episode if resolution not predefined)
+        target_ep_links = {}
         if resolution_predef:
-            colprint('predefined', f'\nUsing Predefined Input for resolution: {resolution_predef}')
             resolution = resolution_predef
-        elif len(valid_resolutions) == 1:
-            resolution = valid_resolutions[0]
-            logger.debug(f'Auto-selected single available resolution: {resolution}P')
+            colprint('predefined', f'\nUsing Predefined Input for resolution: {resolution_predef}')
         else:
-            if not args.quiet:
-                clear_screen()
-                prov_name = getattr(client, 'name', '') or str(series_type)
-                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
-            res_lines = []
-            for r in valid_resolutions:
-                label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
-                res_lines.append(f"\033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m")
-            print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
-            resolution = str(colprint('user_input', f"\n  ➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
+            sample_ep = episodes[0]
+            if isinstance(selected_eps, dict):
+                first_sel_num = selected_eps.get('start') or (selected_eps.get('specific_no', [None])[0])
+                if first_sel_num:
+                    for ep in episodes:
+                        if ep.get('episode') == first_sel_num:
+                            sample_ep = ep
+                            break
+
+            colprint('header', "\nProbing Available Resolutions...")
+            sample_links = client.fetch_episode_links([sample_ep], {'start': sample_ep.get('episode', 1), 'end': sample_ep.get('episode', 1), 'specific_no': [sample_ep.get('episode', 1)]})
+            if sample_links:
+                target_ep_links.update(sample_links)
+
+            valid_resolutions = []
+            valid_resolutions_gen = get_resolutions(sample_links.values()) if sample_links else []
+            for _valid_res in valid_resolutions_gen:
+                valid_resolutions = _valid_res
+                if len(valid_resolutions) > 0:
+                    break
+            else:
+                valid_resolutions = ['360', '480', '720', '1080']
+
+            if len(valid_resolutions) == 1:
+                resolution = valid_resolutions[0]
+                logger.debug(f'Auto-selected single available resolution: {resolution}P')
+            else:
+                if not args.quiet:
+                    clear_screen()
+                    prov_name = getattr(client, 'name', '') or str(series_type)
+                    render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
+                res_lines = []
+                for r in valid_resolutions:
+                    label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
+                    res_lines.append(f"\033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m")
+                print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+                resolution = str(colprint('user_input', f"\n  ➜ Enter download resolution ({'|'.join(valid_resolutions)}) [default=720]: ", input_type='recurring', input_dtype='int')) or "720"
 
         logger.info(f'Selected download resolution: {resolution}')
 
-        # get m3u8 link for the specified resolution
-        logger.info('Fetching m3u8 links for selected episodes')
-        colprint('header', '\nFetching Episode links:')
+        # 2. Fetch episode links for selected episodes
+        logger.info(f'Fetching episodes based on {selected_eps = }')
+        colprint('header', "\nFetching Episode links:")
+        all_fetched_links = client.fetch_episode_links(episodes, selected_eps)
+        if target_ep_links:
+            target_ep_links.update(all_fetched_links)
+        else:
+            target_ep_links = all_fetched_links
+
+        if len(target_ep_links) == 0:
+            logger.error("No episodes are available for download!")
+            raise ExitException(1)
+
+        # 3. Format final m3u8 download links for specified resolution
         target_dl_links = client.fetch_m3u8_links(target_ep_links, resolution, episode_prefix)
 
         # Check for already downloaded episodes in the target download directory

@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminated loose pre-download printing tags (`➜ Downloading: ...`) outside the progress manager.
   - Multi-slot progress bars now manage their lines completely in place with dedicated episode descriptors (`S01-E01`, `S01-E02`).
 
+### ⚡ Performance
+- **Instant Resolution Discovery & Streamlined Link Resolution**:
+  - Decoupled resolution probing from whole-queue episode link resolution: Interactive sessions now probe available resolutions using only 1 sample episode in <1s (or bypass probing instantly when predefined via `-r`), eliminating the 30–60s freeze on large episode queues.
+  - Optimized `AnimeSugeClient` to terminate server probing immediately upon receiving working master playlist qualities from the primary server.
+  - Scaled parallel worker pools and added direct fallback queries in `NyaaClient` and `AniDbClient`.
+
 ### 🛠️ Changed
 - **Direct Episode Selection Workflow**:
   - Completely eliminated the redundant intermediate `Enter episodes range to display (ex: 1-16)` prompt for series with many episodes (>24).

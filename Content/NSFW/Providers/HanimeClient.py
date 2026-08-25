@@ -356,12 +356,20 @@ https.get('https://hanime-cdn.com/js/vendor.6cb274d12de4872d245a5bc7781bdc5e.min
                 ext='.mkv'
             )
 
+            download_link = stream_info.get('downloadLink')
+            referer_link = stream_info.get('refererLink', f"{self.base_url}/videos/hentai/{self._target_item.get('slug', '')}")
+
+            self._colprint('results', f"  Episode: {ep_no:02d} | {chosen_res}P | Link found [{download_link}]")
+
             episode_links[ep_no] = {
-                'link': stream_info.get('downloadLink'),
-                'referer': stream_info.get('refererLink'),
-                'file_name': final_filename,
+                'episodeName': final_filename,
+                'downloadLink': download_link,
+                'downloadType': 'hls',
+                'refererLink': referer_link,
                 'resolution': chosen_res,
-                'download_type': 'hls'
+                'season': 1,
+                'episode': ep_no,
+                'type': 'nsfw'
             }
 
         return episode_links

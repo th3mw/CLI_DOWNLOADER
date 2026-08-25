@@ -68,25 +68,46 @@ class HLSDownloader(BaseDownloader):
         self.thread_name_prefix = 'scraper-hls-'
 
     def _has_uri(self, m3u8_data):
-        method = re.search('URI=(.*)', m3u8_data)
-        if method is None: return False
-        if method.group(1) == "NONE": return False
+        if not m3u8_data:
+            return False
+        if isinstance(m3u8_data, bytes):
+            m3u8_data = m3u8_data.decode('utf-8', errors='ignore')
+        method = re.search(r'#EXT-X-KEY:METHOD=([A-Z0-9\-]+)', m3u8_data)
+        if method and method.group(1) != "NONE":
+            return True
+        return False
 
-        return True
-
-    def _collect_uri_iv(self, m3u8_data):
-        # Case-1: typical HLS using URI & IV
-        uri_iv = re.search('#EXT-X-KEY:METHOD=AES-128,URI="(.*)",IV=(.*)', m3u8_data)
-
-        # Case-2: typical HLS using URI only
-        if uri_iv is None:
-            uri_data = re.search('URI="(.*)"', m3u8_data)
-            return uri_data.group(1), None
-
-        uri = uri_iv.group(1)
-        iv = uri_iv.group(2)
-
+    def _collect_uri_iv(self, m3u8_data, m3u8_link=None):
+        if isinstance(m3u8_data, bytes):
+            m3u8_data = m3u8_data.decode('utf-8', errors='ignore')
+        uri_match = re.search(r'URI="([^"]+)"', m3u8_data)
+        iv_match = re.search(r'IV=([0-9a-fA-FxX]+)', m3u8_data)
+        
+        uri = uri_match.group(1) if uri_match else None
+        iv = iv_match.group(1) if iv_match else None
+        
+        if uri and m3u8_link:
+            if not uri.startswith('http'):
+                if uri.startswith('//'):
+                    uri = 'https:' + uri
+                else:
+                    base_url = '/'.join(m3u8_link.split('/')[:-1])
+                    uri = base_url + '/' + uri.lstrip('/')
         return uri, iv
+
+    def _download_key(self, key_uri):
+        '''Download encryption key file directly to temp_dir without renaming or stripping headers'''
+        try:
+            key_file = os.path.join(self.temp_dir, 'sign.bin')
+            if os.path.isfile(key_file) and os.path.getsize(key_file) > 0:
+                return (f'Key file already exists', 1)
+            data = self._get_stream_data(key_uri)
+            with open(key_file, "wb") as f:
+                f.write(data)
+            return (f'Key file downloaded', 1)
+        except Exception as e:
+            self.logger.error(f'Failed to download key file: {e}')
+            return (f'Key download failed: {e}', 0)
 
     def _collect_ts_urls(self, m3u8_link, m3u8_data):
         if isinstance(m3u8_data, bytes):
@@ -126,9 +147,16 @@ class HLSDownloader(BaseDownloader):
             return (f'\nERROR: Segment download failed [{segment_file_nm}] due to: {e}', 0)
 
     def _rewrite_m3u8_file(self, m3u8_data):
+        if isinstance(m3u8_data, bytes):
+            m3u8_data = m3u8_data.decode('utf-8', errors='ignore')
         # ffmpeg doesn't accept backward slash in key file irrespective of platform
         key_temp_dir = self.temp_dir.replace('\\', '/')
-        m3u8_content = re.sub(r'URI=(.*)/', f'URI="{key_temp_dir}/', m3u8_data, count=1)
+        local_key_file = f"{key_temp_dir}/sign.bin"
+
+        if self._has_uri(m3u8_data):
+            m3u8_content = re.sub(r'URI="[^"]+"', f'URI="{local_key_file}"', m3u8_data, count=1)
+        else:
+            m3u8_content = m3u8_data
 
         # Rewrite each segment reference line to local sanitized file path
         new_lines = []
@@ -150,7 +178,7 @@ class HLSDownloader(BaseDownloader):
         cached_files = [
             f for f in os.listdir(self.temp_dir)
             if os.path.isfile(os.path.join(self.temp_dir, f)) and os.path.getsize(os.path.join(self.temp_dir, f)) > 0
-            and not f.endswith('.m3u8')
+            and not f.endswith('.m3u8') and not f.endswith('.bin') and not f.endswith('.key')
         ]
         if cached_files:
             self.logger.info(f'[{self.out_file}] Resuming download with {len(cached_files)} cached segment(s)...')
@@ -196,9 +224,11 @@ class HLSDownloader(BaseDownloader):
         self.logger.debug('Check if stream is encrypted/mapped')
         if self._has_uri(m3u8_data):
             self.logger.debug('Stream is encrypted/mapped. Collect iv data and download key')
-            key_uri, iv = self._collect_uri_iv(m3u8_data)
-            status = self._download_segment(key_uri)
-            if status[1] == 0: self.logger.error(f'Failed to download key/map file with error: {status[0]}')
+            key_uri, iv = self._collect_uri_iv(m3u8_data, m3u8_link)
+            if key_uri:
+                status = self._download_key(key_uri)
+                if status[1] == 0:
+                    self.logger.error(f'Failed to download key/map file with error: {status[0]}')
 
         # did not run into HLS with IV during development, so skipping it
         if iv:

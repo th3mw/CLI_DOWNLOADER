@@ -74,34 +74,48 @@ class HanimeClient(BaseClient):
 
     def _get_wasm_signature(self):
         '''
-        Generate WASM signature using node runtime.
+        Generate WASM signature using node runtime from cached vendor script.
         '''
-        js_code = '''
-const https = require('https');
-https.get('https://hanime-cdn.com/js/vendor.6cb274d12de4872d245a5bc7781bdc5e.min.js', (res) => {
-    let data = '';
-    res.on('data', chunk => data += chunk);
-    res.on('end', () => {
-        global.window = {
-            dispatchEvent: () => {},
-            addEventListener: () => {},
-            location: { origin: 'https://hanime.tv', href: 'https://hanime.tv', hostname: 'hanime.tv' }
-        };
-        global.window.window = global.window;
-        global.location = global.window.location;
-        global.document = { location: global.window.location };
-        global.CustomEvent = class {};
-        data = data.replace('__emval_get_property = (handle, key) => { handle = Emval.toValue(handle); key = Emval.toValue(key); return Emval.toHandle(handle[key]) };', 
-                            '__emval_get_property = (handle, key) => { try { handle = Emval.toValue(handle) || global.window; } catch(e){ handle = global.window; } key = Emval.toValue(key); return Emval.toHandle(handle ? handle[key] : undefined); };');
-        eval(data);
-        setTimeout(() => {
-            console.log(JSON.stringify({ ssignature: global.window.ssignature, stime: String(global.window.stime) }));
-        }, 400);
-    });
-});
+        cache_dir = os.path.expanduser('~/.cache/media-scraper')
+        os.makedirs(cache_dir, exist_ok=True)
+        vendor_path = os.path.join(cache_dir, 'hanime_vendor.js')
+
+        if not os.path.exists(vendor_path) or os.path.getsize(vendor_path) < 1000:
+            try:
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                vendor_data = self._send_request('https://hanime-cdn.com/js/vendor.6cb274d12de4872d245a5bc7781bdc5e.min.js', extra_headers=headers, return_type='raw', silent=True)
+                if vendor_data:
+                    with open(vendor_path, 'wb') as f:
+                        f.write(vendor_data)
+            except Exception as e:
+                self.logger.warning(f"Could not cache Hanime vendor JS: {e}")
+
+        if not os.path.exists(vendor_path):
+            return None, str(int(time.time()))
+
+        js_code = f'''
+(() => {{
+    var _fs = require('fs');
+    var _data = _fs.readFileSync('{vendor_path}', 'utf8');
+    global.window = {{
+        dispatchEvent: () => {{}},
+        addEventListener: () => {{}},
+        location: {{ origin: 'https://hanime.tv', href: 'https://hanime.tv', hostname: 'hanime.tv' }}
+    }};
+    global.window.window = global.window;
+    global.location = global.window.location;
+    global.document = {{ location: global.window.location }};
+    global.CustomEvent = class {{}};
+    _data = _data.replace('__emval_get_property = (handle, key) => {{ handle = Emval.toValue(handle); key = Emval.toValue(key); return Emval.toHandle(handle[key]) }};', 
+                        '__emval_get_property = (handle, key) => {{ try {{ handle = Emval.toValue(handle) || global.window; }} catch(e){{ handle = global.window; }} key = Emval.toValue(key); return Emval.toHandle(handle ? handle[key] : undefined); }};');
+    eval(_data);
+    setTimeout(() => {{
+        console.log(JSON.stringify({{ ssignature: global.window.ssignature, stime: String(global.window.stime) }}));
+    }}, 300);
+}})();
 '''
         try:
-            out = subprocess.check_output(['node', '-e', js_code], timeout=10).decode('utf-8').strip()
+            out = subprocess.check_output(['node', '-e', js_code], timeout=5).decode('utf-8').strip()
             sig_data = json.loads(out)
             return sig_data.get('ssignature'), sig_data.get('stime')
         except Exception as e:
@@ -127,16 +141,50 @@ https.get('https://hanime-cdn.com/js/vendor.6cb274d12de4872d245a5bc7781bdc5e.min
         if self._cached_index and (now - self._cache_time < 3600):
             return self._cached_index
 
+        cache_dir = os.path.expanduser('~/.cache/media-scraper')
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_file = os.path.join(cache_dir, 'hanime_index.json')
+
+        # Load from disk cache if fresh (<24h)
+        if os.path.isfile(cache_file) and (now - os.path.getmtime(cache_file) < 86400):
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict) and 'data' in data:
+                        self._cached_index = data['data']
+                        self._cache_time = now
+                        return self._cached_index
+            except Exception:
+                pass
+
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Origin': self.base_url,
             'Referer': f'{self.base_url}/'
         }
-        resp = self._send_request(self.index_url, extra_headers=headers, return_type='json', silent=True)
-        if resp and isinstance(resp, dict) and 'data' in resp:
-            self._cached_index = resp.get('data', [])
-            self._cache_time = now
-            return self._cached_index
+        for url in [self.index_url, 'https://search.htv-services.com/api/v11/search_hvs']:
+            resp = self._send_request(url, extra_headers=headers, return_type='json', silent=True)
+            if resp and isinstance(resp, dict) and 'data' in resp:
+                self._cached_index = resp.get('data', [])
+                self._cache_time = now
+                try:
+                    with open(cache_file, 'w', encoding='utf-8') as f:
+                        json.dump(resp, f)
+                except Exception:
+                    pass
+                return self._cached_index
+
+        # If network failed, attempt stale disk cache fallback
+        if os.path.isfile(cache_file):
+            try:
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict) and 'data' in data:
+                        self._cached_index = data['data']
+                        self._cache_time = now
+                        return self._cached_index
+            except Exception:
+                pass
 
         return self._cached_index or []
 

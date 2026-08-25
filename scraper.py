@@ -598,9 +598,15 @@ Examples:
             downloader_config['use_http_client'] = True
 
         # set respective download dir if present
-        if series_type in config and 'download_dir' in config[series_type]:
+        if series_type in config and isinstance(config[series_type], dict) and 'download_dir' in config[series_type]:
             logger.debug(f'Setting download dir to [{config[series_type]["download_dir"]}] from series specific configuration')
             downloader_config['download_dir'] = config[series_type]['download_dir']
+        elif series_type in ('NSFW / Hentai', 4, '4', 'nsfw'):
+            nsfw_cfg = config.get('NSFW / Hentai') or config.get('NSFW') or {}
+            if 'download_dir' in nsfw_cfg:
+                downloader_config['download_dir'] = nsfw_cfg['download_dir']
+            elif 'Anime' in config and 'download_dir' in config['Anime']:
+                downloader_config['download_dir'] = os.path.join(config['Anime']['download_dir'], 'NSFW/Hentai')
 
         # modify path based on the platform OS
         downloader_config['download_dir'] = get_os_safe_path(downloader_config['download_dir'])

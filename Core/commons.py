@@ -457,36 +457,62 @@ def migrate_config(config, config_file):
     return config
 
 
-def run_config_wizard(config_file):
+def run_config_wizard(config_file, existing_config=None):
     '''
-    Interactive setup wizard to create a new YAML configuration file on first launch.
+    Interactive setup wizard to create or update YAML configuration file.
     '''
-    colprint('header', f"\n\033[96m╭────────────────── CONFIGURATION WIZARD ──────────────────╮\033[0m")
-    colprint('header', f"\033[96m│ No configuration file found at '{config_file}'.          │\033[0m")
-    colprint('header', f"\033[96m│ Let's quickly create your setup configuration!           │\033[0m")
-    colprint('header', f"\033[96m╰──────────────────────────────────────────────────────────╯\033[0m\n")
+    if existing_config:
+        colprint('header', f"\n\033[96m╭────────────────── CONFIGURATION UPDATE (v{CURRENT_CONFIG_VERSION}) ──────────────────╮\033[0m")
+        colprint('header', f"\033[96m│ An outdated configuration was detected at '{config_file}'.          │\033[0m")
+        colprint('header', f"\033[96m│ Let's configure your new v{CURRENT_CONFIG_VERSION} settings & review your setup!         │\033[0m")
+        colprint('header', f"\033[96m╰──────────────────────────────────────────────────────────────────╯\033[0m\n")
+    else:
+        colprint('header', f"\n\033[96m╭────────────────── CONFIGURATION WIZARD ──────────────────╮\033[0m")
+        colprint('header', f"\033[96m│ No configuration file found at '{config_file}'.          │\033[0m")
+        colprint('header', f"\033[96m│ Let's quickly create your setup configuration!           │\033[0m")
+        colprint('header', f"\033[96m╰──────────────────────────────────────────────────────────╯\033[0m\n")
 
-    default_base_dir = "~/Videos"
+    ex_dl = (existing_config or {}).get('DownloaderConfig', {})
+    ex_anime = (existing_config or {}).get('Anime', {})
+    ex_movies = (existing_config or {}).get('Movies', {})
+    ex_shows = (existing_config or {}).get('TV Shows', {})
+    ex_nsfw = (existing_config or {}).get('NSFW / Hentai') or (existing_config or {}).get('NSFW', {})
+    ex_audio = (existing_config or {}).get('AudioPreference', {})
+    ex_post = (existing_config or {}).get('PostProcessing', {})
+    ex_logger = (existing_config or {}).get('LoggerConfig', {})
+
+    default_base_dir = ex_dl.get('download_dir') or "~/Videos"
     base_dir = colprint('user_input', f"Main download directory [default={default_base_dir}]: ", input_type='once') or default_base_dir
 
-    default_anime_dir = f"{base_dir.rstrip('/')}/Anime"
+    default_anime_dir = ex_anime.get('download_dir') or f"{base_dir.rstrip('/')}/Anime"
     anime_dir = colprint('user_input', f"Anime download directory [default={default_anime_dir}]: ", input_type='once') or default_anime_dir
 
-    default_movies_dir = f"{base_dir.rstrip('/')}/Movies"
+    default_movies_dir = ex_movies.get('download_dir') or f"{base_dir.rstrip('/')}/Movies"
     movies_dir = colprint('user_input', f"Movies download directory [default={default_movies_dir}]: ", input_type='once') or default_movies_dir
 
-    default_shows_dir = f"{base_dir.rstrip('/')}/Series"
+    default_shows_dir = ex_shows.get('download_dir') or f"{base_dir.rstrip('/')}/Series"
     shows_dir = colprint('user_input', f"TV Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
 
-    default_nsfw_dir = f"{base_dir.rstrip('/')}/NSFW"
+    default_nsfw_dir = ex_nsfw.get('download_dir') or f"{anime_dir.rstrip('/')}/NSFW/Hentai"
     nsfw_dir = colprint('user_input', f"NSFW / Hentai download directory [default={default_nsfw_dir}]: ", input_type='once') or default_nsfw_dir
 
-    max_parallel = colprint('user_input', "Max parallel episode downloads (1-10) [default=2]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or 2
+    default_audio_choice = 2 if ex_audio.get('default_audio') == 'dub' else 1
+    audio_choice = colprint('user_input', f"Preferred Audio Language [1. Sub/Original, 2. English Dubbed] [default={default_audio_choice}]: ", input_type='recurring', input_dtype='int', input_options=[1, 2], allow_empty_input=True) or default_audio_choice
+    selected_audio = 'dub' if int(audio_choice) == 2 else 'sub'
 
-    torrent_choice = colprint('user_input', "Preferred Torrent Mode [1. In-Terminal (aria2c), 2. Default App (e.g. FDM, qBittorrent), 3. Auto] [default=1]: ", input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True) or 1
+    default_max_parallel = ex_dl.get('max_parallel_downloads', 2)
+    max_parallel = colprint('user_input', f"Max parallel episode downloads (1-10) [default={default_max_parallel}]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or default_max_parallel
+
+    default_tor_choice = 1 if ex_dl.get('torrent_client') == 'aria2' else (2 if ex_dl.get('torrent_client') == 'system' else 3)
+    torrent_choice = colprint('user_input', f"Preferred Torrent Mode [1. In-Terminal (aria2c), 2. Default App (e.g. FDM, qBittorrent), 3. Auto] [default={default_tor_choice}]: ", input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True) or default_tor_choice
     torrent_client = 'aria2' if int(torrent_choice) == 1 else ('system' if int(torrent_choice) == 2 else 'auto')
 
-    log_level = colprint('user_input', "Logging level (DEBUG|INFO|WARNING|ERROR) [default=INFO]: ", input_type='recurring', input_options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'debug', 'info', 'warning', 'error'], allow_empty_input=True).upper() or 'INFO'
+    default_compress_choice = 'y' if ex_post.get('auto_compress') else 'n'
+    compress_input = colprint('user_input', f"Auto-compress completed downloads with HEVC/AV1? (y/n) [default={default_compress_choice}]: ", input_type='recurring', input_options=['y', 'n', 'yes', 'no', 'Y', 'N'], allow_empty_input=True) or default_compress_choice
+    auto_compress = str(compress_input).lower().startswith('y')
+
+    default_log_lvl = ex_logger.get('log_level', 'INFO')
+    log_level = colprint('user_input', f"Logging level (DEBUG|INFO|WARNING|ERROR) [default={default_log_lvl}]: ", input_type='recurring', input_options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'debug', 'info', 'warning', 'error'], allow_empty_input=True).upper() or default_log_lvl
 
     config = {
         'version': CURRENT_CONFIG_VERSION,
@@ -496,11 +522,11 @@ def run_config_wizard(config_file):
             'torrent_client': torrent_client,
         },
         'AudioPreference': {
-            'default_audio': 'sub',
+            'default_audio': selected_audio,
         },
         'Anime': {
             'download_dir': anime_dir,
-            'providers': {
+            'providers': ex_anime.get('providers') or {
                 'nyaa': {
                     'base_url': 'https://nyaa.si'
                 },
@@ -520,7 +546,7 @@ def run_config_wizard(config_file):
         },
         'Movies': {
             'download_dir': movies_dir,
-            'providers': {
+            'providers': ex_movies.get('providers') or {
                 'yts': {
                     'base_url': 'https://yts.lt'
                 },
@@ -534,7 +560,7 @@ def run_config_wizard(config_file):
         },
         'TV Shows': {
             'download_dir': shows_dir,
-            'providers': {
+            'providers': ex_shows.get('providers') or {
                 'eztv': {
                     'base_url': 'https://eztvx.to'
                 },
@@ -546,9 +572,9 @@ def run_config_wizard(config_file):
                 }
             }
         },
-        'NSFW': {
+        'NSFW / Hentai': {
             'download_dir': nsfw_dir,
-            'providers': {
+            'providers': ex_nsfw.get('providers') or {
                 'hanime': {
                     'base_url': 'https://hanime.tv',
                     'search_url': 'https://search.htv-services.com'
@@ -556,16 +582,16 @@ def run_config_wizard(config_file):
             }
         },
         'PostProcessing': {
-            'auto_compress': False,
-            'codec': 'hevc',
-            'crf': 23,
-            'preset': 'slow'
+            'auto_compress': auto_compress,
+            'codec': ex_post.get('codec', 'hevc'),
+            'crf': ex_post.get('crf', 23),
+            'preset': ex_post.get('preset', 'slow')
         },
         'LoggerConfig': {
-            'log_dir': os.path.expanduser('~/.local/share/media-scraper/logs') if not os.path.exists('scraper.py') else 'logs',
+            'log_dir': ex_logger.get('log_dir', os.path.expanduser('~/.local/share/media-scraper/logs') if not os.path.exists('scraper.py') else 'logs'),
             'log_level': log_level,
-            'log_retention_days': 7,
-            'log_backup_count': 3
+            'log_retention_days': ex_logger.get('log_retention_days', 7),
+            'log_backup_count': ex_logger.get('log_backup_count', 3)
         }
     }
 
@@ -603,8 +629,8 @@ def load_yaml(config_file):
             config = yaml.safe_load(stream)
             if not isinstance(config, dict):
                 config = {}
-            if config.get('version') != CURRENT_CONFIG_VERSION or 'NSFW' not in config or 'PostProcessing' not in config:
-                config = migrate_config(config, target_path)
+            if config.get('version') != CURRENT_CONFIG_VERSION or ('NSFW / Hentai' not in config and 'NSFW' not in config) or 'PostProcessing' not in config:
+                return run_config_wizard(target_path, existing_config=config)
             return config
         except yaml.YAMLError as exc:
             colprint('error', f"Error occured while reading yaml file: {exc}")

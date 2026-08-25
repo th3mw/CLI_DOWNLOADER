@@ -7,7 +7,7 @@ CATEGORIES = {
     1: 'Anime',
     2: 'Movies',
     3: 'TV Shows',
-    4: 'NSFW / Hentai'
+    4: 'Hentai (NSFW)'
 }
 
 # Category Provider Registry
@@ -48,13 +48,13 @@ CATEGORY_PROVIDERS = {
         },
         {
             'key': 'oneshows',
-            'label': '🍿  1Shows (Movies Only)',
+            'label': '🎬  1Shows (Movies)',
             'class_path': 'Content.Movies.Providers.OneShowsClient.OneShowsClient',
             'content_filter': 'movie'
         },
         {
             'key': 'kisskh',
-            'label': '🎌  KissKh (Asian Drama Movies)',
+            'label': '🌸  KissKh (Asian Movies)',
             'class_path': 'Content.Movies.Providers.KissKhClient.KissKhClient',
             'content_filter': 'movie'
         }
@@ -68,15 +68,23 @@ CATEGORY_PROVIDERS = {
         },
         {
             'key': 'oneshows',
-            'label': '1Shows (Series Only)',
+            'label': '🎬  1Shows (TV Shows)',
             'class_path': 'Content.Series.Providers.OneShowsClient.OneShowsClient',
             'content_filter': 'tv'
         },
         {
             'key': 'kisskh',
-            'label': 'KissKh (Asian Drama Series)',
+            'label': '🌸  KissKh (Asian Dramas & TV)',
             'class_path': 'Content.Series.Providers.KissKhClient.KissKhClient',
             'content_filter': 'tv'
+        }
+    ],
+    'Hentai (NSFW)': [
+        {
+            'key': 'hanime',
+            'label': '🔞  Hanime (Hentai & NSFW Anime)',
+            'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
+            'content_filter': 'nsfw'
         }
     ],
     'NSFW': [
@@ -113,6 +121,11 @@ CATEGORY_DOWNLOADERS = {
         'http': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
         'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     },
+    'Hentai (NSFW)': {
+        'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
+        'http': 'Core.BaseDownloader.BaseDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
+    },
     'NSFW': {
         'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
         'http': 'Core.BaseDownloader.BaseDownloader',
@@ -128,7 +141,16 @@ CATEGORY_DOWNLOADERS = {
 
 def get_providers_for_category(category_name):
     '''Return list of available provider info dicts for a category'''
-    return CATEGORY_PROVIDERS.get(category_name, [])
+    if category_name in CATEGORY_PROVIDERS:
+        return CATEGORY_PROVIDERS[category_name]
+    alias_map = {
+        'nsfw': 'Hentai (NSFW)',
+        'hentai': 'Hentai (NSFW)',
+        '4': 'Hentai (NSFW)',
+        4: 'Hentai (NSFW)'
+    }
+    canonical = alias_map.get(str(category_name).lower(), category_name)
+    return CATEGORY_PROVIDERS.get(canonical, [])
 
 
 def get_provider_info(category_name, provider_key):

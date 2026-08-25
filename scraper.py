@@ -146,7 +146,7 @@ def get_series_type(keys, predefined_input=None):
         '1': 'Anime', 'anime': 'Anime',
         '2': 'Movies', 'movies': 'Movies', 'movie': 'Movies',
         '3': 'TV Shows', 'tv': 'TV Shows', 'tvshows': 'TV Shows', 'tv_shows': 'TV Shows', 'series': 'TV Shows',
-        '4': 'NSFW / Hentai', 'nsfw': 'NSFW / Hentai', 'hentai': 'NSFW / Hentai', 'hanime': 'NSFW / Hentai'
+        '4': 'Hentai (NSFW)', 'nsfw': 'Hentai (NSFW)', 'hentai': 'Hentai (NSFW)', 'hanime': 'Hentai (NSFW)', 'nsfw / hentai': 'Hentai (NSFW)', 'hentai (nsfw)': 'Hentai (NSFW)'
     }
     if predefined_input is not None:
         pre_str = str(predefined_input).lower().strip()
@@ -163,7 +163,7 @@ def get_series_type(keys, predefined_input=None):
             f"\033[1m[1]\033[0m  🎬  Anime",
             f"\033[1m[2]\033[0m  🍿  Movies",
             f"\033[1m[3]\033[0m  📺  TV Shows",
-            f"\033[1m[4]\033[0m  🔞  NSFW / Hentai",
+            f"\033[1m[4]\033[0m  🔞  Hentai (NSFW)",
             f"\033[1m[5]\033[0m  📜  Download History & Task Manager",
             f"\033[38;5;244m[0]  🚪  Exit\033[0m"
         ]
@@ -601,12 +601,12 @@ Examples:
         if series_type in config and isinstance(config[series_type], dict) and 'download_dir' in config[series_type]:
             logger.debug(f'Setting download dir to [{config[series_type]["download_dir"]}] from series specific configuration')
             downloader_config['download_dir'] = config[series_type]['download_dir']
-        elif series_type in ('NSFW / Hentai', 4, '4', 'nsfw'):
-            nsfw_cfg = config.get('NSFW / Hentai') or config.get('NSFW') or {}
+        elif series_type in ('Hentai (NSFW)', 'NSFW / Hentai', 4, '4', 'nsfw', 'hentai'):
+            nsfw_cfg = config.get('Hentai (NSFW)') or config.get('NSFW / Hentai') or config.get('NSFW') or {}
             if 'download_dir' in nsfw_cfg:
                 downloader_config['download_dir'] = nsfw_cfg['download_dir']
             elif 'Anime' in config and 'download_dir' in config['Anime']:
-                downloader_config['download_dir'] = os.path.join(config['Anime']['download_dir'], 'NSFW/Hentai')
+                downloader_config['download_dir'] = os.path.join(config['Anime']['download_dir'], 'Hentai (NSFW)')
 
         # modify path based on the platform OS
         downloader_config['download_dir'] = get_os_safe_path(downloader_config['download_dir'])

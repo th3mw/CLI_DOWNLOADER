@@ -476,7 +476,7 @@ def run_config_wizard(config_file, existing_config=None):
     ex_anime = (existing_config or {}).get('Anime', {})
     ex_movies = (existing_config or {}).get('Movies', {})
     ex_shows = (existing_config or {}).get('TV Shows', {})
-    ex_nsfw = (existing_config or {}).get('NSFW / Hentai') or (existing_config or {}).get('NSFW', {})
+    ex_nsfw = (existing_config or {}).get('Hentai (NSFW)') or (existing_config or {}).get('NSFW / Hentai') or (existing_config or {}).get('NSFW', {})
     ex_audio = (existing_config or {}).get('AudioPreference', {})
     ex_post = (existing_config or {}).get('PostProcessing', {})
     ex_logger = (existing_config or {}).get('LoggerConfig', {})
@@ -493,8 +493,8 @@ def run_config_wizard(config_file, existing_config=None):
     default_shows_dir = ex_shows.get('download_dir') or f"{base_dir.rstrip('/')}/Series"
     shows_dir = colprint('user_input', f"TV Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
 
-    default_nsfw_dir = ex_nsfw.get('download_dir') or f"{anime_dir.rstrip('/')}/NSFW/Hentai"
-    nsfw_dir = colprint('user_input', f"NSFW / Hentai download directory [default={default_nsfw_dir}]: ", input_type='once') or default_nsfw_dir
+    default_nsfw_dir = ex_nsfw.get('download_dir') or f"{anime_dir.rstrip('/')}/Hentai (NSFW)"
+    nsfw_dir = colprint('user_input', f"Hentai (NSFW) download directory [default={default_nsfw_dir}]: ", input_type='once') or default_nsfw_dir
 
     default_audio_choice = 2 if ex_audio.get('default_audio') == 'dub' else 1
     audio_choice = colprint('user_input', f"Preferred Audio Language [1. Sub/Original, 2. English Dubbed] [default={default_audio_choice}]: ", input_type='recurring', input_dtype='int', input_options=[1, 2], allow_empty_input=True) or default_audio_choice
@@ -572,7 +572,7 @@ def run_config_wizard(config_file, existing_config=None):
                 }
             }
         },
-        'NSFW / Hentai': {
+        'Hentai (NSFW)': {
             'download_dir': nsfw_dir,
             'providers': ex_nsfw.get('providers') or {
                 'hanime': {
@@ -629,7 +629,7 @@ def load_yaml(config_file):
             config = yaml.safe_load(stream)
             if not isinstance(config, dict):
                 config = {}
-            if config.get('version') != CURRENT_CONFIG_VERSION or ('NSFW / Hentai' not in config and 'NSFW' not in config) or 'PostProcessing' not in config:
+            if config.get('version') != CURRENT_CONFIG_VERSION or ('Hentai (NSFW)' not in config and 'NSFW / Hentai' not in config and 'NSFW' not in config) or 'PostProcessing' not in config:
                 return run_config_wizard(target_path, existing_config=config)
             return config
         except yaml.YAMLError as exc:

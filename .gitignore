@@ -40,3 +40,4 @@ config_*.yaml
 # Cache
 .cache/
 Error.txt
+*.db

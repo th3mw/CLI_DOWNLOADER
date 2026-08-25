@@ -9,6 +9,7 @@ import traceback
 from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box, clear_screen, render_step_header
 from Core.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
 from Core.provider_factory import CATEGORIES, CATEGORY_PROVIDERS, get_providers_for_category, create_client, get_downloader
+from Core import history_manager, compressor
 
 args = None
 series_type = None
@@ -39,7 +40,7 @@ def get_provider(category_name, predefined_provider=None):
     # Show provider selection menu
     menu_lines = []
     choices = {}
-    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿', 'nyaa': '🧲', 'yts': '🧲', 'eztv': '🧲'}
+    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿', 'nyaa': '🧲', 'yts': '🧲', 'eztv': '🧲', 'hanime': '🔞'}
     for idx, prov in enumerate(providers):
         icon = icons.get(prov['key'], '▸')
         label = prov['label']
@@ -62,7 +63,7 @@ def get_provider(category_name, predefined_provider=None):
 
 def get_client(provider_key=None):
     '''Return a client instance based on the selected provider.'''
-    global series_type, config, logger, hls_size_accuracy
+    global series_type, config, logger, hls_size_accuracy, args
 
     # Resolve provider key if not explicitly provided
     if provider_key is None:
@@ -70,8 +71,9 @@ def get_client(provider_key=None):
         if provider_key == 'BACK':
             return None
 
+    audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')
     category_config = config.setdefault(series_type, {})
-    client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy)
+    client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy, audio_preference=audio_pref)
     if not client_inst:
         logger.error(f'Failed to create client for category={series_type}, provider={provider_key}')
         raise ExitException(1)
@@ -108,12 +110,43 @@ def check_if_exists(path):
     except Exception as e:
         raise Exception(f'Failed to create download path [{path}]. Error: {e}')
 
+def handle_history_menu():
+    while True:
+        clear_screen()
+        render_step_header(step_title='Download History & Tasks')
+        lines = [
+            "\033[1m[1]\033[0m  📜  View Download History",
+            "\033[1m[2]\033[0m  🔄  Resume Incomplete Downloads",
+            "\033[1m[3]\033[0m  🗑   Clear Download History",
+            "\033[38;5;244m[0]  ‹   Back to Main Menu\033[0m"
+        ]
+        print('\n' + render_box('HISTORY & TASK MANAGER', lines))
+        c = colprint('user_input', '\n  ➜ Enter choice [1-3, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3])
+        if c == 1:
+            history_manager.render_history_view(30)
+            input('\n  ➜ Press Enter to continue...')
+        elif c == 2:
+            records = history_manager.render_incomplete_view()
+            if records:
+                sel = colprint('user_input', f'\n  ➜ Enter task # to view details [1-{len(records)}, 0=Cancel]: ', input_type='recurring', input_dtype='int', input_options=list(range(0, len(records)+1)))
+                if sel > 0:
+                    rec = records[sel - 1]
+                    colprint('header', f"\n  Task: {rec['title']} (Resolution: {rec.get('resolution')})")
+            input('\n  ➜ Press Enter to continue...')
+        elif c == 3:
+            history_manager.clear_history()
+            colprint('success', '\n  ✔ History cleared successfully.')
+            input('\n  ➜ Press Enter to continue...')
+        else:
+            break
+
 def get_series_type(keys, predefined_input=None):
     logger.debug('Selecting the series type')
     type_aliases = {
         '1': 'Anime', 'anime': 'Anime',
         '2': 'Movies', 'movies': 'Movies', 'movie': 'Movies',
-        '3': 'TV Shows', 'tv': 'TV Shows', 'tvshows': 'TV Shows', 'tv_shows': 'TV Shows', 'series': 'TV Shows'
+        '3': 'TV Shows', 'tv': 'TV Shows', 'tvshows': 'TV Shows', 'tv_shows': 'TV Shows', 'series': 'TV Shows',
+        '4': 'NSFW / Hentai', 'nsfw': 'NSFW / Hentai', 'hentai': 'NSFW / Hentai', 'hanime': 'NSFW / Hentai'
     }
     if predefined_input is not None:
         pre_str = str(predefined_input).lower().strip()
@@ -121,24 +154,30 @@ def get_series_type(keys, predefined_input=None):
             colprint('predefined', f'\n  Using Predefined Content Type: {type_aliases[pre_str]}')
             return type_aliases[pre_str]
 
-    if args is None or not getattr(args, 'quiet', False):
-        clear_screen()
-        render_step_header(step_title='Select Content Category')
+    while True:
+        if args is None or not getattr(args, 'quiet', False):
+            clear_screen()
+            render_step_header(step_title='Select Content Category')
 
-    menu_lines = [
-        f"\033[1m[1]\033[0m  🎬  Anime",
-        f"\033[1m[2]\033[0m  🍿  Movies",
-        f"\033[1m[3]\033[0m  📺  TV Shows",
-        f"\033[38;5;244m[0]  🚪  Exit\033[0m"
-    ]
-    print('\n' + render_box('SELECT CONTENT TYPE', menu_lines))
-    choice = colprint('user_input', '\n  ➜ Enter choice [1-3, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3], allow_empty_input=False)
-    if choice == 0:
-        raise ExitException(0)
+        menu_lines = [
+            f"\033[1m[1]\033[0m  🎬  Anime",
+            f"\033[1m[2]\033[0m  🍿  Movies",
+            f"\033[1m[3]\033[0m  📺  TV Shows",
+            f"\033[1m[4]\033[0m  🔞  NSFW / Hentai",
+            f"\033[1m[5]\033[0m  📜  Download History & Task Manager",
+            f"\033[38;5;244m[0]  🚪  Exit\033[0m"
+        ]
+        print('\n' + render_box('SELECT CONTENT TYPE', menu_lines))
+        choice = colprint('user_input', '\n  ➜ Enter choice [1-5, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3, 4, 5], allow_empty_input=False)
+        if choice == 0:
+            raise ExitException(0)
+        elif choice == 5:
+            handle_history_menu()
+            continue
 
-    series_type_selected = keys[choice - 1]
-    logger.debug(f'Series type selected: {series_type_selected}')
-    return series_type_selected
+        series_type_selected = keys[choice - 1]
+        logger.debug(f'Series type selected: {series_type_selected}')
+        return series_type_selected
 
 def search_and_select_series(predefined_search_input=None, search_only=False):
     while True:
@@ -170,20 +209,24 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
         # Format 2-line search result cards
         card_lines = []
         for idx, (res_no, res_item) in enumerate(search_results.items()):
-            title = res_item.get('title', 'Unknown')
-            rating = res_item.get('rating', 'N/A')
-            year = res_item.get('year', '')
-            format_tag = res_item.get('type', '')
-            eps = res_item.get('episodes_count', '')
-            genres = res_item.get('genres', '')
-
+            title = res_item.get('card_title') or res_item.get('title', 'Unknown')
             line1 = f"\033[1m[{res_no}]\033[0m \033[38;5;39m{title}\033[0m"
-            meta = []
-            if rating != 'N/A' and rating: meta.append(f"\033[38;5;220m★ {rating}\033[0m")
-            if year and year != 'XXXX': meta.append(f"Year: {year}")
-            if format_tag: meta.append(f"\033[38;5;141m[{str(format_tag).upper()}]\033[0m")
-            if eps: meta.append(f"Eps: {eps}")
-            line2 = "    " + " \033[38;5;244m•\033[0m ".join(meta)
+
+            if res_item.get('card_meta'):
+                line2 = f"    \033[38;5;244m{res_item['card_meta']}\033[0m"
+            else:
+                rating = res_item.get('rating', 'N/A')
+                year = res_item.get('year', '')
+                format_tag = res_item.get('type', '') or res_item.get('media_type', '')
+                eps = res_item.get('episodes_count', '') or res_item.get('episodes', '')
+                meta = []
+                if rating != 'N/A' and rating: meta.append(f"\033[38;5;220m★ {rating}\033[0m")
+                if year and year != 'XXXX': meta.append(f"Year: {year}")
+                if format_tag: meta.append(f"\033[38;5;141m[{str(format_tag).upper()}]\033[0m")
+                if eps: meta.append(f"Eps: {eps}")
+                line2 = "    " + " \033[38;5;244m•\033[0m ".join(meta)
+
+            genres = res_item.get('genres', '')
             card_lines.append(line1)
             card_lines.append(line2)
             if genres:
@@ -314,13 +357,29 @@ def downloader(ep_details, dl_config):
     logger.debug(f'Resolved downloader {downloader_cls.__name__} for category {series_type} [{download_type}]')
     dlClient = downloader_cls(dl_config, ep_details)
 
+    full_target_path = os.path.join(out_dir, out_file)
+    prov_name = getattr(client, 'provider_name', None) or getattr(client, 'name', '') or str(series_type)
+    dl_id = history_manager.record_start(
+        title=ep_details.get('series_title') or out_file,
+        season=ep_details.get('season', 1),
+        episode=ep_details.get('episode', 1),
+        resolution=ep_details.get('resolution', ''),
+        provider=prov_name,
+        content_type=series_type,
+        download_type=download_type,
+        target_filepath=full_target_path,
+        download_link=ep_details.get('downloadLink', ''),
+        referer_link=ep_details.get('refererLink', '')
+    )
+
     logger.info(f'Download started for {out_file}...')
     if max_parallel_downloads <= 1:
         colprint('header', f"\n  ➜ Downloading: {out_file}")
 
-    if os.path.isfile(os.path.join(f'{out_dir}', f'{out_file}')) and os.path.getsize(os.path.join(f'{out_dir}', f'{out_file}')) > 0:
+    if os.path.isfile(full_target_path) and os.path.getsize(full_target_path) > 0:
         # skip file if already exists
         colprint('predefined', f"  [✓] {out_file} already exists -> Skipping")
+        history_manager.record_complete(dl_id, os.path.getsize(full_target_path))
         return f'{skipped_clr}[{start}] Download skipped for {out_file}. File already exists!{reset_clr}'
     else:
         try:
@@ -337,8 +396,25 @@ def downloader(ep_details, dl_config):
 
         end = get_current_time()
         if status != 0:
+            history_manager.record_failure(dl_id, str(msg))
             colprint('error', f"  [✗] Failed: {out_file} ({msg})\n")
             return f'{error_clr}[{end}] Download failed for {out_file}, with error: {msg}{reset_clr}'
+
+        # Successful download
+        file_size = os.path.getsize(full_target_path) if os.path.isfile(full_target_path) else 0
+        history_manager.record_complete(dl_id, file_size)
+
+        # Video compression if requested
+        if (args and getattr(args, 'compress', False)) or (config and config.get('PostProcessing', {}).get('auto_compress', False)):
+            post_cfg = config.get('PostProcessing', {}) if config else {}
+            compressor.compress_video(
+                full_target_path,
+                codec=post_cfg.get('codec', 'hevc'),
+                crf=post_cfg.get('crf', 23),
+                preset=post_cfg.get('preset', 'slow')
+            )
+            new_size = os.path.getsize(full_target_path) if os.path.isfile(full_target_path) else file_size
+            history_manager.record_complete(dl_id, new_size)
 
         end_epoch = int(time())
         download_time = pretty_time(end_epoch-start_epoch, fmt='h m s')
@@ -425,6 +501,11 @@ Examples:
         parser.add_argument('-d', '--start-download', action='store_true', help='start download immediately without prompt')
         parser.add_argument('-dc', '--disable-colors', '--no-color', dest='disable_colors', default=False, action='store_true', help='disable colored ANSI output')
         parser.add_argument('-q', '--quiet', default=False, action='store_true', help='suppress hero banner and non-essential decoration')
+        parser.add_argument('-a', '--audio', choices=['sub', 'dub', 'dual', 'all'], help='preferred audio language (sub: Subtitled, dub: English Dubbed)')
+        parser.add_argument('-H', '--history', action='store_true', help='view recent download history')
+        parser.add_argument('-I', '--incomplete', action='store_true', help='view and resume incomplete/interrupted downloads')
+        parser.add_argument('--clear-history', action='store_true', help='clear all download history from database')
+        parser.add_argument('-cmp', '--compress', action='store_true', help='compress downloaded video with high-efficiency HEVC/AV1 encoding')
         parser.add_argument('--search-only', default=False, action='store_true', help='search and display results without prompting to download')
         parser.add_argument('--dry-run', default=False, action='store_true', help='resolve streams and show pre-download inspection without downloading')
         parser.add_argument('-hsa', '--hls-size-accuracy', default=0, type=int, choices=range(0, 101), metavar='[0-100]',
@@ -456,11 +537,23 @@ Examples:
         # initialize color printer
         colprint_init(disable_colors)
 
+        # Handle standalone history flags
+        if args.history:
+            history_manager.render_history_view(35)
+            sys.exit(0)
+        if args.clear_history:
+            history_manager.clear_history()
+            colprint('success', '\n  ✔ Download history successfully purged.\n')
+            sys.exit(0)
+        if args.incomplete:
+            history_manager.render_incomplete_view()
+            sys.exit(0)
+
         # Display hero banner
         if not args.quiet and series_type_predef is not None:
             hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4\033[0m',
-                '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows\033[0m'
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5\033[0m',
+                '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows • NSFW\033[0m'
             ], center=True)
             print(f'\n{hero_box}\n')
 

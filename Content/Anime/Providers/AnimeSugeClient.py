@@ -14,6 +14,8 @@ class AnimeSugeClient(BaseClient):
     def __init__(self, config, session=None, series_type=None, content_filter=None, **kwargs):
         self.series_type = series_type
         self.content_filter = content_filter
+        self.name = 'AnimeSuge'
+        self.provider_name = 'AnimeSuge'
         self.base_url = config.get('base_url', 'https://animesuge.cz')
         self.search_url = config.get('search_url', self.base_url + '/filter?keyword=')
         self.episode_list_url = config.get('episode_list_url', self.base_url + '/ajax/episode/list/')
@@ -22,7 +24,11 @@ class AnimeSugeClient(BaseClient):
         self.vidtube_get_sources_url = config.get('vidtube_get_sources_url', 'https://vidtube.site/stream/getSourcesNew?id=')
         self.selector_strategy = config.get('alternate_resolution_selector', 'lowest')
         self.hls_size_accuracy = config.get('hls_size_accuracy', 0)
-        self.preferred_server_types = config.get('preferred_server_types', ['sub', 'hsub', 'dub'])
+        self.audio_preference = (config.get('audio_preference') or 'sub').lower()
+        if self.audio_preference == 'dub':
+            self.preferred_server_types = ['dub', 'hsub', 'sub']
+        else:
+            self.preferred_server_types = config.get('preferred_server_types', ['sub', 'hsub', 'dub'])
         self.vidtube_origin = config.get('vidtube_origin', 'https://vidtube.site/')
         super().__init__(config.get('request_timeout', 30), session)
 
@@ -301,6 +307,29 @@ class AnimeSugeClient(BaseClient):
 
         for idx, (item, tooltip) in enumerate(zip(raw_items, tooltips), 1):
             item.update(tooltip)
+            title = item.get('title', 'Unknown')
+            year = item.get('year')
+            anime_type = item.get('anime_type') or 'TV'
+            ep_total = item.get('episodes', '?')
+            status = item.get('status')
+            sub_cnt = item.get('sub_cnt')
+            dub_cnt = item.get('dub_cnt')
+
+            meta_parts = []
+            if year and year != 'N/A':
+                meta_parts.append(f"Year: {year}")
+            meta_parts.append(f"[{anime_type}]")
+            meta_parts.append(f"Eps: {ep_total}")
+            if sub_cnt or dub_cnt:
+                sd = []
+                if sub_cnt: sd.append(f"Sub: {sub_cnt}")
+                if dub_cnt: sd.append(f"Dub: {dub_cnt}")
+                meta_parts.append(f"({', '.join(sd)})")
+            if status and status != 'N/A':
+                meta_parts.append(f"Status: {status}")
+
+            item['card_title'] = f"{title} ({year})" if (year and year != 'N/A') else title
+            item['card_meta'] = " • ".join(meta_parts)
             results[idx] = item
 
         return results

@@ -12,6 +12,9 @@ class KissKhClient(BaseClient):
     def __init__(self, config, session=None, series_type=None, content_filter=None):
         self.series_type = series_type
         self.content_filter = content_filter
+        self.name = 'KissKh'
+        self.provider_name = 'KissKh'
+        self.audio_preference = (config.get('audio_preference') or 'sub').lower() if isinstance(config, dict) else 'sub'
         self.base_url = config.get('base_url', 'https://kisskh.co').rstrip('/')
         search_path = config.get('search_url', '/api/DramaList/Search?q=')
         self.search_url = search_path if search_path.startswith('http') else f"{self.base_url}/{search_path.lstrip('/')}"

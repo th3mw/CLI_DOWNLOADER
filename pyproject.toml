@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "media-scraper-cli"
-version = "1.4.0"
-description = "A command-line tool for downloading Anime, Movies & TV Shows with ease."
+version = "1.5.0"
+description = "A command-line tool for downloading Anime, Movies, TV Shows & NSFW with ease."
 readme = "README.md"
 authors = [
     { name = "Nathaniel Akpan" }

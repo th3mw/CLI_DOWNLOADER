@@ -41,6 +41,8 @@ class YTSClient(BaseClient):
         self.config = config or {}
         self.series_type = series_type or 'Movies'
         self.content_filter = content_filter
+        self.name = 'YTS'
+        self.provider_name = 'YTS'
         self.active_base_url = None
         self._chosen_torrent = None
 

@@ -42,6 +42,8 @@ class EZTVClient(BaseClient):
         self.config = config or {}
         self.series_type = series_type or 'TV Shows'
         self.content_filter = content_filter
+        self.name = 'EZTV'
+        self.provider_name = 'EZTV'
         self.active_base_url = None
         self._target_show = {}
         self._episodes_by_idx = {}

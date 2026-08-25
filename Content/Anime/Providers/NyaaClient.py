@@ -40,6 +40,9 @@ class NyaaClient(BaseClient):
         self.config = config or {}
         self.series_type = series_type or 'Anime'
         self.content_filter = content_filter
+        self.name = 'Nyaa'
+        self.provider_name = 'Nyaa'
+        self.audio_preference = (self.config.get('audio_preference') or 'sub').lower()
         self.active_base_url = None
         self._target_anime = {}
         self._episodes_by_idx = {}

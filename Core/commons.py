@@ -99,8 +99,8 @@ def render_step_header(breadcrumbs=None, step_title=None):
     c_yellow = PRINT_THEMES['user_input'] if DISPLAY_COLORS else ''
 
     banner = render_box('', [
-        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.4{c_reset}',
-        f'{c_muted}Anime • Asian Dramas • Movies • TV Shows{c_reset}'
+        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5{c_reset}',
+        f'{c_muted}Anime • Asian Dramas • Movies • TV Shows • NSFW{c_reset}'
     ], max_width=76, indent=0, center=True)
     print(f'\n{banner}\n')
     if breadcrumbs:
@@ -345,6 +345,118 @@ def threaded(max_parallel=None, thread_name_prefix='scraper-', print_status=Fals
         return wrapper
     return decorator
 
+CURRENT_CONFIG_VERSION = "1.5.0"
+
+
+def migrate_config(config, config_file):
+    '''
+    Automatically migrate older YAML configurations to the latest schema while preserving custom paths.
+    '''
+    if not isinstance(config, dict):
+        config = {}
+
+    old_ver = config.get('version', '1.0.0')
+    config['version'] = CURRENT_CONFIG_VERSION
+
+    # Ensure DownloaderConfig exists
+    if 'DownloaderConfig' not in config:
+        config['DownloaderConfig'] = {
+            'download_dir': '~/Videos',
+            'max_parallel_downloads': 2,
+            'torrent_client': 'auto'
+        }
+
+    # Ensure AudioPreference exists
+    if 'AudioPreference' not in config:
+        config['AudioPreference'] = {
+            'default_audio': 'sub'
+        }
+
+    # Ensure Anime section exists
+    if 'Anime' not in config:
+        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+        config['Anime'] = {
+            'download_dir': f"{base_dir.rstrip('/')}/Anime",
+            'providers': {
+                'nyaa': {'base_url': 'https://nyaa.si'},
+                'anime_suge': {
+                    'base_url': 'https://animesuge.cz',
+                    'search_url': '/filter',
+                    'preferred_server_types': ['sub', 'hsub', 'dub']
+                },
+                'anidb': {
+                    'base_url': 'https://anidb.app',
+                    'search_url': 'https://anidb.app/browse?q='
+                },
+                'kisskh': {'base_url': 'https://kisskh.co'}
+            }
+        }
+
+    # Ensure Movies section exists
+    if 'Movies' not in config:
+        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+        config['Movies'] = {
+            'download_dir': f"{base_dir.rstrip('/')}/Movies",
+            'providers': {
+                'yts': {'base_url': 'https://yts.lt'},
+                'oneshows': {'base_url': 'https://www.1shows.org'},
+                'kisskh': {'base_url': 'https://kisskh.co'}
+            }
+        }
+
+    # Ensure TV Shows section exists
+    if 'TV Shows' not in config:
+        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+        config['TV Shows'] = {
+            'download_dir': f"{base_dir.rstrip('/')}/Series",
+            'providers': {
+                'eztv': {'base_url': 'https://eztvx.to'},
+                'oneshows': {'base_url': 'https://www.1shows.org'},
+                'kisskh': {'base_url': 'https://kisskh.co'}
+            }
+        }
+
+    # Ensure NSFW section exists
+    if 'NSFW' not in config:
+        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+        config['NSFW'] = {
+            'download_dir': f"{base_dir.rstrip('/')}/NSFW",
+            'providers': {
+                'hanime': {
+                    'base_url': 'https://hanime.tv',
+                    'search_url': 'https://search.htv-services.com'
+                }
+            }
+        }
+
+    # Ensure PostProcessing section exists
+    if 'PostProcessing' not in config:
+        config['PostProcessing'] = {
+            'auto_compress': False,
+            'codec': 'hevc',
+            'crf': 23,
+            'preset': 'slow'
+        }
+
+    # Ensure LoggerConfig exists
+    if 'LoggerConfig' not in config:
+        config['LoggerConfig'] = {
+            'log_dir': 'logs',
+            'log_level': 'INFO',
+            'log_retention_days': 7,
+            'log_backup_count': 3
+        }
+
+    try:
+        with open(config_file, 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, sort_keys=False, default_flow_style=False)
+        colprint('success', f"\n✓ Configuration automatically updated to v{CURRENT_CONFIG_VERSION} at '{config_file}' (preserved existing download paths)\n")
+    except Exception as e:
+        logging.warning(f"Could not persist migrated config to {config_file}: {e}")
+
+    return config
+
+
 def run_config_wizard(config_file):
     '''
     Interactive setup wizard to create a new YAML configuration file on first launch.
@@ -366,6 +478,9 @@ def run_config_wizard(config_file):
     default_shows_dir = f"{base_dir.rstrip('/')}/Series"
     shows_dir = colprint('user_input', f"TV Shows download directory [default={default_shows_dir}]: ", input_type='once') or default_shows_dir
 
+    default_nsfw_dir = f"{base_dir.rstrip('/')}/NSFW"
+    nsfw_dir = colprint('user_input', f"NSFW / Hentai download directory [default={default_nsfw_dir}]: ", input_type='once') or default_nsfw_dir
+
     max_parallel = colprint('user_input', "Max parallel episode downloads (1-10) [default=2]: ", input_type='recurring', input_dtype='int', input_options=list(range(1, 11)), allow_empty_input=True) or 2
 
     torrent_choice = colprint('user_input', "Preferred Torrent Mode [1. In-Terminal (aria2c), 2. Default App (e.g. FDM, qBittorrent), 3. Auto] [default=1]: ", input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True) or 1
@@ -374,10 +489,14 @@ def run_config_wizard(config_file):
     log_level = colprint('user_input', "Logging level (DEBUG|INFO|WARNING|ERROR) [default=INFO]: ", input_type='recurring', input_options=['DEBUG', 'INFO', 'WARNING', 'ERROR', 'debug', 'info', 'warning', 'error'], allow_empty_input=True).upper() or 'INFO'
 
     config = {
+        'version': CURRENT_CONFIG_VERSION,
         'DownloaderConfig': {
             'download_dir': base_dir,
             'max_parallel_downloads': int(max_parallel),
             'torrent_client': torrent_client,
+        },
+        'AudioPreference': {
+            'default_audio': 'sub',
         },
         'Anime': {
             'download_dir': anime_dir,
@@ -391,7 +510,8 @@ def run_config_wizard(config_file):
                     'preferred_server_types': ['sub', 'hsub', 'dub']
                 },
                 'anidb': {
-                    'base_url': 'https://anidb.app'
+                    'base_url': 'https://anidb.app',
+                    'search_url': 'https://anidb.app/browse?q='
                 },
                 'kisskh': {
                     'base_url': 'https://kisskh.co'
@@ -425,6 +545,21 @@ def run_config_wizard(config_file):
                     'base_url': 'https://kisskh.co'
                 }
             }
+        },
+        'NSFW': {
+            'download_dir': nsfw_dir,
+            'providers': {
+                'hanime': {
+                    'base_url': 'https://hanime.tv',
+                    'search_url': 'https://search.htv-services.com'
+                }
+            }
+        },
+        'PostProcessing': {
+            'auto_compress': False,
+            'codec': 'hevc',
+            'crf': 23,
+            'preset': 'slow'
         },
         'LoggerConfig': {
             'log_dir': os.path.expanduser('~/.local/share/media-scraper/logs') if not os.path.exists('scraper.py') else 'logs',
@@ -465,7 +600,12 @@ def load_yaml(config_file):
 
     with open(target_path, "r", encoding="utf-8") as stream:
         try:
-            return yaml.safe_load(stream)
+            config = yaml.safe_load(stream)
+            if not isinstance(config, dict):
+                config = {}
+            if config.get('version') != CURRENT_CONFIG_VERSION or 'NSFW' not in config or 'PostProcessing' not in config:
+                config = migrate_config(config, target_path)
+            return config
         except yaml.YAMLError as exc:
             colprint('error', f"Error occured while reading yaml file: {exc}")
             raise ExitException(0)

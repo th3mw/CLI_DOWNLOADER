@@ -17,6 +17,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Live Download Center**: Animated progress gauges, real-time speed charts, and active queue management (Pause / Resume / Cancel).
   - **Dual Execution Modes**: Launch full TUI with `media-scraper --tui` while retaining zero-dependency headless CLI mode for automated scripts.
 
+## [v1.5.0] - 2026-08-25
+
+### 🚀 Added
+- **Hanime.tv NSFW Provider (`HanimeClient`)**:
+  - Reverse-engineered Hanime API v11 cryptographic handshake protocol with AES-256-GCM token encryption and WASM signature generation.
+  - Lightning-fast in-memory fuzzy search across Hanime's complete 3,500+ title catalog with studio branding, release year, like counts, and view metrics.
+  - Direct HLS master stream resolution with multi-resolution selection (1080p, 720p, 480p, 360p).
+  - Registered as `[4] 🔞 NSFW / Hentai` in category selector.
+- **Audio Preference System (Sub & Dub Options)**:
+  - Added `-a / --audio {sub, dub, dual, all}` CLI option and `AudioPreference.default_audio` configuration setting.
+  - Automatically prioritizes English Dubbed audio tracks and servers on `AnimeSugeClient`, `AniDbClient`, `KissKhClient`, and `NyaaClient` when `dub` is selected.
+- **SQLite Download History & Incomplete Resumption Manager (`history_manager.py`)**:
+  - Embedded zero-dependency SQLite task ledger (`~/.config/media-scraper/history.db`).
+  - Added CLI inspection flags: `--history` (`-H`), `--incomplete` (`-I`), and `--clear-history`.
+  - Added interactive `[5] 📜 Download History & Task Manager` in the Main Menu with one-key resume for interrupted downloads.
+- **Hardware-Accelerated Video Compression (`compressor.py`)**:
+  - Integrated post-download video compression using high-efficiency HEVC/AV1 encoding.
+  - Auto-detects GPU hardware acceleration (`hevc_nvenc`, `hevc_vaapi`, `hevc_qsv`, `hevc_amf`) with seamless CPU fallback (`libx265`).
+  - Re-encodes video streams with perceptual losslessness (CRF 23) while preserving all audio and subtitle streams intact, reducing file sizes by 50–70%.
+  - Configurable via `--compress` (`-cmp`) CLI flag or `PostProcessing.auto_compress` in `config_scraper.yaml`.
+- **Automatic Config Version Migration**:
+  - Auto-detects outdated `config_scraper.yaml` versions (<1.5.0) and upgrades them seamlessly upon first launch while preserving all user custom directory paths and settings.
+- **Standardized Search Badges & Provider Branding**:
+  - Search result cards across all providers now render clean, standardized badges (`[TV Series]`, `[Movie]`, `[OVA]`, `[Special]`, `[NSFW]`, episode counts, dub/sub availability, ratings, and release year).
+  - Fixed breadcrumb navigation to accurately reflect active provider name (e.g. `📍 Location: Anime › Nyaa › Solo Leveling › Select Episodes`).
+
 ---
 
 ## [v1.4.0] - 2026-08-21

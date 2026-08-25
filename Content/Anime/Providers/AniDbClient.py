@@ -15,13 +15,19 @@ class AniDbClient(BaseClient):
         config = config or {}
         super().__init__(config.get('request_timeout', 30) if isinstance(config, dict) else 30, session)
         self.client_name = 'anidb'
+        self.name = 'AniDB'
+        self.provider_name = 'AniDB'
         anidb_config = config.get('anidb', {}) if isinstance(config, dict) else {}
         self.base_url = anidb_config.get('base_url', 'https://anidb.app').rstrip('/')
         self.browse_url = anidb_config.get('search_url', f'{self.base_url}/browse?q=')
         self.suggestions_url = f'{self.base_url}/search/suggestions?q='
         self.episodes_url = f'{self.base_url}/api/frontend/anime/'
         self.languages_url = f'{self.base_url}/api/frontend/episode/'
-        self.preferred_languages = ['jpn', 'sub', 'eng', 'dub']
+        self.audio_preference = (config.get('audio_preference') or 'sub').lower()
+        if self.audio_preference == 'dub':
+            self.preferred_languages = ['eng', 'dub', 'jpn', 'sub']
+        else:
+            self.preferred_languages = ['jpn', 'sub', 'eng', 'dub']
         self.series_type = series_type
         self.content_filter = content_filter
         self.selector_strategy = anidb_config.get('alternate_resolution_selector', 'lowest') if isinstance(anidb_config, dict) else 'lowest'

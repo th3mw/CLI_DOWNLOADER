@@ -16,6 +16,8 @@ class OneShowsClient(BaseClient):
     def __init__(self, config, session=None, series_type=None, content_filter=None):
         self.series_type = series_type
         self.content_filter = content_filter
+        self.name = '1Shows'
+        self.provider_name = '1Shows'
         self.base_url = config.get('base_url', 'https://www.1shows.org/')
         self.search_url = config.get('search_url', 'https://www.1shows.org/api/search/query?query=')
         self.tv_url = config.get('tv_url', 'https://www.1shows.org/api/tv/')

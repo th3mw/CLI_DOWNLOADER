@@ -6,7 +6,8 @@ logger = logging.getLogger()
 CATEGORIES = {
     1: 'Anime',
     2: 'Movies',
-    3: 'TV Shows'
+    3: 'TV Shows',
+    4: 'NSFW / Hentai'
 }
 
 # Category Provider Registry
@@ -77,6 +78,22 @@ CATEGORY_PROVIDERS = {
             'class_path': 'Content.Series.Providers.KissKhClient.KissKhClient',
             'content_filter': 'tv'
         }
+    ],
+    'NSFW': [
+        {
+            'key': 'hanime',
+            'label': '🔞  Hanime (Hentai & NSFW Anime)',
+            'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
+            'content_filter': 'nsfw'
+        }
+    ],
+    'NSFW / Hentai': [
+        {
+            'key': 'hanime',
+            'label': '🔞  Hanime (Hentai & NSFW Anime)',
+            'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
+            'content_filter': 'nsfw'
+        }
     ]
 }
 
@@ -94,6 +111,16 @@ CATEGORY_DOWNLOADERS = {
     'TV Shows': {
         'hls': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
         'http': 'Content.Series.Downloaders.SeriesDownloader.SeriesDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
+    },
+    'NSFW': {
+        'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
+        'http': 'Core.BaseDownloader.BaseDownloader',
+        'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
+    },
+    'NSFW / Hentai': {
+        'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
+        'http': 'Core.BaseDownloader.BaseDownloader',
         'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     }
 }
@@ -113,7 +140,7 @@ def get_provider_info(category_name, provider_key):
     return None
 
 
-def create_client(category_name, provider_key, category_config, hls_size_accuracy=0):
+def create_client(category_name, provider_key, category_config, hls_size_accuracy=0, audio_preference='sub'):
     '''
     Factory method to dynamically instantiate provider clients.
     '''
@@ -132,8 +159,11 @@ def create_client(category_name, provider_key, category_config, hls_size_accurac
         logger.error(f"Failed to import client class {class_path}: {e}")
         return None
 
-    # Inject hls_size_accuracy into category config
-    category_config.update({'hls_size_accuracy': hls_size_accuracy})
+    # Inject hls_size_accuracy and audio_preference into category config
+    category_config.update({
+        'hls_size_accuracy': hls_size_accuracy,
+        'audio_preference': audio_preference
+    })
 
     content_filter = provider_info.get('content_filter')
     logger.debug(f"Creating instance of {class_name} for category '{category_name}' with filter '{content_filter}'")

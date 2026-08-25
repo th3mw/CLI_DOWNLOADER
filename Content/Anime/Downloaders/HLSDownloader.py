@@ -28,13 +28,20 @@ def _sanitize_segment_name(filename):
 def _strip_fake_header(data):
     '''
     Some CDNs (like VidTube) obfuscate MPEG-TS segments by prepending fake image/file headers (PNG, JPEG, etc.).
-    Locate the first 188-byte aligned TS sync byte (0x47) and strip the leading fake header bytes.
+    Only strip if the data starts with known fake image magic bytes and contains 0x47 sync bytes.
     '''
     if isinstance(data, bytes) and len(data) > 376 and data[0] != 0x47:
-        data_len = len(data)
-        for i in range(min(2048, data_len - 188)):
-            if data[i] == 0x47 and data[i + 188] == 0x47:
-                return data[i:]
+        is_fake_image = (
+            data.startswith(b'\x89PNG\r\n\x1a\n') or
+            data.startswith(b'\xff\xd8\xff') or
+            data.startswith(b'GIF8') or
+            (data.startswith(b'RIFF') and b'WEBP' in data[:16])
+        )
+        if is_fake_image:
+            data_len = len(data)
+            for i in range(min(2048, data_len - 188)):
+                if data[i] == 0x47 and data[i + 188] == 0x47:
+                    return data[i:]
     return data
 
 
@@ -66,6 +73,7 @@ class HLSDownloader(BaseDownloader):
         # initialize HLS specific configuration
         self.m3u8_file = os.path.join(f'{self.temp_dir}', 'uwu.m3u8')
         self.thread_name_prefix = 'scraper-hls-'
+        self.is_encrypted = False
 
     def _has_uri(self, m3u8_data):
         if not m3u8_data:
@@ -136,7 +144,7 @@ class HLSDownloader(BaseDownloader):
                 return (f'Segment file [{segment_file_nm}] already exists. Reusing.', 1)
 
             data = self._get_stream_data(ts_url)
-            clean_data = _strip_fake_header(data)
+            clean_data = data if self.is_encrypted else _strip_fake_header(data)
 
             with open(segment_file, "wb") as ts_file:
                 ts_file.write(clean_data)
@@ -220,9 +228,10 @@ class HLSDownloader(BaseDownloader):
         iv = None
         self.logger.debug('Fetching stream data')
         m3u8_data = self._get_stream_data(m3u8_link, True)
+        self.is_encrypted = self._has_uri(m3u8_data)
 
         self.logger.debug('Check if stream is encrypted/mapped')
-        if self._has_uri(m3u8_data):
+        if self.is_encrypted:
             self.logger.debug('Stream is encrypted/mapped. Collect iv data and download key')
             key_uri, iv = self._collect_uri_iv(m3u8_data, m3u8_link)
             if key_uri:

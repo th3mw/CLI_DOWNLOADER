@@ -133,7 +133,9 @@ def exec_os_cmd(cmd, timeout=300):
     std_err = stderr.decode("utf-8", errors="ignore")
     rc = proc.returncode
     if rc != 0:
-        raise Exception(f"Error occurred: {std_err}")
+        err_lines = [l.strip() for l in std_err.strip().splitlines() if l.strip()]
+        concise_err = '\n'.join(err_lines[-3:]) if err_lines else f"Process exited with code {rc}"
+        raise Exception(concise_err)
     return msg
 
 

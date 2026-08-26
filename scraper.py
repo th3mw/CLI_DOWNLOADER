@@ -1,4 +1,5 @@
 import argparse
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import os, sys
@@ -110,7 +111,139 @@ def check_if_exists(path):
     except Exception as e:
         raise Exception(f'Failed to create download path [{path}]. Error: {e}')
 
+def resume_task(record, config_data):
+    '''
+    Resume an incomplete download record from SQLite database.
+    '''
+    rec_id = record.get('id')
+    title = record.get('title', 'Unknown')
+    season = int(record.get('season') or 1)
+    episode = int(record.get('episode') or 1)
+    resolution = str(record.get('resolution') or '720').rstrip('pP')
+    content_type = record.get('content_type') or 'Anime'
+    download_type = record.get('download_type') or 'hls'
+    target_filepath = record.get('target_filepath')
+    download_link = record.get('download_link')
+    referer_link = record.get('referer_link', '')
+    provider_name = record.get('provider', '')
+
+    if not target_filepath:
+        base_dir = config_data.get(content_type, {}).get('download_dir') or config_data.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+        out_dir = os.path.expanduser(base_dir)
+        out_file = f"{title}.mkv"
+        target_filepath = os.path.join(out_dir, out_file)
+    else:
+        out_dir = os.path.dirname(target_filepath)
+        out_file = os.path.basename(target_filepath)
+
+    check_if_exists(out_dir)
+
+    if os.path.isfile(target_filepath) and os.path.getsize(target_filepath) > 0:
+        colprint('success', f"\n  [✓] {out_file} is already complete on disk! (Size: {history_manager.format_size(os.path.getsize(target_filepath))})")
+        history_manager.record_complete(rec_id, os.path.getsize(target_filepath))
+        return True
+
+    colprint('header', f"\n  🔄 Resuming download: {out_file} [{provider_name}]...")
+    history_manager.record_resumed(rec_id)
+
+    dl_config = config_data.get('DownloaderConfig', {}).copy()
+    dl_config['download_dir'] = out_dir
+    dl_config['max_parallel_downloads'] = 1
+
+    ep_details = {
+        'series_title': title,
+        'season': season,
+        'episode': episode,
+        'episodeName': out_file,
+        'resolution': resolution,
+        'downloadType': download_type,
+        'downloadLink': download_link,
+        'refererLink': referer_link,
+        'type': 'tv' if content_type == 'TV Shows' else ('movie' if content_type == 'Movies' else 'anime')
+    }
+
+    downloader_cls = get_downloader(content_type, download_type)
+    dlClient = downloader_cls(dl_config, ep_details)
+
+    success = False
+    error_msg = ''
+    try:
+        if download_link:
+            res = dlClient.start_download(download_link)
+            if isinstance(res, tuple) and res[0] != 0:
+                error_msg = res[1] or 'Download failed'
+            else:
+                success = True
+        else:
+            error_msg = 'No download link in record'
+    except Exception as e:
+        error_msg = str(e)
+
+    # If direct resumption failed with stored link, try re-fetching fresh stream link
+    if not success and provider_name:
+        colprint('warning', f"  ⚠️ Stored link expired or failed ({error_msg}). Re-resolving via {provider_name}...")
+        try:
+            prov_key = provider_name.lower().replace(' ', '').replace('/', '_')
+            for p in get_providers_for_category(content_type):
+                if p['key'] in prov_key or prov_key in p['key'] or p['label'].lower().find(prov_key) != -1:
+                    prov_key = p['key']
+                    break
+
+            cat_cfg = config_data.get(content_type, {})
+            client_inst = create_client(content_type, prov_key, cat_cfg)
+            if client_inst:
+                clean_title = re.sub(r'\s*-\s*S\d+.*$', '', title).strip()
+                search_results = client_inst.search(clean_title)
+                if search_results:
+                    match_item = search_results[0] if isinstance(search_results, list) else list(search_results.values())[0]
+                    eps_list = client_inst.fetch_episodes_list(match_item)
+                    if eps_list:
+                        ep_links = client_inst.fetch_episode_links(eps_list, {'start': episode, 'end': episode})
+                        if ep_links:
+                            fresh_links = client_inst.fetch_m3u8_links(ep_links, str(resolution), f"{clean_title} - ")
+                            if fresh_links:
+                                fresh_item = list(fresh_links.values())[0] if isinstance(fresh_links, dict) else fresh_links[0]
+                                fresh_url = fresh_item.get('downloadLink')
+                                if fresh_url:
+                                    colprint('success', f"  ✔ Fresh link obtained! Resuming stream download...")
+                                    ep_details['downloadLink'] = fresh_url
+                                    ep_details['refererLink'] = fresh_item.get('refererLink', referer_link)
+                                    dlClient = downloader_cls(dl_config, ep_details)
+                                    res = dlClient.start_download(fresh_url)
+                                    if isinstance(res, tuple) and res[0] != 0:
+                                        error_msg = res[1] or 'Download failed'
+                                    else:
+                                        success = True
+        except Exception as refetch_err:
+            error_msg = f"{error_msg} | Refetch error: {refetch_err}"
+
+    if success and os.path.isfile(target_filepath) and os.path.getsize(target_filepath) > 0:
+        file_size = os.path.getsize(target_filepath)
+        history_manager.record_complete(rec_id, file_size)
+
+        # Video compression if requested
+        if (args and getattr(args, 'compress', False)) or (config_data and config_data.get('PostProcessing', {}).get('auto_compress', False)):
+            post_cfg = config_data.get('PostProcessing', {}) if config_data else {}
+            compressor.compress_video(
+                target_filepath,
+                codec=post_cfg.get('codec', 'hevc'),
+                crf=post_cfg.get('crf', 23),
+                preset=post_cfg.get('preset', 'slow')
+            )
+            file_size = os.path.getsize(target_filepath)
+            history_manager.record_complete(rec_id, file_size)
+
+        colprint('success', f"\n  ✔ Resumed download completed successfully! ({out_file})\n")
+        return True
+    else:
+        history_manager.record_failure(rec_id, error_msg)
+        colprint('error', f"\n  ✗ Resumption failed for {out_file}: {error_msg}\n")
+        return False
+
 def handle_history_menu():
+    global config, config_file
+    if not config:
+        config = load_yaml(config_file)
     while True:
         clear_screen()
         render_step_header(step_title='Download History & Tasks')
@@ -128,10 +261,15 @@ def handle_history_menu():
         elif c == 2:
             records = history_manager.render_incomplete_view()
             if records:
-                sel = colprint('user_input', f'\n  ➜ Enter task # to view details [1-{len(records)}, 0=Cancel]: ', input_type='recurring', input_dtype='int', input_options=list(range(0, len(records)+1)))
-                if sel > 0:
-                    rec = records[sel - 1]
-                    colprint('header', f"\n  Task: {rec['title']} (Resolution: {rec.get('resolution')})")
+                opt_list = [str(i) for i in range(len(records)+1)] + ['a', 'A', 'all', 'ALL']
+                sel = colprint('user_input', f'\n  ➜ Enter task # to resume [1-{len(records)}, A=All, 0=Cancel]: ', input_type='recurring', input_options=opt_list)
+                if str(sel).lower() in ['a', 'all']:
+                    colprint('header', f"\n  ⚡ Resuming all {len(records)} incomplete download(s)...\n")
+                    for rec in records:
+                        resume_task(rec, config)
+                elif str(sel).isdigit() and int(sel) > 0:
+                    rec = records[int(sel) - 1]
+                    resume_task(rec, config)
             input('\n  ➜ Press Enter to continue...')
         elif c == 3:
             history_manager.clear_history()
@@ -572,26 +710,6 @@ Examples:
         # initialize color printer
         colprint_init(disable_colors)
 
-        # Handle standalone history flags
-        if args.history:
-            history_manager.render_history_view(35)
-            sys.exit(0)
-        if args.clear_history:
-            history_manager.clear_history()
-            colprint('success', '\n  ✔ Download history successfully purged.\n')
-            sys.exit(0)
-        if args.incomplete:
-            history_manager.render_incomplete_view()
-            sys.exit(0)
-
-        # Display hero banner
-        if not args.quiet and series_type_predef is not None:
-            hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5\033[0m',
-                '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows • NSFW\033[0m'
-            ], center=True)
-            print(f'\n{hero_box}\n')
-
         # load config from yaml to dict using yaml
         config = load_yaml(config_file)
         downloader_config = config['DownloaderConfig']
@@ -605,6 +723,41 @@ Examples:
         logger.info('-------------------------------- NEW SCRAPER SESSION --------------------------------')
 
         logger.info(f'CLI options: {args}')
+
+        # Handle standalone history flags
+        if args.history:
+            history_manager.render_history_view(35)
+            sys.exit(0)
+        if args.clear_history:
+            history_manager.clear_history()
+            colprint('success', '\n  ✔ Download history successfully purged.\n')
+            sys.exit(0)
+        if args.incomplete:
+            records = history_manager.render_incomplete_view()
+            if records:
+                if args.start_download:
+                    colprint('header', f"\n  ⚡ Automatically resuming all {len(records)} incomplete download(s)...\n")
+                    for rec in records:
+                        resume_task(rec, config)
+                else:
+                    opt_list = [str(i) for i in range(len(records)+1)] + ['a', 'A', 'all', 'ALL']
+                    sel = colprint('user_input', f'\n  ➜ Enter task # to resume [1-{len(records)}, A=All, 0=Exit]: ', input_type='recurring', input_options=opt_list)
+                    if str(sel).lower() in ['a', 'all']:
+                        colprint('header', f"\n  ⚡ Resuming all {len(records)} incomplete download(s)...\n")
+                        for rec in records:
+                            resume_task(rec, config)
+                    elif str(sel).isdigit() and int(sel) > 0:
+                        rec = records[int(sel) - 1]
+                        resume_task(rec, config)
+            sys.exit(0)
+
+        # Display hero banner
+        if not args.quiet and series_type_predef is not None:
+            hero_box = render_box('', [
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5\033[0m',
+                '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows • NSFW\033[0m'
+            ], center=True)
+            print(f'\n{hero_box}\n')
 
         # remove older log files
         delete_old_logs(config['LoggerConfig']['log_dir'], config['LoggerConfig'].get('log_retention_days', 7), config['LoggerConfig'].get('log_backup_count', 3))

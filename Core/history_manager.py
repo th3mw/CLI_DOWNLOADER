@@ -163,9 +163,28 @@ def get_history(limit: int = 25):
         return []
 
 
+def record_resumed(download_id: int):
+    '''
+    Mark a download task as resumed / in_progress.
+    '''
+    if not download_id:
+        return
+    try:
+        with get_connection() as conn:
+            conn.execute('''
+                UPDATE downloads
+                SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (download_id,))
+            conn.commit()
+    except Exception:
+        pass
+
+
 def get_incomplete_downloads():
     '''
     Fetch interrupted / incomplete download records.
+    Deduplicates by target_filepath or (title, season, episode, resolution) keeping the latest.
     '''
     init_db()
     try:
@@ -175,14 +194,19 @@ def get_incomplete_downloads():
                 SELECT * FROM downloads
                 WHERE status IN ('in_progress', 'paused', 'failed')
                 ORDER BY id DESC
-                LIMIT 50
+                LIMIT 100
             ''')
             rows = [dict(row) for row in cursor.fetchall()]
-            # Filter out entries where target file already exists and is complete
             incomplete = []
+            seen = set()
             for r in rows:
                 target_path = r.get('target_filepath')
-                if not target_path or not os.path.isfile(target_path):
+                if target_path and os.path.isfile(target_path) and os.path.getsize(target_path) > 0:
+                    record_complete(r['id'], os.path.getsize(target_path))
+                    continue
+                dedup_key = target_path if target_path else (r.get('title'), r.get('season'), r.get('episode'), r.get('resolution'))
+                if dedup_key not in seen:
+                    seen.add(dedup_key)
                     incomplete.append(r)
             return incomplete
     except Exception:

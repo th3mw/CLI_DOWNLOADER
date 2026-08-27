@@ -103,6 +103,7 @@ def parse_task_selection(user_input: str, total_tasks: int) -> list:
 def get_audio_preference(category_name, predefined_audio=None):
     '''
     Show audio selection menu (Sub vs Dub) for Anime in interactive mode.
+    Sub (Original Japanese Audio) is preferred by default.
     '''
     if predefined_audio is not None:
         colprint('predefined', f'\n  Using Predefined Audio: {predefined_audio}')
@@ -112,17 +113,22 @@ def get_audio_preference(category_name, predefined_audio=None):
     default_idx = 2 if default_pref in ('dub', 'english') else 1
 
     menu_lines = [
-        f"\033[1m[1]\033[0m  🇯🇵  Sub (Original Japanese Audio + English Subtitles)",
+        f"\033[1m[1]\033[0m  🇯🇵  \033[1mSub (Original Japanese Audio + English Subtitles)\033[0m \033[38;5;39m[default]\033[0m",
         f"\033[1m[2]\033[0m  🇺🇸  Dub (English Voice Acting)",
         f"\033[1m[3]\033[0m  🌐  Dual Audio / Multi-Audio",
     ]
     print('\n' + render_box('AUDIO LANGUAGE PREFERENCE', menu_lines))
-    choice = colprint('user_input', f'\n  ➜ Select Audio [1=Sub, 2=Dub, 3=Dual Audio] [default={default_idx}]: ', input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True)
+    choice = colprint('user_input', f'\n  ➜ Select Audio [1=Sub, 2=Dub, 3=Dual Audio] [default={default_idx}]: ', input_type='recurring', input_options=['1', '2', '3', 'sub', 'dub', 'dual', 's', 'd', 1, 2, 3], allow_empty_input=True)
     if choice is None or choice == '':
-        choice = default_idx
+        return 'sub'
 
-    choice_map = {1: 'sub', 2: 'dub', 3: 'dual'}
-    return choice_map.get(choice, 'sub')
+    choice_str = str(choice).strip().lower()
+    if choice_str in ('2', 'dub', 'd'):
+        return 'dub'
+    elif choice_str in ('3', 'dual'):
+        return 'dual'
+    else:
+        return 'sub'
 
 def get_client(provider_key=None):
     '''Return a client instance based on the selected provider.'''

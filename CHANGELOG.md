@@ -17,18 +17,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Live Download Center**: Animated progress gauges, real-time speed charts, and active queue management (Pause / Resume / Cancel).
   - **Dual Execution Modes**: Launch full TUI with `media-scraper --tui` while retaining zero-dependency headless CLI mode for automated scripts.
 
-## [v1.5.0] - 2026-08-25
+## [v1.5.0] - 2026-08-27
 
 ### 🚀 Added
+- **Interactive Audio Preference System (Sub Preferred by Default)**:
+  - Added interactive `AUDIO LANGUAGE PREFERENCE` menu upon entering Anime mode when not specified via CLI flag (`-a / --audio`).
+  - Highlights `[1] 🇯🇵 Sub (Original Japanese Audio + English Subtitles) [default]` with instant Enter fallback.
+  - Automatically prioritizes English Dubbed audio tracks and servers on `AnimeSugeClient`, `AniDbClient`, `KissKhClient`, and `NyaaClient` when `dub` is chosen.
+  - Expanded `NyaaClient` to search for `Dual Audio` and `Dub` release queries (`"<Anime> Dual Audio 01"`, `"<Anime> Dub 01"`) and score Dub releases higher.
+- **Flexible Multi-Task Selective Resumption (`parse_task_selection`)**:
+  - Enhanced incomplete download resumption to support selective task picking:
+    - Comma-separated tasks: `1,3` or `1, 3, 5`
+    - Task ranges: `1-2` or `1-4`
+    - Combined ranges: `1, 3-5, 8`
+    - All tasks: `all` or `a`
+  - Integrated across both the Interactive Task Manager (`[5] -> [2]`) and CLI flag (`media-scraper -I`).
+- **Incomplete Download Resumption Engine & Automatic Link Re-Resolution**:
+  - Implemented `resume_task()` engine in `scraper.py` that checks for existing files and reuses cached `.ts` segments and `.chk` chunks from `temp_dir`.
+  - Automatically re-queries provider clients to obtain fresh stream links when stored CDN links expire (HTTP 403 / 404 / 410).
+  - Deduplicates repeated failed task entries in SQLite ledger and automatically marks records completed with exact file sizes upon finishing.
 - **Hanime.tv NSFW Provider (`HanimeClient`)**:
   - Reverse-engineered Hanime API v11 cryptographic handshake protocol with AES-256-GCM token encryption and WASM signature generation.
   - Lightning-fast in-memory fuzzy search across Hanime's complete 3,500+ title catalog with studio branding, release year, like counts, and view metrics.
   - Direct HLS master stream resolution with multi-resolution selection (1080p, 720p, 480p, 360p).
-  - Registered as `[4] 🔞 NSFW / Hentai` in category selector.
-- **Audio Preference System (Sub & Dub Options)**:
-  - Added `-a / --audio {sub, dub, dual, all}` CLI option and `AudioPreference.default_audio` configuration setting.
-  - Automatically prioritizes English Dubbed audio tracks and servers on `AnimeSugeClient`, `AniDbClient`, `KissKhClient`, and `NyaaClient` when `dub` is selected.
-- **SQLite Download History & Incomplete Resumption Manager (`history_manager.py`)**:
+  - Registered as `[4] 🔞 Hentai (NSFW)` saving under `{Anime}/Hentai (NSFW)/{Series Name}`.
+- **SQLite Download History & Task Manager (`history_manager.py`)**:
   - Embedded zero-dependency SQLite task ledger (`~/.config/media-scraper/history.db`).
   - Added CLI inspection flags: `--history` (`-H`), `--incomplete` (`-I`), and `--clear-history`.
   - Added interactive `[5] 📜 Download History & Task Manager` in the Main Menu with one-key resume for interrupted downloads.
@@ -39,9 +52,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable via `--compress` (`-cmp`) CLI flag or `PostProcessing.auto_compress` in `config_scraper.yaml`.
 - **Automatic Config Version Migration**:
   - Auto-detects outdated `config_scraper.yaml` versions (<1.5.0) and upgrades them seamlessly upon first launch while preserving all user custom directory paths and settings.
+
+### 🛠️ Changed & Improved
+- **Dynamic Download Session Error Reporting & Summary Cards**:
+  - Replaced blind success notices with dynamic `[SUCCESS]`, `[PARTIAL]`, and `[FAILED]` summary cards in `scraper.py`.
+  - Summarizes failure counts and displays concise root cause descriptions extracted from FFmpeg/downloader logs.
 - **Standardized Search Badges & Provider Branding**:
-  - Search result cards across all providers now render clean, standardized badges (`[TV Series]`, `[Movie]`, `[OVA]`, `[Special]`, `[NSFW]`, episode counts, dub/sub availability, ratings, and release year).
-  - Fixed breadcrumb navigation to accurately reflect active provider name (e.g. `📍 Location: Anime › Nyaa › Solo Leveling › Select Episodes`).
+  - Search result cards across all providers render clean, standardized badges (`[TV Series]`, `[Movie]`, `[OVA]`, `[Special]`, `[NSFW]`, episode counts, dub/sub availability, ratings, and release year).
+  - Pre-download inspection card displays active Audio track configuration (`Audio: 🇺🇸 English Dubbed` or `Audio: 🇯🇵 Sub (Original Japanese)`).
+
+### 🐛 Fixed
+- **HLS AES-128 Decryption Stream Corruption**: Guarded fake header stripping exclusively to known image magic byte signatures (`PNG`, `JPEG`, `GIF`, `WEBP`) and bypassed stripping for encrypted ciphertext, preventing AES CBC-16 block boundary corruption and FFmpeg `non-existing PPS 0 referenced` errors.
+- **Scope Resolution in `get_client`**: Resolved `NameError: name 'series_type_predef' is not defined` when initializing clients in interactive mode by checking `getattr(args, 'series_type', None)`.
+- **Missing `re` Module Import in `scraper.py`**: Added `import re` required for title sanitization during stream link re-resolution.
+- **Unexecuted Resumption in History Menu & CLI**: Fixed issue where choosing to resume incomplete tasks in `handle_history_menu` and `media-scraper -I` only printed the task title without downloading.
 
 ---
 

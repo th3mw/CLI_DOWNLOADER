@@ -140,7 +140,7 @@ def get_client(provider_key=None):
         if provider_key == 'BACK':
             return None
 
-    if series_type == 'Anime' and getattr(args, 'audio', None) is None and series_type_predef is None:
+    if series_type == 'Anime' and getattr(args, 'audio', None) is None and getattr(args, 'series_type', None) is None:
         audio_pref = get_audio_preference(series_type)
     else:
         audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')

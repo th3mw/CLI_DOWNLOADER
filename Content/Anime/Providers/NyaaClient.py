@@ -193,14 +193,31 @@ class NyaaClient(BaseClient):
         clean_title = re.sub(r'[^a-zA-Z0-9 ]', '', raw_title)
         clean_canon = re.sub(r'[^a-zA-Z0-9 ]', '', canon_title) if canon_title else None
 
-        queries = [
-            f"{clean_title} - {ep_no:02d}",
-            f"{clean_title} {ep_no:02d}",
-            f"{clean_title} E{ep_no:02d}"
-        ]
-        if clean_canon and clean_canon.lower() != clean_title.lower():
-            queries.append(f"{clean_canon} - {ep_no:02d}")
-            queries.append(f"{clean_canon} {ep_no:02d}")
+        if self.audio_preference in ('dub', 'dual'):
+            queries = [
+                f"{clean_title} Dual Audio - {ep_no:02d}",
+                f"{clean_title} Dual Audio {ep_no:02d}",
+                f"{clean_title} Dub - {ep_no:02d}",
+                f"{clean_title} Dub {ep_no:02d}",
+                f"{clean_title} English - {ep_no:02d}",
+                f"{clean_title} - {ep_no:02d}",
+                f"{clean_title} {ep_no:02d}",
+                f"{clean_title} E{ep_no:02d}"
+            ]
+            if clean_canon and clean_canon.lower() != clean_title.lower():
+                queries.insert(2, f"{clean_canon} Dual Audio {ep_no:02d}")
+                queries.insert(4, f"{clean_canon} Dub {ep_no:02d}")
+                queries.append(f"{clean_canon} - {ep_no:02d}")
+                queries.append(f"{clean_canon} {ep_no:02d}")
+        else:
+            queries = [
+                f"{clean_title} - {ep_no:02d}",
+                f"{clean_title} {ep_no:02d}",
+                f"{clean_title} E{ep_no:02d}"
+            ]
+            if clean_canon and clean_canon.lower() != clean_title.lower():
+                queries.append(f"{clean_canon} - {ep_no:02d}")
+                queries.append(f"{clean_canon} {ep_no:02d}")
 
         raw_items = []
         for q in queries:
@@ -238,14 +255,26 @@ class NyaaClient(BaseClient):
                 'title': title
             })
 
-        # Group by resolution, picking candidate with highest seeds
+        # Group by resolution, prioritizing dub/dual-audio candidates when preferred
         resolution_links = {}
         by_res = {}
         for c in candidates:
             by_res.setdefault(c['quality'], []).append(c)
 
         for res_k, items_list in by_res.items():
-            best = max(items_list, key=lambda x: x['seeds'])
+            if self.audio_preference in ('dub', 'dual'):
+                def _score_candidate(x):
+                    t = x['title'].lower()
+                    score = x['seeds']
+                    if 'dual audio' in t or 'dual-audio' in t or 'multi-audio' in t or 'multi audio' in t:
+                        score += 10000
+                    elif 'dub' in t or 'dubbed' in t or 'english' in t or 'eng' in t:
+                        score += 5000
+                    return score
+                best = max(items_list, key=_score_candidate)
+            else:
+                best = max(items_list, key=lambda x: x['seeds'])
+
             resolution_links[res_k] = {
                 'downloadLink': best['magnet'],
                 'downloadType': 'torrent',

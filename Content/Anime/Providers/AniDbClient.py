@@ -24,10 +24,10 @@ class AniDbClient(BaseClient):
         self.episodes_url = f'{self.base_url}/api/frontend/anime/'
         self.languages_url = f'{self.base_url}/api/frontend/episode/'
         self.audio_preference = (config.get('audio_preference') or 'sub').lower()
-        if self.audio_preference == 'dub':
-            self.preferred_languages = ['eng', 'dub', 'jpn', 'sub']
+        if self.audio_preference in ('dub', 'dual'):
+            self.preferred_languages = ['eng', 'dub', 'english', 'en', 'jpn', 'sub', 'japanese']
         else:
-            self.preferred_languages = ['jpn', 'sub', 'eng', 'dub']
+            self.preferred_languages = ['jpn', 'sub', 'japanese', 'eng', 'dub', 'english', 'en']
         self.series_type = series_type
         self.content_filter = content_filter
         self.selector_strategy = anidb_config.get('alternate_resolution_selector', 'lowest') if isinstance(anidb_config, dict) else 'lowest'

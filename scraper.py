@@ -62,6 +62,68 @@ def get_provider(category_name, predefined_provider=None):
         choice = colprint('user_input', f'\n  ➜ Enter choice [1-{len(providers)}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
         return choices[choice]
 
+def parse_task_selection(user_input: str, total_tasks: int) -> list:
+    '''
+    Parse task selection input supporting single numbers, comma-separated lists, ranges, or 'all'.
+    Examples:
+      '1' -> [1]
+      '1,3' -> [1, 3]
+      '1-3' -> [1, 2, 3]
+      '1, 3-5, 8' -> [1, 3, 4, 5, 8]
+      'a', 'all' -> [1, 2, ..., total_tasks]
+      '0', 'q', 'exit' -> []
+    Returns list of 1-based task indices (sorted and unique).
+    '''
+    if not user_input or not str(user_input).strip():
+        return []
+    s = str(user_input).strip().lower()
+    if s in ('0', 'q', 'exit', 'cancel', 'back'):
+        return []
+    if s in ('a', 'all'):
+        return list(range(1, total_tasks + 1))
+
+    selected = set()
+    parts = [p.strip() for p in s.split(',') if p.strip()]
+    for part in parts:
+        if '-' in part:
+            sub = [x.strip() for x in part.split('-')]
+            if len(sub) == 2 and sub[0].isdigit() and sub[1].isdigit():
+                start = max(1, int(sub[0]))
+                end = min(total_tasks, int(sub[1]))
+                if start <= end:
+                    selected.update(range(start, end + 1))
+                else:
+                    selected.update(range(end, start + 1))
+        elif part.isdigit():
+            val = int(part)
+            if 1 <= val <= total_tasks:
+                selected.add(val)
+    return sorted(list(selected))
+
+def get_audio_preference(category_name, predefined_audio=None):
+    '''
+    Show audio selection menu (Sub vs Dub) for Anime in interactive mode.
+    '''
+    if predefined_audio is not None:
+        colprint('predefined', f'\n  Using Predefined Audio: {predefined_audio}')
+        return predefined_audio.lower()
+
+    default_pref = (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub').lower()
+    default_idx = 2 if default_pref in ('dub', 'english') else 1
+
+    menu_lines = [
+        f"\033[1m[1]\033[0m  🇯🇵  Sub (Original Japanese Audio + English Subtitles)",
+        f"\033[1m[2]\033[0m  🇺🇸  Dub (English Voice Acting)",
+        f"\033[1m[3]\033[0m  🌐  Dual Audio / Multi-Audio",
+    ]
+    print('\n' + render_box('AUDIO LANGUAGE PREFERENCE', menu_lines))
+    choice = colprint('user_input', f'\n  ➜ Select Audio [1=Sub, 2=Dub, 3=Dual Audio] [default={default_idx}]: ', input_type='recurring', input_dtype='int', input_options=[1, 2, 3], allow_empty_input=True)
+    if choice is None or choice == '':
+        choice = default_idx
+
+    choice_map = {1: 'sub', 2: 'dub', 3: 'dual'}
+    return choice_map.get(choice, 'sub')
+
 def get_client(provider_key=None):
     '''Return a client instance based on the selected provider.'''
     global series_type, config, logger, hls_size_accuracy, args
@@ -72,7 +134,11 @@ def get_client(provider_key=None):
         if provider_key == 'BACK':
             return None
 
-    audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')
+    if series_type == 'Anime' and getattr(args, 'audio', None) is None and series_type_predef is None:
+        audio_pref = get_audio_preference(series_type)
+    else:
+        audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')
+
     category_config = config.setdefault(series_type, {})
     client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy, audio_preference=audio_pref)
     if not client_inst:
@@ -261,15 +327,16 @@ def handle_history_menu():
         elif c == 2:
             records = history_manager.render_incomplete_view()
             if records:
-                opt_list = [str(i) for i in range(len(records)+1)] + ['a', 'A', 'all', 'ALL']
-                sel = colprint('user_input', f'\n  ➜ Enter task # to resume [1-{len(records)}, A=All, 0=Cancel]: ', input_type='recurring', input_options=opt_list)
-                if str(sel).lower() in ['a', 'all']:
-                    colprint('header', f"\n  ⚡ Resuming all {len(records)} incomplete download(s)...\n")
-                    for rec in records:
+                try:
+                    sel = input(f'\n  ➜ Enter task #(s) to resume (e.g. 1,3 or 1-2, A=All, 0=Cancel): ').strip()
+                except (EOFError, KeyboardInterrupt):
+                    sel = '0'
+                selected_indices = parse_task_selection(sel, len(records))
+                if selected_indices:
+                    colprint('header', f"\n  ⚡ Resuming {len(selected_indices)} selected task(s)...\n")
+                    for idx in selected_indices:
+                        rec = records[idx - 1]
                         resume_task(rec, config)
-                elif str(sel).isdigit() and int(sel) > 0:
-                    rec = records[int(sel) - 1]
-                    resume_task(rec, config)
             input('\n  ➜ Press Enter to continue...')
         elif c == 3:
             history_manager.clear_history()
@@ -740,15 +807,16 @@ Examples:
                     for rec in records:
                         resume_task(rec, config)
                 else:
-                    opt_list = [str(i) for i in range(len(records)+1)] + ['a', 'A', 'all', 'ALL']
-                    sel = colprint('user_input', f'\n  ➜ Enter task # to resume [1-{len(records)}, A=All, 0=Exit]: ', input_type='recurring', input_options=opt_list)
-                    if str(sel).lower() in ['a', 'all']:
-                        colprint('header', f"\n  ⚡ Resuming all {len(records)} incomplete download(s)...\n")
-                        for rec in records:
+                    try:
+                        sel = input(f'\n  ➜ Enter task #(s) to resume (e.g. 1,3 or 1-2, A=All, 0=Exit): ').strip()
+                    except (EOFError, KeyboardInterrupt):
+                        sel = '0'
+                    selected_indices = parse_task_selection(sel, len(records))
+                    if selected_indices:
+                        colprint('header', f"\n  ⚡ Resuming {len(selected_indices)} selected task(s)...\n")
+                        for idx in selected_indices:
+                            rec = records[idx - 1]
                             resume_task(rec, config)
-                    elif str(sel).isdigit() and int(sel) > 0:
-                        rec = records[int(sel) - 1]
-                        resume_task(rec, config)
             sys.exit(0)
 
         # Display hero banner
@@ -996,10 +1064,13 @@ Examples:
             prov_name = getattr(client, 'name', '') or str(series_type)
             render_step_header(breadcrumbs=[str(series_type), prov_name, series_title, 'Download Inspection'])
 
+        audio_pref_val = getattr(client, 'audio_preference', None) or 'sub'
+        audio_label = '🇺🇸 English Dubbed (Dub)' if audio_pref_val == 'dub' else ('🌐 Dual Audio / Multi-Audio' if audio_pref_val == 'dual' else '🇯🇵 Sub (Original Japanese)')
         checklist_lines = [
             f"\033[1mSeries:\033[0m     \033[38;5;39m{series_title}\033[0m",
             f"\033[1mSave Path:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
             f"\033[1mResolution:\033[0m \033[38;5;220m{resolution}P\033[0m (MKV with Forced English Subtitles)",
+            f"\033[1mAudio:\033[0m      \033[38;5;39m{audio_label}\033[0m",
             f"\033[1mQueued:\033[0m     {available_dl_count} episode(s) ready to download"
         ]
         if already_downloaded_count > 0:

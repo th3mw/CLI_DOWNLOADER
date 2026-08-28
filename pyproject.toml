@@ -26,7 +26,7 @@ dependencies = [
     "pycryptodomex",
     "undetected-chromedriver",
     "setuptools",
-    "quickjs"
+    "quickjs; python_version < '3.13'"
 ]
 
 [project.scripts]

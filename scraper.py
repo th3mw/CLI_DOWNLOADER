@@ -3,6 +3,18 @@ import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import os, sys
+
+# Ensure UTF-8 stdout/stderr and ANSI support on Windows
+if sys.platform == 'win32' or os.name == 'nt':
+    try:
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+    os.system('')  # Enable VT100 / ANSI escape sequences in Windows terminal
+
 from time import time
 import traceback
 

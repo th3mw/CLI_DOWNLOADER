@@ -57,34 +57,78 @@ Here is the Media Scraper in action:
 ## 📦 Installation
 
 ### Prerequisites
-- **Python 3.8+**
+- **Python 3.10 – 3.12** *(Python 3.12 is strongly recommended for prebuilt binary wheels on Windows & macOS)*
 - **FFmpeg** (installed and available in your system `PATH`)
+
+---
 
 ### Global CLI Installation (Recommended)
 
-Install globally from GitHub using `pipx` or `uv tool` to make the `media-scraper` command available everywhere on your system:
+Install globally from GitHub using `uv tool` (fastest & most reliable) or `pipx`:
 
-#### Option A: Using `pipx` (Recommended)
+#### Option A: Using `uv tool` (Recommended)
 ```bash
-pipx install git+https://github.com/th3mw/CLI_DOWNLOADER.git
+# Linux / macOS / Windows
+uv tool install --python 3.12 git+https://github.com/th3mw/CLI_DOWNLOADER.git
 ```
 
-#### Option B: Using `uv tool`
+#### Option B: Using `pipx`
 ```bash
-uv tool install git+https://github.com/th3mw/CLI_DOWNLOADER.git
+# Linux / macOS
+pipx install --python python3.12 git+https://github.com/th3mw/CLI_DOWNLOADER.git
+
+# Windows (Command Prompt / PowerShell)
+pipx install --python py -3.12 git+https://github.com/th3mw/CLI_DOWNLOADER.git
 ```
 
-#### Option C: Local Editable Install
+#### Option C: Local Development / Editable Install
 ```bash
 git clone https://github.com/th3mw/CLI_DOWNLOADER.git
 cd CLI_DOWNLOADER
-pip install -e .
+uv sync --python 3.12
+# or: pip install -e .
 ```
 
 After installation, run `media-scraper` from any terminal directory:
 ```bash
 media-scraper
 ```
+
+---
+
+### 🪟 Windows Setup & Troubleshooting Guide
+
+If you are running on Windows, keep the following optimizations and tips in mind:
+
+#### 1. 🐍 Python Version & C-Extension Build Errors
+- **Issue**: `error: Microsoft Visual C++ 14.0 or greater is required` when installing on Python 3.13+.
+- **Solution**: Install using **Python 3.12** (`--python 3.12` or `--python py -3.12`). Python 3.12 provides precompiled binary wheels for Windows, requiring zero compiler tools.
+- Alternatively, install [Node.js](https://nodejs.org/) or [Bun](https://bun.sh/) on your system; `media-scraper` will automatically use your native Node/Bun engine for JavaScript decryption.
+
+#### 2. 🎥 FFmpeg Setup on Windows
+- FFmpeg is required to remux video streams and subtitles into `.mkv` containers.
+- Install easily via Windows Package Manager (`winget`):
+  ```powershell
+  winget install Gyan.FFmpeg
+  ```
+  *(Or via Chocolatey: `choco install ffmpeg`)*
+- Ensure a new PowerShell window is opened after installing so FFmpeg is detected in your `PATH`.
+
+#### 3. 🛡️ PowerShell Script Execution Policy
+- If running `media-scraper` returns `cannot be loaded because running scripts is disabled on this system`:
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+
+#### 4. 💻 Recommended Terminal
+- Use **[Windows Terminal](https://aka.ms/terminal)** (default in Windows 11, available via Microsoft Store on Windows 10) instead of legacy `cmd.exe` for full 24-bit ANSI color and Unicode border rendering.
+
+#### 5. 📁 Long File Paths (Optional)
+- Deeply nested series folders may exceed Windows' default 260-character path limit.
+- To enable long paths in PowerShell (Run as Administrator):
+  ```powershell
+  New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+  ```
 
 ---
 

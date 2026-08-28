@@ -200,6 +200,13 @@ def colprint_init(disable_colors=False):
         DISPLAY_COLORS = True
         if os.name == 'nt':
             os.system('')   # required to enable ANSI output in Windows terminals
+            try:
+                if hasattr(sys.stdout, 'reconfigure'):
+                    sys.stdout.reconfigure(encoding='utf-8')
+                if hasattr(sys.stderr, 'reconfigure'):
+                    sys.stderr.reconfigure(encoding='utf-8')
+            except Exception:
+                pass
 
 # custom stdout printer
 def colprint(theme, text, **kwargs):

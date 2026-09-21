@@ -302,6 +302,7 @@ class AnikotoClient(BaseClient):
 
         soup = self._get_bsoup_from_html(resp['result'])
         episodes = []
+        seen_eps = set()
         series_title = target.get('title', 'Anime')
 
         for a in soup.select('.episodes a, a[data-id], a[data-ids]'):
@@ -313,12 +314,24 @@ class AnikotoClient(BaseClient):
             except ValueError:
                 ep_no = len(episodes) + 1
 
+            if ep_no in seen_eps:
+                continue
+            seen_eps.add(ep_no)
+
             raw_name = a.text.strip()
             ep_title_clean = re.sub(r'^\d+\s*', '', raw_name)
             name_label = f"{series_title} - E{ep_no:02d}" + (f" - {ep_title_clean}" if ep_title_clean else "")
 
             sub_avail = a.get('data-sub') == '1'
             dub_avail = a.get('data-dub') == '1'
+
+            self._update_scraper_dict(ep_no, {
+                'episodeName': name_label,
+                'data_id': data_id,
+                'data_ids': data_ids,
+                'anime_id': anime_id,
+                'season': 1
+            })
 
             episodes.append({
                 'episode': ep_no,
@@ -329,9 +342,11 @@ class AnikotoClient(BaseClient):
                 'anime_id': anime_id,
                 'sub_available': sub_avail,
                 'dub_available': dub_avail,
-                'show_title': series_title
+                'show_title': series_title,
+                'season': 1
             })
 
+        episodes.sort(key=lambda x: x['episode'])
         return episodes
 
     def show_episode_results(self, items, *predefined_range):
@@ -368,56 +383,84 @@ class AnikotoClient(BaseClient):
     def _extract_stream_sources(self, embed_url):
         '''
         Fetch and decrypt master m3u8 sources from MegaPlay / Vidstream embed.
+        Extracts internal player data-id and tests sources endpoints with CDN routing.
         '''
         try:
+            from urllib.parse import parse_qs
             parsed = urlparse(embed_url)
             origin = f"{parsed.scheme}://{parsed.netloc}"
             match = re.search(r'/(?:stream|videojs)/(?:s-\d+/)?(\d+)', parsed.path)
-            if not match:
-                return None, {}
+            url_id = match.group(1) if match else None
 
-            real_id = match.group(1)
             parts = parsed.path.rstrip('/').split('/')
             vid_type = parts[-1] if parts else 'sub'
+            if '?' in vid_type:
+                vid_type = vid_type.split('?')[0]
 
-            for ep_name in ['getSourcesNew', 'getSources']:
-                sources_url = f"{origin}/stream/{ep_name}?id={real_id}&type={vid_type}"
-                resp = self._send_request(
-                    sources_url,
-                    referer=embed_url,
-                    extra_headers={'X-Requested-With': 'XMLHttpRequest'},
-                    return_type='json',
-                    silent=True
-                )
-                if not resp:
-                    continue
+            qs = parse_qs(parsed.query)
+            s_param = qs.get('s', [None])[0]
 
-                subtitles = {}
-                tracks = resp.get('tracks', [])
-                if isinstance(tracks, list):
-                    for tr in tracks:
-                        if isinstance(tr, dict) and tr.get('file'):
-                            label = tr.get('label', 'English')
-                            subtitles[label] = tr['file']
+            # Fetch the embed page HTML to extract the internal player data-id
+            embed_html = self._send_request(embed_url, referer=self.base_url, silent=True)
+            candidate_ids = []
+            if embed_html:
+                soup = self._get_bsoup_from_html(embed_html)
+                player = soup.select_one('#megaplay-player, [data-id], .fix-area')
+                if player and player.get('data-id'):
+                    candidate_ids.append(player['data-id'])
+                data_id_match = re.search(r'data-id=[\"\'](\d+)[\"\']', embed_html)
+                if data_id_match and data_id_match.group(1) not in candidate_ids:
+                    candidate_ids.append(data_id_match.group(1))
 
-                # Case A: Encrypted payload ("enc")
-                if 'enc' in resp and resp['enc']:
-                    dec_json = self._decrypt_megaplay_sources(resp['enc'])
-                    if dec_json:
-                        import json
-                        try:
-                            dec_obj = json.loads(dec_json)
-                            m3u8_url = dec_obj.get('file')
-                            if m3u8_url:
-                                return m3u8_url, subtitles
-                        except Exception:
-                            pass
+            if url_id and url_id not in candidate_ids:
+                candidate_ids.append(url_id)
 
-                # Case B: Plain sources object
-                if isinstance(resp.get('sources'), dict) and resp['sources'].get('file'):
-                    return resp['sources']['file'], subtitles
-                elif isinstance(resp.get('sources'), list) and resp['sources'] and resp['sources'][0].get('file'):
-                    return resp['sources'][0]['file'], subtitles
+            for cid in candidate_ids:
+                for ep_name in ['getSourcesNew', 'getSources']:
+                    # Try with and without s parameter (CDN selector)
+                    s_options = [f"&s={s_param}"] if s_param else [""]
+                    if not s_param:
+                        s_options.append("&s=tcdn")
+                        s_options.append("&s=bcdn")
+
+                    for s_suffix in s_options:
+                        sources_url = f"{origin}/stream/{ep_name}?id={cid}&type={vid_type}{s_suffix}"
+                        resp = self._send_request(
+                            sources_url,
+                            referer=embed_url,
+                            extra_headers={'X-Requested-With': 'XMLHttpRequest'},
+                            return_type='json',
+                            silent=True
+                        )
+                        if not resp or not isinstance(resp, dict):
+                            continue
+
+                        subtitles = {}
+                        tracks = resp.get('tracks', [])
+                        if isinstance(tracks, list):
+                            for tr in tracks:
+                                if isinstance(tr, dict) and tr.get('file'):
+                                    label = tr.get('label', 'English')
+                                    subtitles[label] = tr['file']
+
+                        # Case A: Encrypted payload ("enc")
+                        if 'enc' in resp and resp['enc']:
+                            dec_json = self._decrypt_megaplay_sources(resp['enc'])
+                            if dec_json:
+                                import json
+                                try:
+                                    dec_obj = json.loads(dec_json)
+                                    m3u8_url = dec_obj.get('file')
+                                    if m3u8_url:
+                                        return m3u8_url, subtitles
+                                except Exception:
+                                    pass
+
+                        # Case B: Plain sources object
+                        if isinstance(resp.get('sources'), dict) and resp['sources'].get('file'):
+                            return resp['sources']['file'], subtitles
+                        elif isinstance(resp.get('sources'), list) and resp['sources'] and resp['sources'][0].get('file'):
+                            return resp['sources'][0]['file'], subtitles
 
         except Exception as e:
             self.logger.debug(f'Error extracting stream sources from {embed_url}: {e}')
@@ -433,15 +476,15 @@ class AnikotoClient(BaseClient):
         data_ids = episode.get('data_ids')
 
         if not anime_id or not data_ids:
-            return ep_no, None, {'error': 'Missing anime_id or data_ids'}
+            return ep_no, {'error': f'Missing anime_id or data_ids for episode {ep_no}'}
 
         server_html = self._get_server_list(anime_id, data_ids)
         if not server_html:
-            return ep_no, None, {'error': f'Failed to retrieve server list for episode {ep_no}'}
+            return ep_no, {'error': f'Failed to retrieve server list for episode {ep_no}'}
 
         soup = self._get_bsoup_from_html(server_html)
 
-        # Categorize servers by type (dub, sub)
+        # Categorize servers by type (sub, dub, hsub)
         servers_by_type = {}
         for type_div in soup.select('.type[data-type]'):
             stype = type_div.get('data-type', 'sub').lower()
@@ -452,13 +495,12 @@ class AnikotoClient(BaseClient):
         for ptype in self.preferred_server_types:
             if ptype in servers_by_type and servers_by_type[ptype]:
                 server_candidates.extend(servers_by_type[ptype])
-                break
 
         if not server_candidates:
             server_candidates = soup.select('li[data-link-id]')
 
         if not server_candidates:
-            return ep_no, None, {'error': f'No streaming servers available for episode {ep_no}'}
+            return ep_no, {'error': f'No streaming servers available for episode {ep_no}'}
 
         merged_m3u8_links = {}
         all_subtitles = {}
@@ -557,3 +599,18 @@ class AnikotoClient(BaseClient):
         series_dir = self._windows_safe_string(title)
         episode_prefix = f"{title} -"
         return series_dir, episode_prefix
+
+    def get_season_ep_ranges(self, episodes):
+        '''
+        Return episode ranges organized by season.
+        AniKoto groups all episodes under season 1.
+        '''
+        season_ep_ranges = {}
+        for ep in episodes:
+            season = ep.get('season', 1)
+            if season not in season_ep_ranges:
+                season_ep_ranges[season] = {'start': ep['episode'], 'end': ep['episode']}
+            else:
+                season_ep_ranges[season]['start'] = min(season_ep_ranges[season]['start'], ep['episode'])
+                season_ep_ranges[season]['end'] = max(season_ep_ranges[season]['end'], ep['episode'])
+        return season_ep_ranges

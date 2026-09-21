@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Live Download Center**: Animated progress gauges, real-time speed charts, and active queue management (Pause / Resume / Cancel).
   - **Dual Execution Modes**: Launch full TUI with `media-scraper --tui` while retaining zero-dependency headless CLI mode for automated scripts.
 
+## [v1.6.0] - 2026-09-21
+
+### 🚀 Added
+- **AniKoto Anime Provider (`AnikotoClient`) — Registered as NO. 1 Top Pick**:
+  - Direct integration with `https://anikoto.cz/` placed at position `[1] 🔥 TOP PICK` in the Anime provider selection menu.
+  - Implemented reverse-engineered RC4 / ROT13 VRF token generation for server list and link resolution AJAX requests.
+  - Implemented AES-256-CBC decryption for MegaPlay stream sources with URL-safe base64 unpacking and dynamic m3u8 playlist discovery.
+  - High-fidelity 2-line search result cards with English and Japanese romaji titles, format badges (`[TV]`, `[Movie]`, `[Special]`, `[OVA]`, `[ONA]`), and Sub/Dub episode counts.
+  - Multi-resolution stream support (1080p, 720p, 480p, 360p) with WebVTT subtitle extraction.
+
+### 🛠️ Fixed & Improved
+- **Unified Resolution Prompting for Torrent & Stream Providers**:
+  - Eliminated redundant double resolution prompts when torrenting Movies via YTS and streaming/downloading via OneShows Movies/Series.
+  - Streamlined provider link retrieval to populate resolution mappings directly for `scraper.py`'s centralized resolution picker.
+  - Fixed `base_url` attribute access in `YTSClient`.
+
 ## [v1.5.0] - 2026-08-27
 
 ### 🚀 Added

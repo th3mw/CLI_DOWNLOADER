@@ -43,7 +43,8 @@ class YTSClient(BaseClient):
         self.content_filter = content_filter
         self.name = 'YTS'
         self.provider_name = 'YTS'
-        self.active_base_url = None
+        self.base_url = self.config.get('base_url', 'https://yts.lt')
+        self.active_base_url = self.base_url
         self._chosen_torrent = None
 
     def _get_api_response(self, endpoint, params=None):
@@ -150,7 +151,7 @@ class YTSClient(BaseClient):
         if not torrents:
             return ep_no, None, {'error': 'No torrents available for this title'}
 
-        # Sort: 2160p, 1080p, 720p
+        # Sort: 2160p, 1080p, 720p with Bluray and seed priority
         def sort_key(t):
             q = str(t.get('quality', '')).lower()
             seeds = int(t.get('seeds', 0))
@@ -165,58 +166,28 @@ class YTSClient(BaseClient):
 
         sorted_torrents = sorted(torrents, key=sort_key, reverse=True)
 
-        variety_lines = []
-        default_choice = 1
-        for i, t in enumerate(sorted_torrents, start=1):
-            q = str(t.get('quality', '1080p')).upper()
-            t_type = t.get('type', 'bluray').capitalize()
-            size = t.get('size', 'Unknown')
-            seeds = t.get('seeds', 0)
-            peers = t.get('peers', 0)
-            rec = " (Recommended)" if ('1080' in q and default_choice == 1) else ""
-            if rec and default_choice == 1:
-                default_choice = i
-            label = f"{q:<5} • {t_type:<6} ({size:>9}) • Seeds: {seeds:<4} | Peers: {peers:<4}{rec}"
-            variety_lines.append(f"\033[1m[{i:2d}]\033[0m  {label}")
+        resolution_links = {}
+        for t in sorted_torrents:
+            q_clean = str(t.get('quality', '1080')).upper().replace('P', '')
+            if q_clean not in resolution_links:
+                t_type = t.get('type', 'bluray').capitalize()
+                size = t.get('size', 'Unknown')
+                seeds = t.get('seeds', 0)
+                info_hash = t.get('hash', '')
+                magnet = self._generate_magnet(info_hash, f"{episode.get('episodeName')} [{q_clean}P] [YTS]")
+                resolution_links[q_clean] = {
+                    'downloadLink': magnet,
+                    'downloadType': 'torrent',
+                    'resolution_size': f"{size} • {t_type} • Seeds: {seeds}",
+                    'torrent_info': t
+                }
 
-        print('\n' + render_box('AVAILABLE TORRENT QUALITIES', variety_lines))
-
-        selected_idx = default_choice
-        try:
-            user_choice = self._colprint(
-                'user_input',
-                f"\n  ➜ Select torrent quality [1-{len(sorted_torrents)}] [default={default_choice}]: ",
-                input_type='recurring',
-                input_dtype='int'
-            )
-            if user_choice and 1 <= int(user_choice) <= len(sorted_torrents):
-                selected_idx = int(user_choice)
-        except Exception:
-            selected_idx = default_choice
-
-        chosen_t = sorted_torrents[selected_idx - 1]
-        self._chosen_torrent = chosen_t
-
-        q_clean = str(chosen_t.get('quality', '1080')).upper().replace('P', '')
-        t_type = chosen_t.get('type', 'bluray').capitalize()
-        size = chosen_t.get('size', 'Unknown')
-        seeds = chosen_t.get('seeds', 0)
-        peers = chosen_t.get('peers', 0)
-        info_hash = chosen_t.get('hash', '')
-
-        magnet = self._generate_magnet(info_hash, f"{episode.get('episodeName')} [{q_clean}P] [YTS]")
-
-        colprint('results', f"  Selected: {q_clean}P • {t_type} ({size}) • Seeds: {seeds} | Peers: {peers}")
-
-        # Return chosen resolution as the single selected resolution
-        resolution_links = {
-            q_clean: {
-                'downloadLink': magnet,
-                'downloadType': 'torrent',
-                'resolution_size': f"{size} • Seeds: {seeds}",
-                'torrent_info': chosen_t
-            }
-        }
+        self._update_scraper_dict(ep_no, episode)
+        self._update_scraper_dict(ep_no, {
+            'streamLink': next(iter(resolution_links.values())).get('downloadLink'),
+            'refererLink': self.base_url,
+            'subtitles': {}
+        })
 
         return ep_no, resolution_links, {}
 

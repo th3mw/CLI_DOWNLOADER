@@ -12,16 +12,20 @@ The Media Scraper is designed around a domain-modular, object-oriented architect
 flowchart TD
     CLI[scraper.py - CLI & UI Loop] --> Factory[Core/provider_factory.py]
     Factory --> ClientChoice{Domain & Provider Selection}
+    ClientChoice -->|Anime| AniKoto[Content/Anime/Providers/AnikotoClient]
     ClientChoice -->|Anime| AnimeSuge[Content/Anime/Providers/AnimeSugeClient]
     ClientChoice -->|Anime| AniDb[Content/Anime/Providers/AniDbClient]
     ClientChoice -->|Anime / Drama| KissKh[Content/Anime/Providers/KissKhClient]
     ClientChoice -->|Movies| OneShowsM[Content/Movies/Providers/OneShowsClient]
+    ClientChoice -->|Movies| YTS[Content/Movies/Providers/YTSClient]
     ClientChoice -->|TV Series| OneShowsTV[Content/Series/Providers/OneShowsClient]
     
-    AnimeSuge --> BaseClient[Core/BaseClient]
+    AniKoto --> BaseClient[Core/BaseClient]
+    AnimeSuge --> BaseClient
     AniDb --> BaseClient
     KissKh --> BaseClient
     OneShowsM --> BaseClient
+    YTS --> BaseClient
     OneShowsTV --> BaseClient
 
     CLI --> DownloaderChoice{Domain Downloader Dispatcher}
@@ -43,6 +47,7 @@ flowchart TD
   - [`Core/commons.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/commons.py): Global 2-space margin printer (`colprint`), `render_box` Unicode cards, universal JS runner (`exec_js`), YAML loader.
   - [`Core/provider_factory.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Core/provider_factory.py): Dynamic provider and downloader factory registry.
 - **`Content/Anime/`**: Dedicated Anime domain modules:
+  - [`Content/Anime/Providers/AnikotoClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AnikotoClient.py): AniKoto provider (#1 Top Pick) with RC4/ROT13 VRF token generation and AES-256-CBC MegaPlay decryption.
   - [`Content/Anime/Providers/AnimeSugeClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AnimeSugeClient.py): AnimeSuge provider with multi-server resolution aggregation.
   - [`Content/Anime/Providers/AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AniDbClient.py): AniDB provider with multi-language HLS streams and `.xls` segment sanitization.
   - [`Content/Anime/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/KissKhClient.py): KissKh provider (Anime filter).
@@ -59,6 +64,12 @@ flowchart TD
 ---
 
 ## 2. Provider Implementations & Mechanics
+
+### AniKoto Client (`Content/Anime/Providers/AnikotoClient.py`) - NO. 1 Anime Provider
+- **Search & Tooltip Aggregation**: Queries `https://anikoto.cz/filter?keyword={query}` to extract English/Japanese titles (`data-jp`), poster thumbnails, format badges (`[TV]`, `[Movie]`, `[Special]`, `[OVA]`, `[ONA]`), Sub/Dub counts, and tooltip ratings (`★ 8.87`).
+- **VRF Token Algorithm**: Generates verification tokens for `/ajax/server/list` and `/ajax/server` using RC4 key `"ysJhV6U27FVIjjuk"`, Base64 encoding, custom byte shifting, and ROT13 transformation.
+- **MegaPlay AES-256-CBC Decryption**: Decrypts encrypted video sources via AES-256-CBC (`Key: b'i?LMTAx0Q6,:}50U'.ljust(32, b'\0')`, `IV: b"W0;27ToaUpl_P%'c"`), uncovering dynamic `.m3u8` playlists and WebVTT subtitle tracks.
+- **Multi-Resolution Resolution**: Automatically discovers all available master playlist streams across 1080p, 720p, 480p, and 360p.
 
 ### AniDB Client (`Clients/AniDbClient.py`)
 - **API & Browse Scraping**: Scrapes search cards from `/browse?q={query}` (with fallback to `/search/suggestions?q=`), parsing anime title, type (`[TV]`, `[MOVIE]`, `[SPECIAL]`), rating, and slug IDs.

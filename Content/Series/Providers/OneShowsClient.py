@@ -259,56 +259,50 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
             self.logger.error('No download sources found after decryption')
             return ep_no, None, {'error': 'No download sources found'}
 
-        sources = decrypted['sources']
-        
-        # Display Available Download Varieties (Source + Res + Size)
-        ep_title = episode.get('episodeName', f"Episode {ep_no}")
-        variety_lines = []
-        for i, s in enumerate(sources, start=1):
-            label = s.get('label', 'Direct Link')
-            variety_lines.append(f"\033[1m[{i:2d}]\033[0m  {label}")
-        
-        from Core.commons import render_box
-        print('\n' + render_box('AVAILABLE DOWNLOAD VARIETIES', variety_lines))
+        resolution_links = {}
+        for s in sources:
+            label = s.get('label', '1080p')
+            raw_url = s.get('url', '')
+            res_key = '1080'
+            if '2160' in label or '4k' in label.lower():
+                res_key = '2160'
+            elif '1080' in label:
+                res_key = '1080'
+            elif '720' in label:
+                res_key = '720'
+            elif '480' in label:
+                res_key = '480'
+            elif '360' in label:
+                res_key = '360'
 
-        selected_idx = 1
-        try:
-            user_choice = self._colprint(
-                'user_input',
-                f"\n  ➜ Select download variety [1-{len(sources)}] [default=1]: ",
-                input_type='recurring',
-                input_dtype='int'
-            )
-            if user_choice and 1 <= int(user_choice) <= len(sources):
-                selected_idx = int(user_choice)
-        except Exception:
-            selected_idx = 1
+            if res_key not in resolution_links:
+                selected_url = self._resolve_source_link(raw_url)
+                if selected_url:
+                    resolution_links[res_key] = {
+                        'downloadLink': selected_url,
+                        'downloadType': 'http',
+                        'resolution_size': label,
+                        'refererLink': self.base_url
+                    }
 
-        chosen_source = sources[selected_idx - 1]
-        selected_label = chosen_source.get('label', 'Direct Link')
-        raw_url = chosen_source.get('url', '')
-
-        self.logger.debug(f'Selected variety: {selected_label} -> {raw_url}')
-        selected_url = self._resolve_source_link(raw_url)
-        if not selected_url:
-            return ep_no, None, {'error': 'Failed resolving download URL'}
+        if not resolution_links and sources:
+            raw_url = sources[0].get('url', '')
+            selected_url = self._resolve_source_link(raw_url)
+            resolution_links['1080'] = {
+                'downloadLink': selected_url,
+                'downloadType': 'http',
+                'resolution_size': sources[0].get('label', '1080p'),
+                'refererLink': self.base_url
+            }
 
         self._update_scraper_dict(ep_no, episode)
         self._update_scraper_dict(ep_no, {
-            'streamLink': selected_url,
+            'streamLink': next(iter(resolution_links.values())).get('downloadLink'),
             'refererLink': self.base_url,
-            'quality': selected_label
+            'quality': next(iter(resolution_links.values())).get('resolution_size')
         })
 
-        res_dict = {
-            '1080': {
-                'downloadLink': selected_url,
-                'downloadType': 'http',
-                'resolution_size': selected_label,
-                'refererLink': self.base_url
-            }
-        }
-        return ep_no, res_dict, None
+        return ep_no, resolution_links, None
 
     def fetch_episode_links(self, episodes, ep_ranges):
         '''Fetch download links for episodes in parallel'''

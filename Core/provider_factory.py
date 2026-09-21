@@ -15,6 +15,12 @@ CATEGORIES = {
 CATEGORY_PROVIDERS = {
     'Anime': [
         {
+            'key': 'anikoto',
+            'label': '🔥  AniKoto (HD Anime • Sub & Dub)',
+            'class_path': 'Content.Anime.Providers.AnikotoClient.AnikotoClient',
+            'content_filter': None
+        },
+        {
             'key': 'nyaa',
             'label': '🧲  Nyaa (Anime Torrents)',
             'class_path': 'Content.Anime.Providers.NyaaClient.NyaaClient',

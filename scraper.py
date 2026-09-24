@@ -770,9 +770,20 @@ Examples:
                          help='accuracy to display the file size of hls files (0-100)')
         parser.add_argument('-tc', '--torrent-client', choices=['aria2', 'system', 'auto'], help='preferred torrent engine (aria2 for in-terminal, system for desktop app, auto for automatic)')
         parser.add_argument('-dl', '--disable-looping', default=False, action='store_true', help='disable auto-restart')
+        parser.add_argument('--tui', action='store_true', help='launch interactive Textual TUI interface')
 
         global args
         args = parser.parse_args()
+
+        if args.tui:
+            try:
+                from TUI.app import run_tui
+                run_tui(config_file=args.conf)
+                sys.exit(0)
+            except Exception as e:
+                print(f"Error launching TUI: {e}")
+                sys.exit(1)
+
         config_file = args.conf
         log_file_name = args.log_file
         if log_file_name is None:

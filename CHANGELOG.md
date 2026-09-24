@@ -7,15 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [v2.0.0] - Planned Milestone (Interactive TUI Dashboard)
+## [v1.7.0] - 2026-09-24
 
-### 🎯 Planned Features
-- **Full Textual Terminal User Interface (TUI)**:
-  - Multi-screen dashboard with split-pane layout, mouse & keyboard navigation (`Vim` keys / arrow keys).
-  - **Live Search & Catalog Browser**: Real-time debounced fuzzy search results with metadata drawers and genre badges.
-  - **Interactive Episode Picker**: Visual multi-select checkboxes with one-key batch toggling (`Space` to select, `A` for All).
-  - **Live Download Center**: Animated progress gauges, real-time speed charts, and active queue management (Pause / Resume / Cancel).
-  - **Dual Execution Modes**: Launch full TUI with `media-scraper --tui` while retaining zero-dependency headless CLI mode for automated scripts.
+### 🚀 Added
+- **TorrentGalaxy (`TGx`) Provider for Movies and TV Series**:
+  - Direct integration with TorrentGalaxy (`https://torrentgalaxy.one`, `https://torrentgalaxy.info`) across Movies (`Content/Movies/Providers/TGxClient.py`) and TV Series (`Content/Series/Providers/TGxClient.py`).
+  - Implemented keyword search endpoint `/get-posts/keywords:{query}` with mirror failover handling.
+  - Multi-resolution quality classification (2160p 4K UHD, 1080p Full HD, 720p HD, 480p SD).
+  - Seeders, leechers/peers, and file size tracking per release.
+  - TV Shows integration with TVMaze metadata catalog for episode/season mapping and pattern matching across single episodes (`S01E01`), episode ranges (`S01E01-07`), and season packs (`Season 1` / `S01`).
+  - Fast concurrent magnet resolution via `ThreadPoolExecutor`.
+- **Textual TUI Groundwork (`--tui`)**:
+  - Added modern interactive Terminal User Interface (TUI) powered by `Textual` and `Rich`.
+  - Built `TUI/` architecture with responsive dark cyberpunk styling (`styles.tcss`).
+  - Search & Browse tab (`SearchTab`) with live category/provider dropdowns, keyboard-driven search, interactive `DataTable`, details & synopsis pane, and instant resolution picker.
+  - Activity & Logs tab (`DownloadsTab`) with live `RichLog` stream viewer.
+  - History & Resume tab (`HistoryTab`) connected with SQLite ledger for status filtering, record tracking, and download resumption.
+  - Settings & Preferences tab (`SettingsTab`) for visual configuration of download paths, default torrent engine (aria2 / system / auto), default audio, and video compression presets.
+  - Integrated `--tui` CLI flag in `scraper.py` and global `media-scraper` command.
 
 ## [v1.6.0] - 2026-09-21
 

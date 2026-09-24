@@ -52,11 +52,22 @@ flowchart TD
   - [`Content/Anime/Providers/AniDbClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/AniDbClient.py): AniDB provider with multi-language HLS streams and `.xls` segment sanitization.
   - [`Content/Anime/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Providers/KissKhClient.py): KissKh provider (Anime filter).
   - [`Content/Anime/Downloaders/HLSDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Anime/Downloaders/HLSDownloader.py): High-performance HLS segment downloader with MKV output & forced subtitles.
+- **`TUI/`**: Interactive Textual User Interface:
+  - [`TUI/app.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/app.py): Main Textual application class, tabs dispatcher, keybindings, and async workers.
+  - [`TUI/styles.tcss`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/styles.tcss): Dark cyberpunk theme stylesheets.
+  - [`TUI/tabs/search_tab.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/tabs/search_tab.py): Search & catalog browser with live results, metadata details, and resolution selector.
+  - [`TUI/tabs/downloads_tab.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/tabs/downloads_tab.py): Active downloads and live log stream viewer (`RichLog`).
+  - [`TUI/tabs/history_tab.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/tabs/history_tab.py): Download history table, status filter, and resumption.
+  - [`TUI/tabs/settings_tab.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/TUI/tabs/settings_tab.py): YAML configuration manager for download paths, engines, audio, and compression.
 - **`Content/Movies/`**: Dedicated Movies domain modules:
+  - [`Content/Movies/Providers/TGxClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/TGxClient.py): TorrentGalaxy Movies provider with seed/peer metrics and multi-resolution magnets.
+  - [`Content/Movies/Providers/YTSClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/YTSClient.py): YTS Movie Torrents provider.
   - [`Content/Movies/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/OneShowsClient.py): 1Shows movie provider (TMDb search + WASM decryption).
   - [`Content/Movies/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Providers/KissKhClient.py): KissKh Asian drama movie provider.
   - [`Content/Movies/Downloaders/MovieDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Movies/Downloaders/MovieDownloader.py): Dedicated continuous streaming movie downloader with HTTP range resumption and rate-limit mitigation.
 - **`Content/Series/`**: Dedicated TV Shows & Asian Dramas domain modules:
+  - [`Content/Series/Providers/TGxClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/TGxClient.py): TorrentGalaxy TV Shows provider with TVMaze metadata catalog and episode/range/season torrent mapping.
+  - [`Content/Series/Providers/EZTVClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/EZTVClient.py): EZTV TV torrents provider.
   - [`Content/Series/Providers/KissKhClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/KissKhClient.py): KissKh TV series provider.
   - [`Content/Series/Providers/OneShowsClient.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Providers/OneShowsClient.py): 1Shows TV series provider.
   - [`Content/Series/Downloaders/SeriesDownloader.py`](file:///home/th3mw/DEV/CLI_DOWNLOADER/Content/Series/Downloaders/SeriesDownloader.py): Multi-episode TV series downloader.

@@ -47,6 +47,12 @@ CATEGORY_PROVIDERS = {
     ],
     'Movies': [
         {
+            'key': 'tgx',
+            'label': '🌌  TorrentGalaxy (Movies Torrents)',
+            'class_path': 'Content.Movies.Providers.TGxClient.TGxClient',
+            'content_filter': 'movie'
+        },
+        {
             'key': 'yts',
             'label': '🧲  YTS / YIFY (Movie Torrents)',
             'class_path': 'Content.Movies.Providers.YTSClient.YTSClient',
@@ -66,6 +72,12 @@ CATEGORY_PROVIDERS = {
         }
     ],
     'TV Shows': [
+        {
+            'key': 'tgx',
+            'label': '🌌  TorrentGalaxy (TV Shows Torrents)',
+            'class_path': 'Content.Series.Providers.TGxClient.TGxClient',
+            'content_filter': 'tv'
+        },
         {
             'key': 'eztv',
             'label': '🧲  EZTV (TV Torrents)',

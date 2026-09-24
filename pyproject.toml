@@ -26,7 +26,8 @@ dependencies = [
     "pycryptodomex",
     "undetected-chromedriver",
     "setuptools",
-    "quickjs; python_version < '3.13'"
+    "quickjs; python_version < '3.13'",
+    "textual>=0.73.0",
 ]
 
 [project.scripts]
@@ -37,7 +38,7 @@ py-modules = ["scraper"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["Core*", "Content*", "Clients*", "Utils*"]
+include = ["Core*", "Content*", "Clients*", "Utils*", "TUI*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.yaml", "*.yml", "*.wasm", "*.js"]
+"*" = ["*.yaml", "*.yml", "*.wasm", "*.js", "*.tcss"]

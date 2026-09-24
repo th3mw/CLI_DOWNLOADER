@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.7.0] - 2026-09-24
 
 ### 🚀 Added
-- **TorrentGalaxy (`TGx`) Provider for Movies and TV Series**:
+- **TorrentGalaxy (`TGx`) Provider for Movies and TV Series (2nd Option)**:
   - Direct integration with TorrentGalaxy (`https://torrentgalaxy.one`, `https://torrentgalaxy.info`) across Movies (`Content/Movies/Providers/TGxClient.py`) and TV Series (`Content/Series/Providers/TGxClient.py`).
-  - Implemented keyword search endpoint `/get-posts/keywords:{query}` with mirror failover handling.
-  - Multi-resolution quality classification (2160p 4K UHD, 1080p Full HD, 720p HD, 480p SD).
-  - Seeders, leechers/peers, and file size tracking per release.
+  - Positioned as the **2nd option** in both Movies (following YTS) and TV Shows (following EZTV).
+  - **Single-Movie Grouping & Resolution Tiering (YTS-style UX)**: Grouped multiple releases of the same title into clean single-movie search cards (`[1] The Love Hypothesis (2026)`) displaying available quality tiers (`2160p`, `1080p`, `720p`, `480p`), top seeds, and sizes without duplicate listings.
+  - Interactive single-prompt resolution selection resolving directly to the highest-seeded magnet.
   - TV Shows integration with TVMaze metadata catalog for episode/season mapping and pattern matching across single episodes (`S01E01`), episode ranges (`S01E01-07`), and season packs (`Season 1` / `S01`).
+  - Resilient search fallback stripping leading articles (`The`, `A`, `An`) when strict exact matches return empty.
   - Fast concurrent magnet resolution via `ThreadPoolExecutor`.
 - **Textual TUI Groundwork (`--tui`)**:
   - Added modern interactive Terminal User Interface (TUI) powered by `Textual` and `Rich`.
@@ -25,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - History & Resume tab (`HistoryTab`) connected with SQLite ledger for status filtering, record tracking, and download resumption.
   - Settings & Preferences tab (`SettingsTab`) for visual configuration of download paths, default torrent engine (aria2 / system / auto), default audio, and video compression presets.
   - Integrated `--tui` CLI flag in `scraper.py` and global `media-scraper` command.
+
+### 🛠️ Fixed & Improved
+- **TUI Result Dictionary Parsing & Async Worker**:
+  - Resolved dictionary result unpack when providers return indexed mapping `{1: item1, ...}`, properly populating the DataTable.
+  - Removed unused `undetected-chromedriver` import from `BaseClient` that triggered `ValueError: bad value(s) in fds_to_keep` in Python 3.14 async thread workers.
+  - Switched config check in `load_yaml` to silent `migrate_config()` auto-migration to prevent blocking terminal prompts during TUI startup.
 
 ## [v1.6.0] - 2026-09-21
 

@@ -149,10 +149,10 @@ class SearchTab(Static):
     def _run_search_worker(self, category: str, provider: str, query: str) -> None:
         """Background thread executing the provider search."""
         try:
-            cat_cfg = self.config.get(category, {})
+            cat_cfg = dict(self.config.get(category, {}) or {})
             client = create_client(category, provider, cat_cfg)
             if not client:
-                self.app.call_from_thread(self._on_search_failed, f"Failed to initialize provider {provider}")
+                self.app.call_from_thread(self._on_search_failed, f"Failed to initialize provider '{provider}' for '{category}'")
                 return
 
             self.active_client = client
@@ -161,12 +161,18 @@ class SearchTab(Static):
         except Exception as e:
             self.app.call_from_thread(self._on_search_failed, str(e))
 
-    def _on_search_complete(self, results: list) -> None:
+    def _on_search_complete(self, results) -> None:
         """Populate DataTable with search results."""
         self.query_one("#btn-search", Button).loading = False
         table = self.query_one("#results-table", DataTable)
         table.clear()
-        self.current_results = results or []
+        
+        if isinstance(results, dict):
+            self.current_results = list(results.values())
+        elif isinstance(results, list):
+            self.current_results = results
+        else:
+            self.current_results = []
 
         if not self.current_results:
             self.app.notify("No matches found. Try refining search keywords.", severity="warning")

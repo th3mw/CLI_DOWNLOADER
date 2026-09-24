@@ -27,11 +27,6 @@ except ImportError:
     except ImportError:
         AES = None
 
-try:
-    import undetected_chromedriver as uc
-except ImportError:
-    uc = None
-
 from Core.commons import colprint, exec_os_cmd, pretty_time, retry, threaded, ExitException
 
 

@@ -28,7 +28,8 @@ PUBLIC_TRACKERS = [
 class TGxClient(BaseClient):
     '''
     Client for TorrentGalaxy (TGx) Movie Torrents.
-    Provides high-speed 4K UHD, 1080p, and 720p movie torrents with active seed/peer tracking.
+    Groups torrent releases by distinct movie with single-card search results
+    and unified multi-resolution selection (2160p, 1080p, 720p, 480p).
     '''
     MIRRORS = [
         'https://torrentgalaxy.one',
@@ -88,23 +89,43 @@ class TGxClient(BaseClient):
             return magnet_elem['href']
         return None
 
+    def _clean_movie_title(self, raw_title):
+        '''Extract clean movie name and release year from release title'''
+        ym = re.search(r'\b(19\d\d|20\d\d)\b', raw_title)
+        year = ym.group(1) if ym else None
+
+        split_match = re.split(r'\b(19\d\d|20\d\d|2160p|1080p|720p|480p|web|bluray|h264|x264|hevc|x265|dvd|hdrip|bdrip)\b', raw_title, flags=re.I)
+        name = split_match[0]
+        name = re.sub(r'[\._\(\)\[\]]', ' ', name)
+        name = re.sub(r'\s+', ' ', name).strip(' -')
+        if not name:
+            name = raw_title
+        return name, year
+
     def search(self, search_term):
         self.logger.info(f"Searching TorrentGalaxy for: {search_term}")
         search_path = f"get-posts/keywords:{urllib.parse.quote_plus(search_term)}"
         html = self._get_page(search_path)
 
-        if not html:
-            self.logger.warning(f"No response from TorrentGalaxy for '{search_term}'")
-            return None
+        soup = BeautifulSoup(html, 'html.parser') if html else None
+        rows = soup.select('.tgxtablerow') if soup else []
 
-        soup = BeautifulSoup(html, 'html.parser')
-        rows = soup.select('.tgxtablerow')
+        # Fallback if no results and search term starts with article (e.g. 'The ')
+        if not rows:
+            alt_term = re.sub(r'^(the|a|an)\s+', '', search_term, flags=re.I).strip()
+            if alt_term and alt_term.lower() != search_term.lower():
+                self.logger.debug(f"Retrying TGx search with alt term: '{alt_term}'")
+                search_path_alt = f"get-posts/keywords:{urllib.parse.quote_plus(alt_term)}"
+                html_alt = self._get_page(search_path_alt)
+                if html_alt:
+                    soup = BeautifulSoup(html_alt, 'html.parser')
+                    rows = soup.select('.tgxtablerow')
+
         if not rows:
             self.logger.warning(f"No movie torrents found on TorrentGalaxy for '{search_term}'")
             return None
 
-        results = {}
-        raw_items = []
+        movie_groups = {}
 
         for row in rows:
             title_elem = row.select_one('a.txlight[title], a[href*="/post-detail/"]')
@@ -114,7 +135,7 @@ class TGxClient(BaseClient):
             raw_title = title_elem.get('title') or title_elem.text.strip()
             detail_path = title_elem.get('href') or ''
 
-            # Exclude non-movie / music / software if in movies mode
+            # Exclude non-movie categories
             cat_elem = row.select_one('.tgxtablecell a[href*="category:"]')
             cat_name = cat_elem.text.strip().lower() if cat_elem else ''
             if cat_name in ['music', 'software', 'games', 'ebooks']:
@@ -147,17 +168,10 @@ class TGxClient(BaseClient):
             elif re.search(r'\b(480p|sd)\b', raw_title, re.I):
                 quality = '480'
 
-            # Parse year
-            year_match = re.search(r'\b(19\d\d|20\d\d)\b', raw_title)
-            year = year_match.group(1) if year_match else None
+            clean_name, year = self._clean_movie_title(raw_title)
+            group_key = (clean_name.lower(), year)
 
-            # Clean display title
-            clean_name = re.split(r'\b(19\d\d|20\d\d|2160p|1080p|720p|480p|web|bluray|h264|x264|hevc|x265)\b', raw_title, flags=re.I)[0]
-            clean_name = clean_name.replace('.', ' ').replace('_', ' ').strip(' -')
-            if not clean_name:
-                clean_name = raw_title
-
-            raw_items.append({
+            release_item = {
                 'raw_title': raw_title,
                 'clean_title': clean_name,
                 'detail_path': detail_path,
@@ -166,39 +180,65 @@ class TGxClient(BaseClient):
                 'peers': peers,
                 'quality': quality,
                 'year': year
-            })
+            }
 
-        if not raw_items:
+            if group_key not in movie_groups:
+                movie_groups[group_key] = {
+                    'clean_title': clean_name,
+                    'year': year,
+                    'releases_by_qual': {},
+                    'all_releases': []
+                }
+
+            movie_groups[group_key]['all_releases'].append(release_item)
+            # Retain best seeded release for each quality tier
+            existing = movie_groups[group_key]['releases_by_qual'].get(quality)
+            if not existing or seeds > existing['seeds']:
+                movie_groups[group_key]['releases_by_qual'][quality] = release_item
+
+        if not movie_groups:
             return None
 
-        # Sort by seeds descending
-        raw_items.sort(key=lambda x: x['seeds'], reverse=True)
+        # Sort movie groups by highest top seed
+        sorted_groups = sorted(
+            movie_groups.values(),
+            key=lambda g: max(r['seeds'] for r in g['all_releases']),
+            reverse=True
+        )
 
-        for idx, item in enumerate(raw_items[:15], start=1):
+        res_order = ['2160', '1080', '720', '480']
+        results = {}
+
+        for idx, g in enumerate(sorted_groups[:15], start=1):
+            clean_title = g['clean_title']
+            year = g['year']
+            rel_by_q = g['releases_by_qual']
+
+            avail_qualities = [q for q in res_order if q in rel_by_q]
+            if not avail_qualities:
+                avail_qualities = list(rel_by_q.keys())
+
+            q_str = ", ".join([f"{q}p" for q in avail_qualities])
+            top_seeds = max(r['seeds'] for r in g['all_releases'])
+
             meta_parts = []
-            if item['year']:
-                meta_parts.append(f"Year: {item['year']}")
-            meta_parts.append(f"Quality: {item['quality']}P")
-            meta_parts.append(f"Size: {item['size']}")
-            meta_parts.append(f"Seeds: {item['seeds']}")
-            meta_parts.append(f"Peers: {item['peers']}")
+            if year:
+                meta_parts.append(f"Year: {year}")
+            meta_parts.append(f"Qualities: {q_str}")
+            meta_parts.append(f"Top Seeds: {top_seeds}")
 
-            card_title = item['raw_title']
-            card_meta = " • ".join(meta_parts)
+            movie_display_title = f"{clean_title} ({year})" if year else clean_title
 
             results[idx] = {
-                'title': f"{item['clean_title']} ({item['year']})" if item['year'] else item['clean_title'],
-                'raw_title': item['raw_title'],
-                'detail_path': item['detail_path'],
-                'year': item['year'],
-                'quality': item['quality'],
-                'size': item['size'],
-                'seeds': item['seeds'],
-                'peers': item['peers'],
+                'title': movie_display_title,
+                'raw_title': clean_title,
+                'year': year,
+                'qualities': avail_qualities,
+                'releases': rel_by_q,
+                'all_releases': g['all_releases'],
                 'media_type': 'movie',
-                'all_items': raw_items,
-                'card_title': card_title,
-                'card_meta': card_meta
+                'card_title': movie_display_title,
+                'card_meta': " • ".join(meta_parts)
             }
 
         return results
@@ -213,7 +253,8 @@ class TGxClient(BaseClient):
             'media_type': 'movie',
             'season': 1,
             'ep_no': 1,
-            'target_movie': target
+            'target_movie': target,
+            'releases': target.get('releases', {})
         }]
 
     def show_episode_results(self, items, *predefined_range):
@@ -224,23 +265,15 @@ class TGxClient(BaseClient):
     def _fetch_single_episode_link(self, episode):
         ep_no = episode.get('episode', 1)
         target = episode.get('target_movie') or self._target_movie or {}
-        all_items = target.get('all_items', [target])
+        releases = episode.get('releases') or target.get('releases', {})
 
-        # Group items by quality (2160, 1080, 720, 480) picking the best seeded item per quality
-        qual_groups = {}
-        for it in all_items:
-            q = it.get('quality', '1080')
-            if q not in qual_groups:
-                qual_groups[q] = it
-
-        # Always ensure the chosen target item is included
-        target_q = target.get('quality', '1080')
-        qual_groups[target_q] = target
+        if not releases:
+            return ep_no, None, {'error': 'No releases available for this movie'}
 
         resolution_links = {}
 
-        def resolve_item(q_key, itm):
-            d_path = itm.get('detail_path')
+        def resolve_quality_magnet(q_key, rel_item):
+            d_path = rel_item.get('detail_path')
             if not d_path:
                 return None
             magnet = self._fetch_magnet_from_detail(d_path)
@@ -248,13 +281,13 @@ class TGxClient(BaseClient):
                 return q_key, {
                     'downloadLink': magnet,
                     'downloadType': 'torrent',
-                    'resolution_size': f"{itm.get('size', 'Unknown')} • Seeds: {itm.get('seeds', 0)}",
-                    'torrent_info': itm
+                    'resolution_size': f"{rel_item.get('size', 'Unknown')} • Seeds: {rel_item.get('seeds', 0)}",
+                    'torrent_info': rel_item
                 }
             return None
 
-        with ThreadPoolExecutor(max_workers=min(4, len(qual_groups))) as ex:
-            futures = [ex.submit(resolve_item, q, itm) for q, itm in qual_groups.items()]
+        with ThreadPoolExecutor(max_workers=min(4, len(releases))) as ex:
+            futures = [ex.submit(resolve_quality_magnet, q, itm) for q, itm in releases.items()]
             for fut in futures:
                 res = fut.result()
                 if res:

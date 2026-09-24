@@ -354,7 +354,7 @@ def threaded(max_parallel=None, thread_name_prefix='scraper-', print_status=Fals
         return wrapper
     return decorator
 
-CURRENT_CONFIG_VERSION = "1.5.0"
+CURRENT_CONFIG_VERSION = "1.7.0"
 
 
 def migrate_config(config, config_file):
@@ -381,55 +381,37 @@ def migrate_config(config, config_file):
             'default_audio': 'sub'
         }
 
-    # Ensure Anime section exists
+    base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
+
+    # Ensure Anime section exists and has anikoto
     if 'Anime' not in config:
-        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
-        config['Anime'] = {
-            'download_dir': f"{base_dir.rstrip('/')}/Anime",
-            'providers': {
-                'nyaa': {'base_url': 'https://nyaa.si'},
-                'anime_suge': {
-                    'base_url': 'https://animesuge.cz',
-                    'search_url': '/filter',
-                    'preferred_server_types': ['sub', 'hsub', 'dub']
-                },
-                'anidb': {
-                    'base_url': 'https://anidb.app',
-                    'search_url': 'https://anidb.app/browse?q='
-                },
-                'kisskh': {'base_url': 'https://kisskh.co'}
-            }
-        }
+        config['Anime'] = {'download_dir': f"{base_dir.rstrip('/')}/Anime", 'providers': {}}
+    anime_provs = config['Anime'].setdefault('providers', {})
+    if 'anikoto' not in anime_provs:
+        anime_provs['anikoto'] = {'base_url': 'https://anikoto.cz'}
 
-    # Ensure Movies section exists
+    # Ensure Movies section exists and has yts & tgx
     if 'Movies' not in config:
-        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
-        config['Movies'] = {
-            'download_dir': f"{base_dir.rstrip('/')}/Movies",
-            'providers': {
-                'yts': {'base_url': 'https://yts.lt'},
-                'oneshows': {'base_url': 'https://www.1shows.org'},
-                'kisskh': {'base_url': 'https://kisskh.co'}
-            }
-        }
+        config['Movies'] = {'download_dir': f"{base_dir.rstrip('/')}/Movies", 'providers': {}}
+    movie_provs = config['Movies'].setdefault('providers', {})
+    if 'yts' not in movie_provs:
+        movie_provs['yts'] = {'base_url': 'https://yts.lt'}
+    if 'tgx' not in movie_provs:
+        movie_provs['tgx'] = {'base_url': 'https://torrentgalaxy.one'}
 
-    # Ensure TV Shows section exists
+    # Ensure TV Shows section exists and has eztv & tgx
     if 'TV Shows' not in config:
-        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
-        config['TV Shows'] = {
-            'download_dir': f"{base_dir.rstrip('/')}/Series",
-            'providers': {
-                'eztv': {'base_url': 'https://eztvx.to'},
-                'oneshows': {'base_url': 'https://www.1shows.org'},
-                'kisskh': {'base_url': 'https://kisskh.co'}
-            }
-        }
+        config['TV Shows'] = {'download_dir': f"{base_dir.rstrip('/')}/Series", 'providers': {}}
+    tv_provs = config['TV Shows'].setdefault('providers', {})
+    if 'eztv' not in tv_provs:
+        tv_provs['eztv'] = {'base_url': 'https://eztvx.to'}
+    if 'tgx' not in tv_provs:
+        tv_provs['tgx'] = {'base_url': 'https://torrentgalaxy.one'}
 
-    # Ensure NSFW section exists
-    if 'NSFW' not in config:
-        base_dir = config.get('DownloaderConfig', {}).get('download_dir', '~/Videos')
-        config['NSFW'] = {
-            'download_dir': f"{base_dir.rstrip('/')}/NSFW",
+    # Ensure NSFW / Hentai section exists
+    if 'Hentai (NSFW)' not in config and 'NSFW' not in config and 'NSFW / Hentai' not in config:
+        config['Hentai (NSFW)'] = {
+            'download_dir': f"{base_dir.rstrip('/')}/Anime/Hentai (NSFW)",
             'providers': {
                 'hanime': {
                     'base_url': 'https://hanime.tv',
@@ -639,7 +621,7 @@ def load_yaml(config_file):
             if not isinstance(config, dict):
                 config = {}
             if config.get('version') != CURRENT_CONFIG_VERSION or ('Hentai (NSFW)' not in config and 'NSFW / Hentai' not in config and 'NSFW' not in config) or 'PostProcessing' not in config:
-                return run_config_wizard(target_path, existing_config=config)
+                return migrate_config(config, target_path)
             return config
         except yaml.YAMLError as exc:
             colprint('error', f"Error occured while reading yaml file: {exc}")

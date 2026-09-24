@@ -47,15 +47,15 @@ CATEGORY_PROVIDERS = {
     ],
     'Movies': [
         {
-            'key': 'tgx',
-            'label': '🌌  TorrentGalaxy (Movies Torrents)',
-            'class_path': 'Content.Movies.Providers.TGxClient.TGxClient',
-            'content_filter': 'movie'
-        },
-        {
             'key': 'yts',
             'label': '🧲  YTS / YIFY (Movie Torrents)',
             'class_path': 'Content.Movies.Providers.YTSClient.YTSClient',
+            'content_filter': 'movie'
+        },
+        {
+            'key': 'tgx',
+            'label': '🌌  TorrentGalaxy (Movies Torrents)',
+            'class_path': 'Content.Movies.Providers.TGxClient.TGxClient',
             'content_filter': 'movie'
         },
         {
@@ -73,15 +73,15 @@ CATEGORY_PROVIDERS = {
     ],
     'TV Shows': [
         {
-            'key': 'tgx',
-            'label': '🌌  TorrentGalaxy (TV Shows Torrents)',
-            'class_path': 'Content.Series.Providers.TGxClient.TGxClient',
-            'content_filter': 'tv'
-        },
-        {
             'key': 'eztv',
             'label': '🧲  EZTV (TV Torrents)',
             'class_path': 'Content.Series.Providers.EZTVClient.EZTVClient',
+            'content_filter': 'tv'
+        },
+        {
+            'key': 'tgx',
+            'label': '🌌  TorrentGalaxy (TV Shows Torrents)',
+            'class_path': 'Content.Series.Providers.TGxClient.TGxClient',
             'content_filter': 'tv'
         },
         {
@@ -197,6 +197,8 @@ def create_client(category_name, provider_key, category_config, hls_size_accurac
         client_cls = getattr(module, class_name)
     except Exception as e:
         logger.error(f"Failed to import client class {class_path}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return None
 
     # Inject hls_size_accuracy and audio_preference into category config
@@ -208,7 +210,13 @@ def create_client(category_name, provider_key, category_config, hls_size_accurac
     content_filter = provider_info.get('content_filter')
     logger.debug(f"Creating instance of {class_name} for category '{category_name}' with filter '{content_filter}'")
 
-    return client_cls(category_config, series_type=category_name, content_filter=content_filter)
+    try:
+        return client_cls(category_config, series_type=category_name, content_filter=content_filter)
+    except Exception as e:
+        logger.error(f"Failed to instantiate client {class_name}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return None
 
 
 def get_downloader(category_name, download_type):

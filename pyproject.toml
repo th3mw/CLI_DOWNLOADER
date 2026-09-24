@@ -24,7 +24,6 @@ dependencies = [
     "requests",
     "tqdm",
     "pycryptodomex",
-    "undetected-chromedriver",
     "setuptools",
     "quickjs; python_version < '3.13'",
     "textual>=0.73.0",

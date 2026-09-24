@@ -957,61 +957,85 @@ Examples:
                             sample_ep = ep
                             break
 
-            colprint('header', "\nProbing Available Resolutions...")
+            colprint('header', "\nProbing Available Releases & Resolutions...")
             sample_links = client.fetch_episode_links([sample_ep], {'start': sample_ep.get('episode', 1), 'end': sample_ep.get('episode', 1), 'specific_no': [sample_ep.get('episode', 1)]})
             if sample_links:
                 target_ep_links.update(sample_links)
 
-            valid_resolutions = []
-            valid_resolutions_gen = get_resolutions(sample_links.values()) if sample_links else []
-            for _valid_res in valid_resolutions_gen:
-                valid_resolutions = _valid_res
-                if len(valid_resolutions) > 0:
-                    break
-            # Clean and deduplicate valid resolutions in descending quality order (2160, 1080, 720, 480, 360)
-            res_order_pref = ['2160', '1080', '720', '480', '360']
-            discovered = [r.lower().replace('p', '').strip() for r in valid_resolutions if r]
-            
-            ordered_res = []
-            for pref in res_order_pref:
-                if pref in discovered:
-                    ordered_res.append(pref)
-            for d in discovered:
-                if d not in ordered_res:
-                    ordered_res.append(d)
-            if not ordered_res:
-                ordered_res = ['1080', '720', '480', '360']
+            sample_ep_links = next(iter(sample_links.values()), {}) if sample_links else {}
 
-            default_res = '1080' if '1080' in ordered_res else ('720' if '720' in ordered_res else ordered_res[0])
+            # Check if options contain torrent release details / sizes
+            has_release_sizes = any(isinstance(v, dict) and (v.get('resolution_size') or v.get('size')) for v in sample_ep_links.values())
+
+            # Sort options: 2160 -> 1080 -> 720 -> 480 -> 360, and by seeds descending
+            def sort_res_option(entry):
+                opt_k, opt_d = entry
+                q = str(opt_d.get('quality') if isinstance(opt_d, dict) else opt_k).upper().replace('P', '')
+                seeds = int(opt_d.get('seeds') or (opt_d.get('torrent_info', {}).get('seeds', 0) if isinstance(opt_d, dict) else 0)) if isinstance(opt_d, dict) else 0
+                q_score = 300000 if q == '2160' else (200000 if q == '1080' else (100000 if q == '720' else (50000 if q == '480' else 0)))
+                return q_score + seeds
+
+            sorted_options = sorted(sample_ep_links.items(), key=sort_res_option, reverse=True) if sample_ep_links else []
 
             if not args.quiet:
                 clear_screen()
                 prov_name = getattr(client, 'name', '') or str(series_type)
-                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Resolution'])
+                box_header_title = 'Select Torrent Release' if has_release_sizes else 'Select Resolution'
+                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), box_header_title])
 
             res_lines = []
             res_map = {}
-            for idx, r in enumerate(ordered_res, start=1):
-                res_map[str(idx)] = r
-                res_map[r] = r
-                res_map[f"{r}p"] = r
-                res_map[f"{r}P"] = r
+            default_choice_idx = "1"
+            has_1080_default = False
 
-                label = '4K UHD' if r == '2160' else ('Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD'))
-                def_tag = ' \033[38;5;39m[default]\033[0m' if r == default_res else ''
-                res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+            for idx, (opt_k, opt_d) in enumerate(sorted_options, start=1):
+                res_map[str(idx)] = opt_k
+                q = str(opt_d.get('quality') if isinstance(opt_d, dict) else opt_k).upper().replace('P', '')
+                if q not in res_map:
+                    res_map[q] = opt_k
+                    res_map[f"{q}p"] = opt_k
+                    res_map[f"{q}P"] = opt_k
+                    if q == '2160':
+                        res_map['4k'] = opt_k
+                        res_map['4K'] = opt_k
 
-            print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+                is_default = False
+                if q == '1080' and not has_1080_default:
+                    default_choice_idx = str(idx)
+                    has_1080_default = True
+                    is_default = True
+
+                def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
+
+                if isinstance(opt_d, dict) and (opt_d.get('resolution_size') or opt_d.get('size')):
+                    size_meta = opt_d.get('resolution_size') or f"{opt_d.get('size')} • Seeds: {opt_d.get('seeds', 0)}"
+                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {size_meta}\033[0m{def_tag}")
+                else:
+                    label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q == '720' else 'SD'))
+                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+
+            if not res_lines:
+                ordered_res = ['1080', '720', '480']
+                for idx, r in enumerate(ordered_res, start=1):
+                    res_map[str(idx)] = r
+                    res_map[r] = r
+                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m")
+
+            card_title = 'AVAILABLE TORRENT RELEASES' if has_release_sizes else 'AVAILABLE RESOLUTIONS'
+            print('\n' + render_box(card_title, res_lines))
+
+            default_val = res_map.get(default_choice_idx, list(res_map.values())[0])
 
             while True:
                 try:
-                    raw_input_val = input(f"\n  ➜ Select resolution [1-{len(ordered_res)} or quality, default={default_res}P]: ").strip()
+                    prompt_label = 'Select release' if has_release_sizes else 'Select resolution'
+                    raw_input_val = input(f"\n  ➜ {prompt_label} [1-{len(res_lines)} or quality, default={default_choice_idx}]: ").strip()
                 except (EOFError, KeyboardInterrupt):
                     print()
                     raise ExitException(0)
 
                 if not raw_input_val:
-                    resolution = default_res
+                    resolution = default_val
                     break
 
                 cleaned = raw_input_val.lower().replace('p', '').strip()
@@ -1022,7 +1046,7 @@ Examples:
                     resolution = res_map[cleaned]
                     break
                 else:
-                    print(f"\033[38;5;196m  ❌ Invalid resolution '{raw_input_val}'. Please enter a number (1-{len(ordered_res)}) or resolution ({'/'.join(ordered_res)}).\033[0m")
+                    print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please enter a number (1-{len(res_lines)}) or resolution quality.\033[0m")
 
         logger.info(f'Selected download resolution: {resolution}')
 
@@ -1095,10 +1119,13 @@ Examples:
 
         audio_pref_val = getattr(client, 'audio_preference', None) or 'sub'
         audio_label = '🇺🇸 English Dubbed (Dub)' if audio_pref_val == 'dub' else ('🌐 Dual Audio / Multi-Audio' if audio_pref_val == 'dual' else '🇯🇵 Sub (Original Japanese)')
+        first_dl = next(iter(target_dl_links.values()), {}) if target_dl_links else {}
+        res_display = first_dl.get('resolution') or (f"{str(resolution).upper()}P" if not str(resolution).upper().endswith('P') else str(resolution).upper())
+
         checklist_lines = [
             f"\033[1mSeries:\033[0m     \033[38;5;39m{series_title}\033[0m",
             f"\033[1mSave Path:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
-            f"\033[1mResolution:\033[0m \033[38;5;220m{resolution}P\033[0m (MKV with Forced English Subtitles)",
+            f"\033[1mResolution:\033[0m \033[38;5;220m{res_display}\033[0m (MKV with Forced English Subtitles)",
             f"\033[1mAudio:\033[0m      \033[38;5;39m{audio_label}\033[0m",
             f"\033[1mQueued:\033[0m     {available_dl_count} episode(s) ready to download"
         ]

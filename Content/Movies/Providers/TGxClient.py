@@ -102,6 +102,17 @@ class TGxClient(BaseClient):
             name = raw_title
         return name, year
 
+    def _extract_release_tag(self, raw_title):
+        '''Extract release tags such as codec, audio, source from raw title'''
+        split_parts = re.split(r'\b(19\d\d|20\d\d|2160p|1080p|720p|480p)\b', raw_title, flags=re.I)
+        if len(split_parts) >= 3:
+            tag = ' '.join(split_parts[2:])
+        else:
+            tag = raw_title
+        tag = re.sub(r'[\._\[\]\(\)]', ' ', tag)
+        tag = re.sub(r'\s+', ' ', tag).strip(' -')
+        return tag[:40] if tag else 'Release'
+
     def search(self, search_term):
         self.logger.info(f"Searching TorrentGalaxy for: {search_term}")
         search_path = f"get-posts/keywords:{urllib.parse.quote_plus(search_term)}"
@@ -186,15 +197,10 @@ class TGxClient(BaseClient):
                 movie_groups[group_key] = {
                     'clean_title': clean_name,
                     'year': year,
-                    'releases_by_qual': {},
                     'all_releases': []
                 }
 
             movie_groups[group_key]['all_releases'].append(release_item)
-            # Retain best seeded release for each quality tier
-            existing = movie_groups[group_key]['releases_by_qual'].get(quality)
-            if not existing or seeds > existing['seeds']:
-                movie_groups[group_key]['releases_by_qual'][quality] = release_item
 
         if not movie_groups:
             return None
@@ -206,24 +212,29 @@ class TGxClient(BaseClient):
             reverse=True
         )
 
-        res_order = ['2160', '1080', '720', '480']
         results = {}
 
         for idx, g in enumerate(sorted_groups[:15], start=1):
             clean_title = g['clean_title']
             year = g['year']
-            rel_by_q = g['releases_by_qual']
+            all_rels = g['all_releases']
 
-            avail_qualities = [q for q in res_order if q in rel_by_q]
-            if not avail_qualities:
-                avail_qualities = list(rel_by_q.keys())
+            # Deduplicate and sort releases by quality then seeds
+            def rel_sort_key(r):
+                q = r['quality']
+                q_val = 30000 if q == '2160' else (20000 if q == '1080' else (10000 if q == '720' else 0))
+                return q_val + r['seeds']
+
+            sorted_rels = sorted(all_rels, key=rel_sort_key, reverse=True)
+            avail_qualities = list(dict.fromkeys([r['quality'] for r in sorted_rels]))
 
             q_str = ", ".join([f"{q}p" for q in avail_qualities])
-            top_seeds = max(r['seeds'] for r in g['all_releases'])
+            top_seeds = max(r['seeds'] for r in sorted_rels)
 
             meta_parts = []
             if year:
                 meta_parts.append(f"Year: {year}")
+            meta_parts.append(f"Torrents: {len(sorted_rels)}")
             meta_parts.append(f"Qualities: {q_str}")
             meta_parts.append(f"Top Seeds: {top_seeds}")
 
@@ -234,8 +245,7 @@ class TGxClient(BaseClient):
                 'raw_title': clean_title,
                 'year': year,
                 'qualities': avail_qualities,
-                'releases': rel_by_q,
-                'all_releases': g['all_releases'],
+                'all_releases': sorted_rels,
                 'media_type': 'movie',
                 'card_title': movie_display_title,
                 'card_meta': " • ".join(meta_parts)
@@ -254,7 +264,7 @@ class TGxClient(BaseClient):
             'season': 1,
             'ep_no': 1,
             'target_movie': target,
-            'releases': target.get('releases', {})
+            'all_releases': target.get('all_releases', [])
         }]
 
     def show_episode_results(self, items, *predefined_range):
@@ -265,34 +275,73 @@ class TGxClient(BaseClient):
     def _fetch_single_episode_link(self, episode):
         ep_no = episode.get('episode', 1)
         target = episode.get('target_movie') or self._target_movie or {}
-        releases = episode.get('releases') or target.get('releases', {})
+        all_releases = episode.get('all_releases') or target.get('all_releases', [])
 
-        if not releases:
+        if not all_releases:
             return ep_no, None, {'error': 'No releases available for this movie'}
+
+        # Group releases by quality and select diverse top-seeded releases
+        by_quality = {}
+        for r in all_releases:
+            q = str(r.get('quality', '1080'))
+            by_quality.setdefault(q, []).append(r)
+
+        for q in by_quality:
+            by_quality[q].sort(key=lambda x: x.get('seeds', 0), reverse=True)
+
+        chosen_releases = []
+        quality_quotas = {'1080': 5, '720': 4, '2160': 4, '480': 2}
+        pref_order = ['1080', '720', '2160', '480']
+
+        for q in pref_order:
+            if q in by_quality:
+                quota = quality_quotas.get(q, 3)
+                chosen_releases.extend(by_quality[q][:quota])
+        for q, rels in by_quality.items():
+            if q not in pref_order:
+                chosen_releases.extend(rels[:2])
+
+        # Deduplicate while preserving order
+        seen_combos = set()
+        deduped_chosen = []
+        for r in chosen_releases:
+            combo_key = (r['quality'], r.get('size'), r.get('seeds'), r.get('detail_path'))
+            if combo_key not in seen_combos:
+                seen_combos.add(combo_key)
+                deduped_chosen.append(r)
+            if len(deduped_chosen) >= 12:
+                break
+        chosen_releases = deduped_chosen
 
         resolution_links = {}
 
-        def resolve_quality_magnet(q_key, rel_item):
+        def resolve_release_magnet(opt_key, rel_item):
             d_path = rel_item.get('detail_path')
             if not d_path:
                 return None
             magnet = self._fetch_magnet_from_detail(d_path)
             if magnet:
-                return q_key, {
+                tag = self._extract_release_tag(rel_item.get('raw_title', ''))
+                return opt_key, {
                     'downloadLink': magnet,
                     'downloadType': 'torrent',
-                    'resolution_size': f"{rel_item.get('size', 'Unknown')} • Seeds: {rel_item.get('seeds', 0)}",
+                    'quality': f"{rel_item['quality']}P",
+                    'size': rel_item.get('size', 'Unknown'),
+                    'seeds': rel_item.get('seeds', 0),
+                    'peers': rel_item.get('peers', 0),
+                    'release_title': rel_item.get('raw_title', ''),
+                    'resolution_size': f"{rel_item.get('size')} • Seeds: {rel_item.get('seeds')} • Peers: {rel_item.get('peers')} • {tag}",
                     'torrent_info': rel_item
                 }
             return None
 
-        with ThreadPoolExecutor(max_workers=min(4, len(releases))) as ex:
-            futures = [ex.submit(resolve_quality_magnet, q, itm) for q, itm in releases.items()]
+        with ThreadPoolExecutor(max_workers=min(8, len(chosen_releases))) as ex:
+            futures = [ex.submit(resolve_release_magnet, f"{itm['quality']}_{i}", itm) for i, itm in enumerate(chosen_releases, start=1)]
             for fut in futures:
                 res = fut.result()
                 if res:
-                    q_key, res_dict = res
-                    resolution_links[q_key] = res_dict
+                    opt_k, res_dict = res
+                    resolution_links[opt_k] = res_dict
 
         if not resolution_links:
             return ep_no, None, {'error': 'Failed to resolve magnet links for selected movie'}
@@ -321,27 +370,37 @@ class TGxClient(BaseClient):
         return title, f"{title} - "
 
     def fetch_m3u8_links(self, target_ep_links, resolution, episode_prefix):
-        '''Return resolved magnet download items for selected resolution'''
+        '''Return resolved magnet download items for selected release/resolution'''
         episode_links = {}
 
         for ep_no, res_data in target_ep_links.items():
-            res_key = str(resolution).replace('P', '').replace('p', '')
-            res_dict = res_data.get(res_key, {})
+            res_dict = None
+
+            # 1. Exact option key match (e.g. '1080_1')
+            if str(resolution) in res_data:
+                res_dict = res_data[str(resolution)]
+            else:
+                # 2. Match by quality string (e.g. '1080', '720', '2160')
+                clean_q = str(resolution).upper().replace('P', '')
+                for k, v in res_data.items():
+                    if str(v.get('quality', '')).upper().replace('P', '') == clean_q or k.startswith(clean_q):
+                        res_dict = v
+                        break
 
             if not res_dict and res_data:
-                res_key = next(iter(res_data.keys()))
-                res_dict = res_data[res_key]
+                res_dict = next(iter(res_data.values()))
 
             selected_magnet = res_dict.get('downloadLink')
             t_info = res_dict.get('torrent_info', {})
+            res_label = res_dict.get('quality', '1080P')
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}{ep_no:02d} [{res_key}P].mkv"
-            seeds = t_info.get('seeds', 'N/A')
-            peers = t_info.get('peers', 'N/A')
-            size = t_info.get('size', 'Unknown')
+            title = f"{episode_prefix}{ep_no:02d} [{res_label}].mkv"
+            seeds = res_dict.get('seeds', t_info.get('seeds', 'N/A'))
+            peers = res_dict.get('peers', t_info.get('peers', 'N/A'))
+            size = res_dict.get('size', t_info.get('size', 'Unknown'))
 
-            colprint('results', f"  Movie | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+            colprint('results', f"  Movie | {res_label} | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
 
             episode_links[ep_no] = {
                 'episode': f"{ep_no:02d}",
@@ -350,7 +409,7 @@ class TGxClient(BaseClient):
                 'out_file': title,
                 'downloadLink': selected_magnet,
                 'downloadType': 'torrent',
-                'resolution': f"{res_key}P",
+                'resolution': res_label,
                 'subtitles': [],
                 'size': size,
                 'seeds': seeds,

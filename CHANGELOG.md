@@ -13,8 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TorrentGalaxy (`TGx`) Provider for Movies and TV Series (2nd Option)**:
   - Direct integration with TorrentGalaxy (`https://torrentgalaxy.one`, `https://torrentgalaxy.info`) across Movies (`Content/Movies/Providers/TGxClient.py`) and TV Series (`Content/Series/Providers/TGxClient.py`).
   - Positioned as the **2nd option** in both Movies (following YTS) and TV Shows (following EZTV).
-  - **Single-Movie Grouping & Resolution Tiering (YTS-style UX)**: Grouped multiple releases of the same title into clean single-movie search cards (`[1] The Love Hypothesis (2026)`) displaying available quality tiers (`2160p`, `1080p`, `720p`, `480p`), top seeds, and sizes without duplicate listings.
-  - Interactive single-prompt resolution selection resolving directly to the highest-seeded magnet.
+  - **Single-Movie Grouping & Multi-Release Torrent Selection (Sizes & Seeds UX)**:
+    - Grouped raw torrent results into clean single-movie search cards displaying available quality tiers, release counts, and top seed counts.
+    - Preserved all distinct torrent releases in `AVAILABLE TORRENT RELEASES` menu so users can inspect exact file sizes, seeds, peers, and release tags (e.g. 1080p Remux 11GB vs 1080p WEB-DL 5.7GB vs 1080p x265 2GB).
+    - Supported instant numeric selection (`1`, `2`, `3`...) and resolution keyword selection (`1080`, `720`, `4k`) with smart default targeting.
   - TV Shows integration with TVMaze metadata catalog for episode/season mapping and pattern matching across single episodes (`S01E01`), episode ranges (`S01E01-07`), and season packs (`Season 1` / `S01`).
   - Resilient search fallback stripping leading articles (`The`, `A`, `An`) when strict exact matches return empty.
   - Fast concurrent magnet resolution via `ThreadPoolExecutor`.

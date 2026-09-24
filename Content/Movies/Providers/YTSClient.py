@@ -167,20 +167,30 @@ class YTSClient(BaseClient):
         sorted_torrents = sorted(torrents, key=sort_key, reverse=True)
 
         resolution_links = {}
-        for t in sorted_torrents:
+        for idx, t in enumerate(sorted_torrents, start=1):
             q_clean = str(t.get('quality', '1080')).upper().replace('P', '')
-            if q_clean not in resolution_links:
-                t_type = t.get('type', 'bluray').capitalize()
-                size = t.get('size', 'Unknown')
-                seeds = t.get('seeds', 0)
-                info_hash = t.get('hash', '')
-                magnet = self._generate_magnet(info_hash, f"{episode.get('episodeName')} [{q_clean}P] [YTS]")
-                resolution_links[q_clean] = {
-                    'downloadLink': magnet,
-                    'downloadType': 'torrent',
-                    'resolution_size': f"{size} • {t_type} • Seeds: {seeds}",
-                    'torrent_info': t
-                }
+            t_type = t.get('type', 'bluray').capitalize()
+            size = t.get('size', 'Unknown')
+            seeds = t.get('seeds', 0)
+            peers = t.get('peers', 0)
+            info_hash = t.get('hash', '')
+            magnet = self._generate_magnet(info_hash, f"{episode.get('episodeName')} [{q_clean}P] [{t_type}] [YTS]")
+            
+            opt_key = f"{q_clean}_{t_type.lower()}"
+            if opt_key in resolution_links:
+                opt_key = f"{opt_key}_{idx}"
+
+            resolution_links[opt_key] = {
+                'downloadLink': magnet,
+                'downloadType': 'torrent',
+                'quality': f"{q_clean}P",
+                'size': size,
+                'seeds': seeds,
+                'peers': peers,
+                'type': t_type,
+                'resolution_size': f"{size} • {t_type} • Seeds: {seeds} • Peers: {peers}",
+                'torrent_info': t
+            }
 
         self._update_scraper_dict(ep_no, episode)
         self._update_scraper_dict(ep_no, {
@@ -212,23 +222,29 @@ class YTSClient(BaseClient):
         episode_links = {}
 
         for ep_no, res_data in target_ep_links.items():
-            res_key = str(resolution).replace('P', '').replace('p', '')
-            res_dict = res_data.get(res_key, {})
-
+            res_dict = None
+            if str(resolution) in res_data:
+                res_dict = res_data[str(resolution)]
+            else:
+                clean_q = str(resolution).upper().replace('P', '')
+                for k, v in res_data.items():
+                    if str(v.get('quality', '')).upper().replace('P', '') == clean_q or k.startswith(clean_q):
+                        res_dict = v
+                        break
             if not res_dict and res_data:
-                res_key = next(iter(res_data.keys()))
-                res_dict = res_data[res_key]
+                res_dict = next(iter(res_data.values()))
 
             selected_magnet = res_dict.get('downloadLink')
             t_info = res_dict.get('torrent_info', getattr(self, '_chosen_torrent', {}))
+            res_label = res_dict.get('quality', '1080P')
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}{ep_no:02d} [{res_key}P].mkv"
-            seeds = t_info.get('seeds', 'N/A')
-            peers = t_info.get('peers', 'N/A')
-            size = t_info.get('size', 'Unknown')
+            title = f"{episode_prefix}{ep_no:02d} [{res_label}].mkv"
+            seeds = res_dict.get('seeds', t_info.get('seeds', 'N/A'))
+            peers = res_dict.get('peers', t_info.get('peers', 'N/A'))
+            size = res_dict.get('size', t_info.get('size', 'Unknown'))
 
-            colprint('results', f"  Movie | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+            colprint('results', f"  Movie | {res_label} | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
 
             episode_links[ep_no] = {
                 'episode': f"{ep_no:02d}",
@@ -237,7 +253,7 @@ class YTSClient(BaseClient):
                 'out_file': title,
                 'downloadLink': selected_magnet,
                 'downloadType': 'torrent',
-                'resolution': f"{res_key}P",
+                'resolution': res_label,
                 'subtitles': [],
                 'size': size,
                 'seeds': seeds,

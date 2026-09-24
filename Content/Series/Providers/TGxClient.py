@@ -417,12 +417,18 @@ class TGxClient(BaseClient):
         episode_links = {}
 
         for ep_key, res_data in target_ep_links.items():
-            res_key = str(resolution).replace('P', '').replace('p', '')
-            res_dict = res_data.get(res_key, {})
+            res_dict = None
+            if str(resolution) in res_data:
+                res_dict = res_data[str(resolution)]
+            else:
+                clean_q = str(resolution).upper().replace('P', '')
+                for k, v in res_data.items():
+                    if str(k).upper().replace('P', '') == clean_q or k.startswith(clean_q):
+                        res_dict = v
+                        break
 
             if not res_dict and res_data:
-                res_key = next(iter(res_data.keys()))
-                res_dict = res_data[res_key]
+                res_dict = next(iter(res_data.values()))
 
             selected_magnet = res_dict.get('downloadLink')
             t_info = res_dict.get('torrent_info', {})

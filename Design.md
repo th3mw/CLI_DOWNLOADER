@@ -163,7 +163,49 @@ graph TD
 
 ---
 
-## 3. 🖥️ Data Requirements Matrix by Content Type
+## 3. 🧩 Separation of Concerns: Torrents vs. Direct Streams
+
+To avoid tight coupling and leaking protocol-specific logic across the application, the architecture enforces a strict **4-Layer Separation of Concerns**:
+
+```mermaid
+graph TD
+    subgraph UI_Layer["1. Presentation & Target Inspector (TUI)"]
+        UI_Direct["Direct Stream Controls (Audio Sub/Dub, Quality Bitrates)"]
+        UI_Torrent["Torrent Controls (Release Matrix, Seeds/Peers, File Sizes)"]
+    end
+
+    subgraph Discovery_Layer["2. Discovery & Catalog Layer"]
+        Disc_Direct["Direct Clients (Show ID, Episode Catalog, Multi-Server)"]
+        Disc_Torrent["Torrent Clients (Release Group Aggregation, Single-Entity Grouping)"]
+    end
+
+    subgraph Probe_Layer["3. Probing & Decryption Layer"]
+        Probe_Direct["Crypto Engine (VRF Token Handshake, AES Decrypt -> HLS .m3u8)"]
+        Probe_Torrent["Magnet Engine (Trackers, Swarm Health, BTIH Hash Resolvers)"]
+    end
+
+    subgraph Engine_Layer["4. Downloader Engine Dispatch Layer"]
+        Eng_Direct["HLSDownloader (Concurrent Chunks, AES-128, FFMPEG Muxer)"]
+        Eng_Torrent["TorrentDownloader (aria2c Daemon, DHT/PEX, Magnet Hand-off)"]
+    end
+
+    UI_Direct --> Disc_Direct --> Probe_Direct --> Eng_Direct
+    UI_Torrent --> Disc_Torrent --> Probe_Torrent --> Eng_Torrent
+```
+
+### Architectural Separation Matrix
+
+| Architectural Layer | 🌊 Direct Streams (HLS / CDN) | ⚡ Torrents (P2P / BitTorrent) |
+| :--- | :--- | :--- |
+| **1. Data Model & Catalog** | **Canonical Entity**: Show ID, Episode counts, Sub/Dub availability, CDN Server IDs (*MegaCloud*, *Vidstream*). | **Scene Releases**: Multi-Release groupings, Release Group tags (*SubsPlease*, *GalaxyRG*, *YTS*), info_hashes. |
+| **2. Probing & Payload** | **Crypto Handshake**: VRF tokens (RC4/ROT13) + AES-256-CBC payload decrypt -> `.m3u8` master playlist + WebVTT subtitles. | **Swarm Probing**: `magnet:?xt=urn:btih:...` with public trackers, seeders/leechers count, exact file sizes in MB/GB. |
+| **3. UI / Inspector Controls** | • Audio Language selector (`Sub`, `Dub`, `Dual Audio`)<br>• Dynamic Episode range input (`1-12`, `all`)<br>• Resolution dropdown (`1080p`, `720p`, `480p`) | • Interactive **Release Matrix** (Seeds bar, Health meter, Sizes)<br>• Auto-bypassed episode selector for single movies<br>• Magnet & Hash inspection |
+| **4. Downloader Engine** | **`HLSDownloader`**: Concurrent chunk worker pool (`.ts`/`.m4s`), AES-128 segment decryption, and `ffmpeg` MKV container remuxing. | **`TorrentDownloader`**: Background `aria2c` process with peer exchange/DHT or native desktop client dispatch (`xdg-open`). |
+| **5. Error Recovery** | Automatic CDN server failover (*MegaCloud* -> *Vidstream*) & segment chunk retries with exponential backoff. | Fallback mirror cycling (`torrentgalaxy.to` -> `tgx.rs`) and backup tracker injection. |
+
+---
+
+## 4. 🖥️ Data Requirements Matrix by Content Type
 
 | Content Type | Episode Range Needed? | Audio Selector? | Release Matrix Display | Downloader Engine |
 | :--- | :--- | :--- | :--- | :--- |
@@ -174,7 +216,7 @@ graph TD
 
 ---
 
-## 4. 🎨 Next-Gen TUI Visual Architecture (ASCII Wireframes)
+## 5. 🎨 Next-Gen TUI Visual Architecture (ASCII Wireframes)
 
 ### Main Search & Browse Interface (Fluid Borderless Split)
 
@@ -260,7 +302,7 @@ graph TD
 
 ---
 
-## 5. 🛠️ Key Architectural Upgrades Needed
+## 6. 🛠️ Key Architectural Upgrades Needed
 
 1. **Custom `ReleaseMatrix` Component**:
    - Replaces the generic `<Select>` box with an interactive, rich terminal list table showing:
@@ -282,7 +324,7 @@ graph TD
 
 ---
 
-## 6. 📋 Summary of Provider Endpoints & Formats
+## 7. 📋 Summary of Provider Endpoints & Formats
 
 ```
 Provider        Category   Protocol   Auth/Signature       Output Link Format

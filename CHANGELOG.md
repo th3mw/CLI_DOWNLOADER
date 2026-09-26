@@ -30,6 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Integrated `--tui` CLI flag in `scraper.py` and global `media-scraper` command.
 
 ### 🛠️ Fixed & Improved
+- **TUI Client Interface Fix (`fetch_episodes_list`)**:
+  - Fixed `'YTSClient' object has no attribute 'get_episodes'` by standardizing episode catalog retrieval on `client.fetch_episodes_list(item)`.
+- **TUI Context-Aware Dynamic Controls & Theming**:
+  - Implemented category-specific form adaptation in `SearchTab`:
+    - **Anime**: Audio language preference selector (`Sub`, `Dub`, `Dual Audio`), dynamic episode range with total count, and quality dropdown.
+    - **Movies**: Automatically disables/hides episode ranges with `🎬 Full Feature Film (Single Movie)` status badge; added live `⚡ Probe Releases` to populate resolution dropdown with exact file sizes, seeders, peers, and release tags for YTS & TorrentGalaxy.
+    - **TV Shows**: Season & episode notation input (`S01E01-E10`, `1-12`).
+    - **NSFW**: Custom episode selection and quality settings.
+  - Category-tailored `DataTable` column formats and cyber-slate theme pill badges (`.badge-anime`, `.badge-movie`, `.badge-tv`, `.badge-nsfw`).
 - **TUI Result Dictionary Parsing & Async Worker**:
   - Resolved dictionary result unpack when providers return indexed mapping `{1: item1, ...}`, properly populating the DataTable.
   - Removed unused `undetected-chromedriver` import from `BaseClient` that triggered `ValueError: bad value(s) in fds_to_keep` in Python 3.14 async thread workers.

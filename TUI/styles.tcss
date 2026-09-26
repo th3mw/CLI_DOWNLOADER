@@ -63,11 +63,6 @@ TabPane {
     margin-bottom: 1;
 }
 
-.search-row-2 {
-    height: 3;
-    align-vertical: middle;
-}
-
 #category-select, #provider-select {
     width: 28;
     margin-right: 1;
@@ -100,7 +95,7 @@ TabPane {
 }
 
 #results-pane {
-    width: 60%;
+    width: 56%;
     height: 1fr;
     background: #161b22;
     border: round #30363d;
@@ -109,7 +104,7 @@ TabPane {
 }
 
 #details-pane {
-    width: 40%;
+    width: 44%;
     height: 1fr;
     background: #161b22;
     border: round #30363d;
@@ -140,12 +135,48 @@ DataTable > .datatable--hover {
 }
 
 /* Details Card */
-#details-header {
-    text-style: bold;
-    color: #00e5ff;
+#details-header-row {
+    height: auto;
     margin-bottom: 1;
     border-bottom: solid #30363d;
     padding-bottom: 1;
+    align-vertical: middle;
+}
+
+#details-title {
+    text-style: bold;
+    color: #00e5ff;
+    width: 1fr;
+}
+
+.category-badge {
+    padding: 0 1;
+    text-style: bold;
+    border: round #30363d;
+}
+
+.badge-anime {
+    background: #3b185f;
+    color: #d8b4fe;
+    border: round #a855f7;
+}
+
+.badge-movie {
+    background: #1c2d42;
+    color: #7dd3fc;
+    border: round #0284c7;
+}
+
+.badge-tv {
+    background: #064e3b;
+    color: #6ee7b7;
+    border: round #10b981;
+}
+
+.badge-nsfw {
+    background: #4c0519;
+    color: #fda4af;
+    border: round #f43f5e;
 }
 
 #details-meta {
@@ -164,19 +195,53 @@ DataTable > .datatable--hover {
     overflow-y: auto;
 }
 
-#resolution-container {
+/* Context-Aware Dynamic Controls Container */
+#dynamic-controls-box {
     height: auto;
+    background: #0d1117;
+    border: round #30363d;
+    padding: 1;
     margin-bottom: 1;
 }
 
-#episode-range-input {
-    width: 1fr;
+.form-field-row {
+    height: 3;
+    align-vertical: middle;
     margin-bottom: 1;
+}
+
+.form-label {
+    width: 20;
+    color: #8b949e;
+    text-style: bold;
+}
+
+.form-widget {
+    width: 1fr;
+}
+
+.badge-full-movie {
+    background: #1c2d42;
+    color: #38bdf8;
+    padding: 0 1;
+    text-style: bold;
+    border: round #0284c7;
 }
 
 .action-btn-row {
     height: 3;
     align-horizontal: right;
+}
+
+#btn-probe {
+    background: #30363d;
+    color: #00e5ff;
+    text-style: bold;
+    margin-right: 1;
+}
+
+#btn-probe:hover {
+    background: #3b4252;
 }
 
 #btn-download {

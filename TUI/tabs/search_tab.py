@@ -19,7 +19,7 @@ from Core.commons import load_yaml
 def generate_health_bar(seeds: int, max_seeds: int = 500, width: int = 8) -> str:
     """Generate a visual terminal bar meter for peer swarm health."""
     if not isinstance(seeds, int) or seeds <= 0:
-        return f"[#64748b]{'░' * width}[/#64748b] 0"
+        return f"[#64748b]{'░' * width}[/#64748b] 0s"
     ratio = min(1.0, seeds / max_seeds)
     filled = max(1, int(ratio * width))
     unfilled = width - filled
@@ -59,6 +59,43 @@ def extract_release_tags(title: str) -> str:
     return " ".join(tags[:3]) if tags else "[#64748b]REL[/#64748b]"
 
 
+HERO_SEARCH_GUIDE = """
+[bold #38bdf8]╔════════════════════════════════════════════════════════════════════╗[/bold #38bdf8]
+[bold #38bdf8]║[/bold #38bdf8]  [bold white]🎬 MEDIA SCRAPER & DOWNLOADER ENGINE v1.8.0[/bold white]                      [bold #38bdf8]║[/bold #38bdf8]
+[bold #38bdf8]║[/bold #38bdf8]  [dim]Fast, multi-source aggregator with direct HLS & BitTorrent support[/dim] [bold #38bdf8]║[/bold #38bdf8]
+[bold #38bdf8]╚════════════════════════════════════════════════════════════════════╝[/bold #38bdf8]
+
+[bold #f59e0b]⚡ QUICK START WORKFLOW[/bold #f59e0b]
+  [bold white]1.[/bold white] Select Category: [bold #c084fc]⛩️ [1] Anime[/bold #c084fc]  •  [bold #38bdf8]🎬 [2] Movies[/bold #38bdf8]  •  [bold #34d399]📺 [3] TV[/bold #34d399]  •  [bold #fb7185]🔞 [4] NSFW[/bold #fb7185]
+  [bold white]2.[/bold white] Press [bold #38bdf8]/[/bold #38bdf8] to focus search bar, type query & hit [bold #059669]Enter[/bold #059669]
+  [bold white]3.[/bold white] Use [bold #38bdf8]↑ / ↓[/bold #38bdf8] or [bold #38bdf8]j / k[/bold #38bdf8] to browse results
+  [bold white]4.[/bold white] Press [bold #38bdf8]Space[/bold #38bdf8] to probe releases & [bold #0284c7]d[/bold #0284c7] to download
+
+[bold #38bdf8]📦 TOP INTEGRATED PROVIDERS[/bold #38bdf8]
+  • [bold #c084fc]AniKoto[/bold #c084fc] (No.1 Anime Direct HLS Streams • Sub & Dub)
+  • [bold #38bdf8]YTS & TorrentGalaxy[/bold #38bdf8] (4K/1080p Movies & TV Torrents with Swarm Health)
+  • [bold #34d399]EZTV[/bold #34d399] (Complete TV Shows & Episodes)
+  • [bold #fb7185]Hanime[/bold #fb7185] (Direct HLS 1080p NSFW Videos)
+"""
+
+HERO_INSPECTOR_GUIDE = """
+[bold #38bdf8]🎯 TARGET INSPECTOR & RELEASE MATRIX[/bold #38bdf8]
+[dim]No media item currently selected.[/dim]
+
+[bold #38bdf8]⌨️ KEYBOARD SHORTCUTS CHEATSHEET[/bold #38bdf8]
+  • [bold #f59e0b]1 - 4[/bold #f59e0b]  : Switch Category (Anime, Movies, TV, NSFW)
+  • [bold #f59e0b]/[/bold #f59e0b]      : Focus Search Bar
+  • [bold #f59e0b]j / k[/bold #f59e0b]  : Navigate Results & Release Matrix
+  • [bold #f59e0b]a[/bold #f59e0b]      : Cycle Audio Track (Sub / Dub / Dual)
+  • [bold #f59e0b]p[/bold #f59e0b]      : Probe Streams & Torrent Releases
+  • [bold #f59e0b]d[/bold #f59e0b]      : Start High-Speed Download
+  • [bold #f59e0b]r[/bold #f59e0b]      : Execute Dry-Run Inspection
+  • [bold #f59e0b]q[/bold #f59e0b]      : Quit Application
+
+[dim]Search for a title above to inspect full metadata and choose from the interactive release matrix.[/dim]
+"""
+
+
 class SearchTab(Static):
     """Interactive media search and selection tab."""
 
@@ -91,6 +128,7 @@ class SearchTab(Static):
         self.active_provider = "anikoto"
         self.probed_releases = []
         self.selected_matrix_release = None
+        self.audio_preference = "sub"
 
     def compose(self) -> ComposeResult:
         with Vertical(id="search-tab-root"):
@@ -112,48 +150,55 @@ class SearchTab(Static):
 
             # Main Master-Detail Split Container
             with Horizontal(id="search-split-container"):
-                # Left Pane: Search Results Table
+                # Left Pane: Search Results Table + Empty Hero State
                 with Vertical(id="results-pane"):
                     yield Static("📋 SEARCH RESULTS", classes="pane-header-title")
+                    yield Static(HERO_SEARCH_GUIDE, id="results-empty-hero", classes="empty-hero-card")
                     yield DataTable(id="results-table", cursor_type="row")
 
                 # Right Pane: Target Inspector & Interactive Release Matrix
                 with Vertical(id="details-pane"):
                     yield Static("[bold #38bdf8]🎯 TARGET INSPECTOR[/bold #38bdf8]  •  [bold #c084fc]⛩️ ANIME[/bold #c084fc]", id="details-card-header")
-                    yield Static("Select an item from the results table on the left to inspect releases.", id="details-meta")
-                    yield Static("", id="details-synopsis")
+                    yield Static(HERO_INSPECTOR_GUIDE, id="inspector-empty-hero", classes="empty-hero-card")
                     
-                    # Context-Aware Controls Strip (Audio / Episodes / Scope)
-                    with Horizontal(id="dynamic-controls-strip"):
-                        yield Label("Audio:", classes="inline-label", id="lbl-audio-pref")
-                        audio_opts = [
-                            ("🇯🇵 Sub (Japanese)", "sub"),
-                            ("🇺🇸 Dub (English)", "dub"),
-                            ("🌐 Dual Audio", "dual")
-                        ]
-                        yield Select(audio_opts, value="sub", id="audio-pref-select", allow_blank=False)
+                    with Vertical(id="inspector-content-pane"):
+                        yield Static("", id="details-meta")
+                        yield Static("", id="details-synopsis")
+                        
+                        # Context-Aware Controls Strip (Audio Pills / Episodes / Scope)
+                        with Horizontal(id="dynamic-controls-strip"):
+                            yield Label("Audio:", classes="inline-label", id="lbl-audio-pref")
+                            yield Button("🇯🇵 Sub", id="pill-audio-sub", classes="audio-pill -active-sub")
+                            yield Button("🇺🇸 Dub", id="pill-audio-dub", classes="audio-pill")
+                            yield Button("🌐 Dual", id="pill-audio-dual", classes="audio-pill")
 
-                        yield Label("Episodes:", classes="inline-label", id="lbl-episode-range")
-                        yield Input(value="1", placeholder="1-12, all", id="episode-range-input")
+                            yield Label("Episodes:", classes="inline-label", id="lbl-episode-range")
+                            yield Input(value="1", placeholder="1-12, all", id="episode-range-input")
 
-                        yield Static("🎬 Full Feature Film", id="badge-movie-scope", classes="movie-badge-inline")
+                            yield Static("🎬 Full Feature Film", id="badge-movie-scope", classes="movie-badge-inline")
 
-                    # Interactive Release Matrix Table
-                    yield Static("⚡ AVAILABLE RELEASES & STREAMS (PROBED / AGGREGATED)", classes="pane-header-title")
-                    with Vertical(id="release-matrix-container"):
-                        yield DataTable(id="release-matrix-table", cursor_type="row")
+                        # Interactive Release Matrix Table
+                        yield Static("⚡ AVAILABLE RELEASES & STREAMS", classes="pane-header-title")
+                        with Vertical(id="release-matrix-container"):
+                            yield DataTable(id="release-matrix-table", cursor_type="row")
 
-                    # Bottom Action Bar
-                    with Horizontal(id="action-buttons-strip"):
-                        yield Button("⚡ Probe [Space]", id="btn-probe", disabled=True)
-                        yield Button("⬇ Download [d]", variant="primary", id="btn-download", disabled=True)
-                        yield Button("🧪 Dry Run [r]", variant="default", id="btn-dryrun", disabled=True)
+                        # Bottom Action Bar
+                        with Horizontal(id="action-buttons-strip"):
+                            yield Button("⚡ Probe [Space]", id="btn-probe", disabled=True)
+                            yield Button("⬇ Download [d]", variant="primary", id="btn-download", disabled=True)
+                            yield Button("🧪 Dry Run [r]", variant="default", id="btn-dryrun", disabled=True)
 
     def on_mount(self) -> None:
         """Configure initial DataTable columns and UI state."""
         self._configure_table_columns("Anime")
         self._configure_matrix_columns()
         self._apply_category_ui_state("Anime")
+        
+        # Initial empty states
+        self.query_one("#results-table", DataTable).display = False
+        self.query_one("#results-empty-hero", Static).display = True
+        self.query_one("#inspector-content-pane", Vertical).display = False
+        self.query_one("#inspector-empty-hero", Static).display = True
 
     def _get_provider_options(self, category_name: str):
         """Retrieve list of (Label, Key) tuples for a category."""
@@ -185,7 +230,9 @@ class SearchTab(Static):
         header_title = self.query_one("#details-card-header", Static)
         
         lbl_audio = self.query_one("#lbl-audio-pref", Label)
-        select_audio = self.query_one("#audio-pref-select", Select)
+        pill_sub = self.query_one("#pill-audio-sub", Button)
+        pill_dub = self.query_one("#pill-audio-dub", Button)
+        pill_dual = self.query_one("#pill-audio-dual", Button)
         lbl_eps = self.query_one("#lbl-episode-range", Label)
         input_eps = self.query_one("#episode-range-input", Input)
         badge_movie = self.query_one("#badge-movie-scope", Static)
@@ -203,7 +250,9 @@ class SearchTab(Static):
             header_title.update("[bold #38bdf8]🎯 TARGET INSPECTOR[/bold #38bdf8]  •  [bold #c084fc]⛩️ ANIME[/bold #c084fc]")
             btn_anime.add_class("-active-anime")
             lbl_audio.display = True
-            select_audio.display = True
+            pill_sub.display = True
+            pill_dub.display = True
+            pill_dual.display = True
             lbl_eps.display = True
             input_eps.display = True
             badge_movie.display = False
@@ -213,7 +262,9 @@ class SearchTab(Static):
             header_title.update("[bold #38bdf8]🎯 TARGET INSPECTOR[/bold #38bdf8]  •  [bold #38bdf8]🎬 MOVIE[/bold #38bdf8]")
             btn_movies.add_class("-active-movies")
             lbl_audio.display = False
-            select_audio.display = False
+            pill_sub.display = False
+            pill_dub.display = False
+            pill_dual.display = False
             lbl_eps.display = False
             input_eps.display = False
             badge_movie.display = True
@@ -221,7 +272,9 @@ class SearchTab(Static):
             header_title.update("[bold #38bdf8]🎯 TARGET INSPECTOR[/bold #38bdf8]  •  [bold #34d399]📺 TV SHOW[/bold #34d399]")
             btn_tv.add_class("-active-tv")
             lbl_audio.display = False
-            select_audio.display = False
+            pill_sub.display = False
+            pill_dub.display = False
+            pill_dual.display = False
             lbl_eps.display = True
             input_eps.display = True
             badge_movie.display = False
@@ -231,12 +284,44 @@ class SearchTab(Static):
             header_title.update("[bold #38bdf8]🎯 TARGET INSPECTOR[/bold #38bdf8]  •  [bold #fb7185]🔞 NSFW[/bold #fb7185]")
             btn_nsfw.add_class("-active-nsfw")
             lbl_audio.display = False
-            select_audio.display = False
+            pill_sub.display = False
+            pill_dub.display = False
+            pill_dual.display = False
             lbl_eps.display = True
             input_eps.display = True
             badge_movie.display = False
             lbl_eps.update("Episodes:")
             input_eps.placeholder = "1, 1-2, all"
+
+    def set_audio_preference(self, pref: str) -> None:
+        """Set active audio preference pill."""
+        self.audio_preference = pref
+        pill_sub = self.query_one("#pill-audio-sub", Button)
+        pill_dub = self.query_one("#pill-audio-dub", Button)
+        pill_dual = self.query_one("#pill-audio-dual", Button)
+
+        pill_sub.remove_class("-active-sub", "-active-dub", "-active-dual")
+        pill_dub.remove_class("-active-sub", "-active-dub", "-active-dual")
+        pill_dual.remove_class("-active-sub", "-active-dub", "-active-dual")
+
+        if pref == "sub":
+            pill_sub.add_class("-active-sub")
+            self.app.notify("Audio set to Sub (Original Japanese)", severity="information")
+        elif pref == "dub":
+            pill_dub.add_class("-active-dub")
+            self.app.notify("Audio set to Dub (English Dubbed)", severity="information")
+        elif pref == "dual":
+            pill_dual.add_class("-active-dual")
+            self.app.notify("Audio set to Dual Audio / Multi", severity="information")
+
+    def cycle_audio_preference(self) -> None:
+        """Cycle audio preference on pressing 'a'."""
+        if self.active_category != "Anime":
+            return
+        order = ["sub", "dub", "dual"]
+        cur_idx = order.index(self.audio_preference) if self.audio_preference in order else 0
+        next_pref = order[(cur_idx + 1) % len(order)]
+        self.set_audio_preference(next_pref)
 
     def switch_category_by_name(self, cat_name: str) -> None:
         """Switch category from category buttons or keyboard shortcuts."""
@@ -268,6 +353,12 @@ class SearchTab(Static):
             self.switch_category_by_name("TV Shows")
         elif btn_id == "cat-btn-nsfw":
             self.switch_category_by_name("Hentai (NSFW)")
+        elif btn_id == "pill-audio-sub":
+            self.set_audio_preference("sub")
+        elif btn_id == "pill-audio-dub":
+            self.set_audio_preference("dub")
+        elif btn_id == "pill-audio-dual":
+            self.set_audio_preference("dual")
         elif btn_id == "btn-probe":
             self.action_probe_releases()
         elif btn_id == "btn-download":
@@ -307,11 +398,7 @@ class SearchTab(Static):
         """Background thread executing the provider search."""
         try:
             cat_cfg = dict(self.config.get(category, {}) or {})
-            audio_pref = "sub"
-            try:
-                audio_pref = str(self.query_one("#audio-pref-select", Select).value)
-            except Exception:
-                pass
+            audio_pref = self.audio_preference
 
             client = create_client(category, provider, cat_cfg, audio_preference=audio_pref)
             if not client:
@@ -338,8 +425,14 @@ class SearchTab(Static):
             self.current_results = []
 
         if not self.current_results:
+            self.query_one("#results-empty-hero", Static).display = True
+            table.display = False
             self.app.notify("No matches found. Try refining keywords.", severity="warning")
             return
+
+        # Show results table, hide hero
+        self.query_one("#results-empty-hero", Static).display = False
+        table.display = True
 
         for idx, item in enumerate(self.current_results, start=1):
             title = item.get('title', item.get('raw_title', 'Unknown'))
@@ -410,13 +503,19 @@ class SearchTab(Static):
         matrix = self.query_one("#release-matrix-table", DataTable)
         matrix.clear()
 
+        hero_inspector = self.query_one("#inspector-empty-hero", Static)
+        content_pane = self.query_one("#inspector-content-pane", Vertical)
+
         if not item:
-            self.query_one("#details-meta", Static).update("No item selected.")
-            self.query_one("#details-synopsis", Static).update("")
+            hero_inspector.display = True
+            content_pane.display = False
             btn_dl.disabled = True
             btn_dry.disabled = True
             btn_probe.disabled = True
             return
+
+        hero_inspector.display = False
+        content_pane.display = True
 
         btn_dl.disabled = False
         btn_dry.disabled = False
@@ -561,11 +660,7 @@ class SearchTab(Static):
         if self.selected_matrix_release:
             res = str(self.selected_matrix_release.get('quality', '1080'))
 
-        audio_pref = "sub"
-        try:
-            audio_pref = str(self.query_one("#audio-pref-select", Select).value)
-        except Exception:
-            pass
+        audio_pref = self.audio_preference
 
         self.post_message(self.TriggerDownload(
             item_data=self.selected_item,

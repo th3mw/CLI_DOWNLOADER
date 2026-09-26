@@ -1,205 +1,295 @@
-/* CLI Media Scraper & Downloader - Modern Dark Cyberpunk TCSS */
+/* ==========================================================================
+   CLI MEDIA SCRAPER & DOWNLOADER - NEXT-GEN TERMINAL THEME (AWESOME-TUI STYLE)
+   Design tokens: Obsidian Deep (#0b0f19), Slate Dark (#121826), Slate High (#1b2336)
+   Accents: Anime (#c084fc), Movies (#38bdf8), TV (#34d399), NSFW (#fb7185), Amber (#f59e0b)
+   ========================================================================== */
 
 Screen {
-    background: #0d1117;
-    color: #e6edf3;
+    background: #0b0f19;
+    color: #f0f6fc;
 }
 
 Header {
     dock: top;
     height: 3;
-    background: #161b22;
-    color: #58a6ff;
+    background: #121826;
+    color: #38bdf8;
     text-style: bold;
-    border-bottom: heavy #30363d;
+    border-bottom: solid #232d42;
 }
 
 Footer {
     dock: bottom;
     height: 1;
-    background: #161b22;
+    background: #121826;
     color: #8b949e;
 }
 
-/* Tabs and Navigation */
+/* ==========================================================================
+   Tabs and Global Navigation
+   ========================================================================== */
 TabbedContent {
     height: 1fr;
+    background: #0b0f19;
 }
 
 Tabs {
-    background: #161b22;
+    background: #121826;
     dock: top;
-    border-bottom: solid #30363d;
+    border-bottom: solid #232d42;
+    height: 3;
 }
 
 Tab {
     padding: 0 2;
     color: #8b949e;
+    text-style: bold;
+}
+
+Tab:hover {
+    color: #f0f6fc;
+    background: #1b2336;
 }
 
 Tab.-active {
-    color: #00e5ff;
+    color: #38bdf8;
     text-style: bold;
-    border-bottom: tall #00e5ff;
+    border-bottom: tall #38bdf8;
+    background: #1b2336;
 }
 
 TabPane {
     padding: 1;
     height: 1fr;
+    background: #0b0f19;
 }
 
-/* Search Tab Layout */
+/* ==========================================================================
+   Search & Discovery Header Controls
+   ========================================================================== */
 #search-controls {
     height: auto;
     padding: 1;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     margin-bottom: 1;
 }
 
 .search-row {
     height: 3;
     align-vertical: middle;
-    margin-bottom: 1;
 }
 
 #category-select, #provider-select {
-    width: 28;
+    width: 26;
     margin-right: 1;
+    background: #0b0f19;
+    border: tall #232d42;
+}
+
+#category-select:focus, #provider-select:focus {
+    border: tall #38bdf8;
 }
 
 #search-input {
     width: 1fr;
     margin-right: 1;
-    border: tall #30363d;
+    background: #0b0f19;
+    border: tall #232d42;
+    color: #f0f6fc;
 }
 
 #search-input:focus {
-    border: tall #00e5ff;
+    border: tall #38bdf8;
 }
 
 #btn-search {
-    background: #238636;
+    background: #059669;
     color: #ffffff;
     text-style: bold;
     min-width: 14;
+    border: none;
 }
 
 #btn-search:hover {
-    background: #2ea043;
+    background: #10b981;
 }
 
-/* Main Split View in Search */
+/* Quick Category Filter Bar */
+#quick-category-bar {
+    height: 3;
+    align-vertical: middle;
+    margin-top: 1;
+    padding-top: 1;
+    border-top: solid #1b2336;
+}
+
+.quick-cat-btn {
+    margin-right: 1;
+    min-width: 16;
+    text-style: bold;
+    border: round #232d42;
+    background: #121826;
+    color: #8b949e;
+}
+
+.quick-cat-btn:hover {
+    background: #1b2336;
+    color: #f0f6fc;
+}
+
+.quick-cat-btn.-active-anime {
+    background: #2e1065;
+    color: #c084fc;
+    border: round #9333ea;
+}
+
+.quick-cat-btn.-active-movie {
+    background: #082f49;
+    color: #38bdf8;
+    border: round #0284c7;
+}
+
+.quick-cat-btn.-active-tv {
+    background: #022c22;
+    color: #34d399;
+    border: round #059669;
+}
+
+.quick-cat-btn.-active-nsfw {
+    background: #4c0519;
+    color: #fb7185;
+    border: round #e11d48;
+}
+
+/* ==========================================================================
+   Main Split View: Results vs Target Inspector
+   ========================================================================== */
 #search-split-container {
     height: 1fr;
 }
 
 #results-pane {
-    width: 56%;
+    width: 50%;
     height: 1fr;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     padding: 0 1;
     margin-right: 1;
 }
 
 #details-pane {
-    width: 44%;
+    width: 50%;
     height: 1fr;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     padding: 1;
+    overflow-y: auto;
 }
 
-/* DataTable */
+/* Section Titles */
+.pane-title {
+    color: #38bdf8;
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 1;
+    border-bottom: solid #1b2336;
+    padding-bottom: 0;
+}
+
+/* ==========================================================================
+   DataTables (Results & Release Matrix)
+   ========================================================================== */
 DataTable {
     height: 1fr;
-    background: #161b22;
+    background: #121826;
     border: none;
 }
 
 DataTable > .datatable--header {
-    background: #21262d;
-    color: #58a6ff;
+    background: #1b2336;
+    color: #38bdf8;
     text-style: bold;
 }
 
 DataTable > .datatable--cursor {
-    background: #1f6feb;
+    background: #1e3a8a;
     color: #ffffff;
     text-style: bold;
 }
 
 DataTable > .datatable--hover {
-    background: #21262d;
+    background: #1b2336;
 }
 
-/* Details Card */
+/* ==========================================================================
+   Target Inspector Panel Details
+   ========================================================================== */
 #details-header-row {
     height: auto;
     margin-bottom: 1;
-    border-bottom: solid #30363d;
+    border-bottom: solid #232d42;
     padding-bottom: 1;
     align-vertical: middle;
 }
 
 #details-title {
     text-style: bold;
-    color: #00e5ff;
+    color: #38bdf8;
     width: 1fr;
 }
 
 .category-badge {
     padding: 0 1;
     text-style: bold;
-    border: round #30363d;
+    border: round #232d42;
 }
 
 .badge-anime {
-    background: #3b185f;
-    color: #d8b4fe;
-    border: round #a855f7;
+    background: #2e1065;
+    color: #c084fc;
+    border: round #9333ea;
 }
 
 .badge-movie {
-    background: #1c2d42;
-    color: #7dd3fc;
+    background: #082f49;
+    color: #38bdf8;
     border: round #0284c7;
 }
 
 .badge-tv {
-    background: #064e3b;
-    color: #6ee7b7;
-    border: round #10b981;
+    background: #022c22;
+    color: #34d399;
+    border: round #059669;
 }
 
 .badge-nsfw {
     background: #4c0519;
-    color: #fda4af;
-    border: round #f43f5e;
+    color: #fb7185;
+    border: round #e11d48;
 }
 
 #details-meta {
     height: auto;
     margin-bottom: 1;
-    color: #c9d1d9;
+    color: #e2e8f0;
 }
 
 #details-synopsis {
-    height: 1fr;
-    border: round #21262d;
+    max-height: 5;
+    border: round #1b2336;
     padding: 1;
     margin-bottom: 1;
-    background: #0d1117;
+    background: #0b0f19;
     color: #8b949e;
     overflow-y: auto;
 }
 
-/* Context-Aware Dynamic Controls Container */
+/* Dynamic Configuration & Release Matrix Container */
 #dynamic-controls-box {
     height: auto;
-    background: #0d1117;
-    border: round #30363d;
+    background: #0b0f19;
+    border: round #232d42;
     padding: 1;
     margin-bottom: 1;
 }
@@ -211,7 +301,7 @@ DataTable > .datatable--hover {
 }
 
 .form-label {
-    width: 20;
+    width: 18;
     color: #8b949e;
     text-style: bold;
 }
@@ -221,63 +311,128 @@ DataTable > .datatable--hover {
 }
 
 .badge-full-movie {
-    background: #1c2d42;
+    background: #082f49;
     color: #38bdf8;
     padding: 0 1;
     text-style: bold;
     border: round #0284c7;
 }
 
+/* Interactive Release Matrix Widget */
+#release-matrix-container {
+    height: 10;
+    margin-top: 1;
+    margin-bottom: 1;
+    border: round #232d42;
+    background: #0b0f19;
+    padding: 0;
+}
+
+#release-matrix-table {
+    height: 1fr;
+    background: #0b0f19;
+}
+
+/* Action Buttons */
 .action-btn-row {
     height: 3;
     align-horizontal: right;
+    margin-top: 1;
 }
 
 #btn-probe {
-    background: #30363d;
-    color: #00e5ff;
+    background: #1e293b;
+    color: #38bdf8;
     text-style: bold;
     margin-right: 1;
+    border: round #38bdf8;
 }
 
 #btn-probe:hover {
-    background: #3b4252;
+    background: #334155;
 }
 
 #btn-download {
-    background: #1f6feb;
+    background: #0284c7;
     color: #ffffff;
     text-style: bold;
     margin-right: 1;
+    border: none;
 }
 
 #btn-download:hover {
-    background: #388bfd;
+    background: #0369a1;
 }
 
 #btn-dryrun {
-    background: #8957e5;
+    background: #7c3aed;
     color: #ffffff;
     text-style: bold;
+    border: none;
 }
 
 #btn-dryrun:hover {
-    background: #a371f7;
+    background: #6d28d9;
 }
 
-/* History & Resume Tab */
+/* ==========================================================================
+   Activity & Live Downloads Tab
+   ========================================================================== */
+#downloads-root {
+    height: 1fr;
+}
+
+#downloads-summary-panel {
+    height: auto;
+    background: #121826;
+    border: round #232d42;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+.metric-card {
+    background: #0b0f19;
+    border: round #1b2336;
+    padding: 1;
+    margin-right: 1;
+    width: 1fr;
+    height: 4;
+}
+
+.metric-label {
+    color: #8b949e;
+    text-style: bold;
+}
+
+.metric-value {
+    color: #38bdf8;
+    text-style: bold;
+}
+
+#log-viewer {
+    height: 1fr;
+    background: #0b0f19;
+    border: round #232d42;
+    padding: 1;
+    color: #34d399;
+}
+
+/* ==========================================================================
+   History & Settings Tabs
+   ========================================================================== */
 #history-controls {
     height: 3;
     margin-bottom: 1;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     padding: 0 1;
+    align-vertical: middle;
 }
 
 #history-table-container {
     height: 1fr;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     padding: 0 1;
     margin-bottom: 1;
 }
@@ -286,21 +441,20 @@ DataTable > .datatable--hover {
     height: 3;
 }
 
-/* Settings Tab */
 #settings-container {
     height: 1fr;
-    background: #161b22;
-    border: round #30363d;
+    background: #121826;
+    border: round #232d42;
     padding: 1 2;
     overflow-y: auto;
 }
 
 .settings-section-title {
-    color: #58a6ff;
+    color: #38bdf8;
     text-style: bold;
     margin-top: 1;
     margin-bottom: 1;
-    border-bottom: solid #30363d;
+    border-bottom: solid #1b2336;
     padding-bottom: 0;
 }
 
@@ -312,7 +466,7 @@ DataTable > .datatable--hover {
 
 .settings-label {
     width: 25;
-    color: #c9d1d9;
+    color: #e2e8f0;
 }
 
 .settings-input {
@@ -320,27 +474,22 @@ DataTable > .datatable--hover {
 }
 
 #btn-save-settings {
-    background: #238636;
+    background: #059669;
     color: #ffffff;
     text-style: bold;
     margin-top: 2;
     width: 24;
 }
 
-/* Status & Logs Widget */
-#log-viewer {
-    height: 1fr;
-    background: #0d1117;
-    border: round #30363d;
-    padding: 1;
-    color: #00f59b;
+#btn-save-settings:hover {
+    background: #10b981;
 }
 
-/* Loading Overlay / Status banner */
 #status-banner {
     dock: bottom;
     height: 1;
-    background: #21262d;
-    color: #ffd166;
+    background: #1b2336;
+    color: #f59e0b;
     padding-left: 1;
+    text-style: bold;
 }

@@ -1,7 +1,8 @@
 """
 Search & Browse Tab for CLI Media Scraper TUI.
 Allows searching across all categories and providers with live results,
-resolution selection, live release probing, and instant action buttons.
+interactive Release Matrix (Awesome-TUI style), resolution probing,
+and keyboard-native controls with strict Separation of Concerns.
 """
 
 from textual import work
@@ -9,12 +10,55 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import (
     Static, Input, Button, Select, DataTable, Label, 
-    Checkbox, OptionList, ProgressBar, Rule
+    ProgressBar, Rule
 )
 from textual.message import Message
 
 from Core.provider_factory import CATEGORIES, CATEGORY_PROVIDERS, create_client, get_providers_for_category
 from Core.commons import load_yaml
+
+
+def generate_health_bar(seeds: int, max_seeds: int = 500, width: int = 8) -> str:
+    """Generate a visual terminal bar meter for peer swarm health."""
+    if not isinstance(seeds, int) or seeds <= 0:
+        return f"[#8b949e]{'░' * width}[/#8b949e] Seeds: 0"
+    ratio = min(1.0, seeds / max_seeds)
+    filled = max(1, int(ratio * width))
+    unfilled = width - filled
+    
+    if seeds > 200:
+        bar_color = "#34d399" # Emerald
+    elif seeds > 50:
+        bar_color = "#38bdf8" # Sky cyan
+    elif seeds > 10:
+        bar_color = "#f59e0b" # Amber
+    else:
+        bar_color = "#fb7185" # Crimson
+
+    return f"[{bar_color}]{'█' * filled}[/{bar_color}][#232d42]{'░' * unfilled}[/#232d42] Seeds: {seeds}"
+
+
+def extract_release_tags(title: str) -> str:
+    """Extract standard scene tags from release title."""
+    tags = []
+    t_lower = str(title).lower()
+    if "remux" in t_lower:
+        tags.append("[bold #c084fc]REMUX[/bold #c084fc]")
+    if "proper" in t_lower or "repack" in t_lower:
+        tags.append("[bold #38bdf8]PROPER[/bold #38bdf8]")
+    if "bluray" in t_lower or "blu-ray" in t_lower or "bdrip" in t_lower:
+        tags.append("[#38bdf8]BluRay[/#38bdf8]")
+    elif "web-dl" in t_lower or "webrip" in t_lower or "web" in t_lower:
+        tags.append("[#34d399]WEB-DL[/#34d399]")
+    if "av1" in t_lower:
+        tags.append("[bold #f59e0b]AV1[/bold #f59e0b]")
+    elif "hevc" in t_lower or "x265" in t_lower or "h.265" in t_lower:
+        tags.append("[#38bdf8]x265[/#38bdf8]")
+    elif "x264" in t_lower or "h.264" in t_lower:
+        tags.append("[#8b949e]x264[/#8b949e]")
+    if "hdr" in t_lower or "dv" in t_lower or "dovi" in t_lower:
+        tags.append("[bold #f59e0b]HDR[/bold #f59e0b]")
+    return " ".join(tags[:3]) if tags else "[#8b949e]RELEASE[/#8b949e]"
 
 
 class SearchTab(Static):
@@ -28,7 +72,7 @@ class SearchTab(Static):
 
     class TriggerDownload(Message):
         """Emitted when a user clicks download."""
-        def __init__(self, item_data: dict, episodes: str, resolution: str, audio_preference: str = "sub", category: str = "Anime", provider: str = "", dry_run: bool = False) -> None:
+        def __init__(self, item_data: dict, episodes: str, resolution: str, audio_preference: str = "sub", category: str = "Anime", provider: str = "", dry_run: bool = False, selected_release: dict = None) -> None:
             self.item_data = item_data
             self.episodes = episodes
             self.resolution = resolution
@@ -36,6 +80,7 @@ class SearchTab(Static):
             self.category = category
             self.provider = provider
             self.dry_run = dry_run
+            self.selected_release = selected_release
             super().__init__()
 
     def __init__(self, config: dict = None, **kwargs):
@@ -46,7 +91,8 @@ class SearchTab(Static):
         self.active_client = None
         self.active_category = "Anime"
         self.active_provider = "anikoto"
-        self.probed_releases = {}
+        self.probed_releases = []
+        self.selected_matrix_release = None
 
     def compose(self) -> ComposeResult:
         with Vertical(id="search-tab-root"):
@@ -66,15 +112,22 @@ class SearchTab(Static):
                     yield Input(placeholder="Search titles (e.g. Solo Leveling, Inception, Breaking Bad)...", id="search-input")
                     yield Button("🔍 Search", variant="success", id="btn-search")
 
+                # Quick Category Filter Bar
+                with Horizontal(id="quick-category-bar"):
+                    yield Button("⛩️ [1] Anime", id="quick-cat-anime", classes="quick-cat-btn -active-anime")
+                    yield Button("🎬 [2] Movies", id="quick-cat-movies", classes="quick-cat-btn")
+                    yield Button("📺 [3] TV Shows", id="quick-cat-tv", classes="quick-cat-btn")
+                    yield Button("🔞 [4] NSFW", id="quick-cat-nsfw", classes="quick-cat-btn")
+
             # Main Split View: Left Results Table, Right Details & Actions
             with Horizontal(id="search-split-container"):
                 with Vertical(id="results-pane"):
-                    yield Label("📋 Search Results", classes="settings-section-title")
+                    yield Label("📋 Search Results", classes="pane-title")
                     yield DataTable(id="results-table", cursor_type="row")
 
                 with Vertical(id="details-pane"):
                     with Horizontal(id="details-header-row"):
-                        yield Label("🎯 Target Selection & Details", id="details-title")
+                        yield Label("🎯 Target Inspector", id="details-title")
                         yield Static("⛩️ ANIME", id="category-badge-label", classes="category-badge badge-anime")
 
                     yield Static("Select an item from the search results to inspect metadata and queue download.", id="details-meta")
@@ -102,9 +155,9 @@ class SearchTab(Static):
                             yield Label("Content Scope:", classes="form-label")
                             yield Static("🎬 Full Feature Film (Single Movie)", classes="badge-full-movie form-widget")
 
-                        # Target Resolution / Release
+                        # Target Resolution Dropdown (Fallback/Direct stream)
                         with Horizontal(classes="form-field-row", id="row-resolution"):
-                            yield Label("Resolution / Release:", classes="form-label")
+                            yield Label("Target Bitrate:", classes="form-label", id="label-resolution")
                             res_options = [
                                 ("1080P • Full HD (Recommended)", "1080"),
                                 ("2160P • 4K UHD", "2160"),
@@ -114,6 +167,11 @@ class SearchTab(Static):
                             ]
                             yield Select(res_options, value="1080", id="resolution-select", classes="form-widget", allow_blank=False)
 
+                    # Interactive Release Matrix Widget
+                    yield Label("⚡ Available Releases & Streams Matrix", classes="pane-title", id="label-release-matrix")
+                    with Vertical(id="release-matrix-container"):
+                        yield DataTable(id="release-matrix-table", cursor_type="row")
+
                     with Horizontal(classes="action-btn-row"):
                         yield Button("⚡ Probe Releases", id="btn-probe", disabled=True)
                         yield Button("⬇ Download", variant="primary", id="btn-download", disabled=True)
@@ -122,6 +180,7 @@ class SearchTab(Static):
     def on_mount(self) -> None:
         """Configure initial DataTable columns and UI state."""
         self._configure_table_columns("Anime")
+        self._configure_matrix_columns()
         self._apply_category_ui_state("Anime")
 
     def _get_provider_options(self, category_name: str):
@@ -142,8 +201,14 @@ class SearchTab(Static):
         else: # NSFW
             table.add_columns("#", "Title", "Brand / Format", "Episodes", "Status")
 
+    def _configure_matrix_columns(self) -> None:
+        """Configure the columns for the interactive Release Matrix table."""
+        matrix = self.query_one("#release-matrix-table", DataTable)
+        matrix.clear(columns=True)
+        matrix.add_columns("#", "Quality", "Size", "Health / Swarm", "Format & Release Group", "Tags")
+
     def _apply_category_ui_state(self, category_name: str) -> None:
-        """Show/hide form rows according to the active category."""
+        """Show/hide form rows according to the active category (Separation of Concerns)."""
         self.active_category = category_name
         badge = self.query_one("#category-badge-label", Static)
         
@@ -153,10 +218,20 @@ class SearchTab(Static):
         label_eps = self.query_one("#label-episode-range", Label)
         input_eps = self.query_one("#episode-range-input", Input)
 
+        # Update category quick filter buttons
+        cat_btn_anime = self.query_one("#quick-cat-anime", Button)
+        cat_btn_movie = self.query_one("#quick-cat-movies", Button)
+        cat_btn_tv = self.query_one("#quick-cat-tv", Button)
+        cat_btn_nsfw = self.query_one("#quick-cat-nsfw", Button)
+
+        for btn in [cat_btn_anime, cat_btn_movie, cat_btn_tv, cat_btn_nsfw]:
+            btn.remove_class("-active-anime", "-active-movie", "-active-tv", "-active-nsfw")
+
         if category_name == "Anime":
             badge.update("⛩️ ANIME")
             badge.remove_class("badge-movie", "badge-tv", "badge-nsfw")
             badge.add_class("badge-anime")
+            cat_btn_anime.add_class("-active-anime")
             row_audio.display = True
             row_eps.display = True
             row_movie.display = False
@@ -166,6 +241,7 @@ class SearchTab(Static):
             badge.update("🎬 MOVIE")
             badge.remove_class("badge-anime", "badge-tv", "badge-nsfw")
             badge.add_class("badge-movie")
+            cat_btn_movie.add_class("-active-movie")
             row_audio.display = False
             row_eps.display = False
             row_movie.display = True
@@ -173,6 +249,7 @@ class SearchTab(Static):
             badge.update("📺 TV SHOW")
             badge.remove_class("badge-anime", "badge-movie", "badge-nsfw")
             badge.add_class("badge-tv")
+            cat_btn_tv.add_class("-active-tv")
             row_audio.display = False
             row_eps.display = True
             row_movie.display = False
@@ -182,11 +259,26 @@ class SearchTab(Static):
             badge.update("🔞 NSFW")
             badge.remove_class("badge-anime", "badge-movie", "badge-tv")
             badge.add_class("badge-nsfw")
+            cat_btn_nsfw.add_class("-active-nsfw")
             row_audio.display = False
             row_eps.display = True
             row_movie.display = False
             label_eps.update("Episode Range:")
             input_eps.placeholder = "e.g. 1, 1-2"
+
+    def switch_category_by_name(self, cat_name: str) -> None:
+        """Switch category from quick filter button or power shortcut."""
+        cat_select = self.query_one("#category-select", Select)
+        cat_select.value = cat_name
+        self._apply_category_ui_state(cat_name)
+        self._configure_table_columns(cat_name)
+        
+        prov_select = self.query_one("#provider-select", Select)
+        new_options = self._get_provider_options(cat_name)
+        prov_select.set_options(new_options)
+        if new_options:
+            prov_select.value = new_options[0][1]
+            self.active_provider = new_options[0][1]
 
     def on_select_changed(self, event: Select.Changed) -> None:
         """Handle category or provider change."""
@@ -209,6 +301,14 @@ class SearchTab(Static):
         btn_id = event.button.id
         if btn_id == "btn-search":
             self.action_execute_search()
+        elif btn_id == "quick-cat-anime":
+            self.switch_category_by_name("Anime")
+        elif btn_id == "quick-cat-movies":
+            self.switch_category_by_name("Movies")
+        elif btn_id == "quick-cat-tv":
+            self.switch_category_by_name("TV Shows")
+        elif btn_id == "quick-cat-nsfw":
+            self.switch_category_by_name("Hentai (NSFW)")
         elif btn_id == "btn-probe":
             self.action_probe_releases()
         elif btn_id == "btn-download":
@@ -320,21 +420,37 @@ class SearchTab(Static):
         self.app.notify(f"Search failed: {error_msg}", severity="error")
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Update details panel when user clicks or selects a row."""
-        try:
-            row_idx = int(event.row_key.value)
-            if 0 <= row_idx < len(self.current_results):
-                item = self.current_results[row_idx]
-                self._update_details(item)
-        except Exception:
-            pass
+        """Handle selection in either Results Table or Release Matrix."""
+        if event.data_table.id == "results-table":
+            try:
+                row_idx = int(event.row_key.value)
+                if 0 <= row_idx < len(self.current_results):
+                    item = self.current_results[row_idx]
+                    self._update_details(item)
+            except Exception:
+                pass
+        elif event.data_table.id == "release-matrix-table":
+            try:
+                matrix_idx = int(event.row_key.value)
+                if 0 <= matrix_idx < len(self.probed_releases):
+                    self.selected_matrix_release = self.probed_releases[matrix_idx]
+                    q = self.selected_matrix_release.get('quality', '1080')
+                    size = self.selected_matrix_release.get('size', 'Ready')
+                    self.app.notify(f"Selected Release: {q}P ({size})", severity="information")
+            except Exception:
+                pass
 
     def _update_details(self, item: dict = None) -> None:
-        """Render details in the right pane."""
+        """Render details in the right pane and populate initial Release Matrix."""
         self.selected_item = item
+        self.selected_matrix_release = None
+        self.probed_releases = []
+        
         btn_dl = self.query_one("#btn-download", Button)
         btn_dry = self.query_one("#btn-dryrun", Button)
         btn_probe = self.query_one("#btn-probe", Button)
+        matrix = self.query_one("#release-matrix-table", DataTable)
+        matrix.clear()
 
         if not item:
             self.query_one("#details-meta", Static).update("No item selected.")
@@ -357,7 +473,7 @@ class SearchTab(Static):
         eps = item.get('episodes', item.get('total_episodes', item.get('sub_episodes', 'Available')))
         
         meta_lines = [
-            f"[bold cyan]Title:[/bold cyan] {title}",
+            f"[bold #38bdf8]Title:[/bold #38bdf8] [bold white]{title}[/bold white]",
         ]
         if romaji and romaji != title:
             meta_lines.append(f"[italic #8b949e]Romaji:[/italic #8b949e] {romaji}")
@@ -388,28 +504,35 @@ class SearchTab(Static):
             else:
                 self.query_one("#episode-range-input", Input).value = "1"
 
-        # If item contains pre-parsed qualities or torrent releases, update resolution options
+        # If item contains pre-parsed torrent releases (e.g. from TGx or YTS), populate Release Matrix directly
         if item.get('all_releases'):
-            self._populate_resolution_options_from_releases(item['all_releases'])
+            self._populate_release_matrix(item['all_releases'])
 
-    def _populate_resolution_options_from_releases(self, releases: list) -> None:
-        """Populate resolution dropdown with distinct torrent releases."""
-        res_select = self.query_one("#resolution-select", Select)
-        options = []
-        for idx, r in enumerate(releases[:12], start=1):
-            q = str(r.get('quality', '1080')).upper().replace('P', '')
+    def _populate_release_matrix(self, releases: list) -> None:
+        """Populate interactive Release Matrix table with detailed release rows."""
+        self.probed_releases = releases
+        matrix = self.query_one("#release-matrix-table", DataTable)
+        matrix.clear()
+        
+        if not releases:
+            return
+
+        for idx, r in enumerate(releases[:15], start=1):
+            q_raw = str(r.get('quality', '1080')).upper().replace('P', '')
+            q_badge = f"[bold #38bdf8]{q_raw}P[/bold #38bdf8]" if q_raw in ["2160", "1080"] else f"[#8b949e]{q_raw}P[/#8b949e]"
             size = r.get('size', 'Unknown')
             seeds = r.get('seeds', 0)
-            tag = r.get('raw_title', '')[:30]
-            opt_key = f"{q}_{idx}"
-            opt_label = f"{q}P • {size} • Seeds: {seeds} • {tag}"
-            options.append((opt_label, opt_key))
-        
-        if options:
-            res_select.set_options(options)
-            # Default to top 1080p release if present
-            default_opt = next((k for lbl, k in options if k.startswith('1080')), options[0][1])
-            res_select.value = default_opt
+            health_bar = generate_health_bar(seeds)
+            raw_title = r.get('raw_title', r.get('title', 'Scene Release'))
+            tags = extract_release_tags(raw_title)
+            
+            # Format/Group summary
+            clean_grp = raw_title[:45]
+            matrix.add_row(f"[{idx}]", q_badge, size, health_bar, clean_grp, tags, key=str(idx-1))
+
+        # Default select first release
+        if self.probed_releases:
+            self.selected_matrix_release = self.probed_releases[0]
 
     def action_probe_releases(self) -> None:
         """Trigger background worker to probe available streams/torrent releases."""
@@ -417,12 +540,12 @@ class SearchTab(Static):
             return
         
         self.query_one("#btn-probe", Button).loading = True
-        self.app.notify("Probing available releases and streams...", severity="information")
+        self.app.notify("Probing releases & streams in background...", severity="information")
         self._run_probe_worker(self.active_client, self.selected_item)
 
     @work(exclusive=True, thread=True)
     def _run_probe_worker(self, client, target_item: dict) -> None:
-        """Background worker fetching episode list and probing first episode links."""
+        """Background worker fetching episode list and probing links."""
         try:
             episodes = client.fetch_episodes_list(target_item)
             if not episodes:
@@ -436,32 +559,40 @@ class SearchTab(Static):
             self.app.call_from_thread(self._on_probe_complete, None, str(e))
 
     def _on_probe_complete(self, links: dict, error_msg: str = None) -> None:
-        """Update resolution select with probed release metadata."""
+        """Update Release Matrix with probed stream/torrent metadata."""
         self.query_one("#btn-probe", Button).loading = False
         if error_msg or not links:
-            self.app.notify(f"Probe notice: {error_msg or 'No stream links found'}", severity="warning")
+            self.app.notify(f"Probe notice: {error_msg or 'No stream links returned'}", severity="warning")
             return
 
         sample_ep_links = next(iter(links.values()), {})
         if not sample_ep_links:
-            self.app.notify("Probe completed, no resolutions returned.", severity="warning")
+            self.app.notify("Probe completed, no releases discovered.", severity="warning")
             return
 
-        options = []
+        synthesized_releases = []
         for opt_k, opt_d in sample_ep_links.items():
             if isinstance(opt_d, dict):
-                q = str(opt_d.get('quality', opt_k)).upper()
-                size_meta = opt_d.get('resolution_size') or f"{opt_d.get('size', 'N/A')} • Seeds: {opt_d.get('seeds', 'N/A')}"
-                opt_label = f"{q} • {size_meta}"
-                options.append((opt_label, opt_k))
+                synthesized_releases.append({
+                    'quality': opt_d.get('quality', opt_k),
+                    'size': opt_d.get('size', opt_d.get('resolution_size', 'Direct Stream')),
+                    'seeds': opt_d.get('seeds', 100),
+                    'raw_title': opt_d.get('raw_title', f"Stream Source ({opt_k}P)"),
+                    'magnet': opt_d.get('magnet'),
+                    'url': opt_d.get('url')
+                })
             else:
-                options.append((f"{opt_k}P", str(opt_k)))
+                synthesized_releases.append({
+                    'quality': str(opt_k),
+                    'size': 'Direct CDN Stream',
+                    'seeds': 100,
+                    'raw_title': f"Direct Stream ({opt_k}P)",
+                    'url': str(opt_d)
+                })
 
-        if options:
-            res_select = self.query_one("#resolution-select", Select)
-            res_select.set_options(options)
-            res_select.value = options[0][1]
-            self.app.notify(f"✔ Successfully probed {len(options)} release option(s)!", severity="information")
+        if synthesized_releases:
+            self._populate_release_matrix(synthesized_releases)
+            self.app.notify(f"✔ Successfully probed {len(synthesized_releases)} release option(s)!", severity="information")
 
     def _dispatch_download(self, dry_run: bool = False) -> None:
         """Emit download trigger event to parent App."""
@@ -470,7 +601,15 @@ class SearchTab(Static):
             return
 
         eps = self.query_one("#episode-range-input", Input).value.strip() or "1"
-        res = str(self.query_one("#resolution-select", Select).value)
+        res = "1080"
+        if self.selected_matrix_release:
+            res = str(self.selected_matrix_release.get('quality', '1080'))
+        else:
+            try:
+                res = str(self.query_one("#resolution-select", Select).value)
+            except Exception:
+                pass
+
         audio_pref = "sub"
         try:
             audio_pref = str(self.query_one("#audio-pref-select", Select).value)
@@ -484,6 +623,7 @@ class SearchTab(Static):
             audio_preference=audio_pref,
             category=self.active_category,
             provider=self.active_provider,
-            dry_run=dry_run
+            dry_run=dry_run,
+            selected_release=self.selected_matrix_release
         ))
 

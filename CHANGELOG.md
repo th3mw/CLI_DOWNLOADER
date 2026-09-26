@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v1.8.0] - 2026-09-26
+
+### 🚀 Added
+- **Next-Gen Keyboard-Native Terminal Interface (Awesome-TUI Style)**:
+  - Transitioned the TUI to a fluid, borderless, typography-first architecture inspired by [Awesome TUI](https://awesometui.com/) (*LazyGit*, *btop*, *k9s*, *Yazi*).
+  - Implemented the **Obsidian Deep & Slate High-Contrast Color System** (`#0b0f19`, `#121826`, `#1b2336`, `#232d42`) with neon accents for Anime (`#c084fc`), Movies (`#38bdf8`), TV (`#34d399`), NSFW (`#fb7185`), and Action focus (`#f59e0b`).
+  - **Interactive Release Matrix Component (`#release-matrix-table`)**:
+    - Replaced traditional dropdown selects with an interactive DataTable showcasing release quality badges (`2160P`, `1080P`, `720P`), exact byte sizes (`8.9 GB`, `916.9 MB`), visual health bar meters (`██████████ Seeds: 701`, `████████░░ Seeds: 285`), scene release groups, and metadata tags (`[REMUX]`, `[PROPER]`, `[BLURAY]`, `[AV1]`).
+    - Direct magnet and stream resolution upon row selection.
+  - **Power Keyboard Shortcuts & Category Switchers**:
+    - `1` - `4`: Instant 1-key quick category switching (Anime, Movies, TV, NSFW).
+    - `/`: Focus search input bar from anywhere.
+    - `j` / `k` & `↑` / `↓`: Fast row selection in Results Table & Release Matrix.
+    - `Space` / `p`: Trigger asynchronous release probing.
+    - `d` / `Enter`: Dispatch high-speed download task.
+    - `r`: Execute pre-download inspection dry run.
+  - **Live Activity Dashboard & Metrics Cards (`DownloadsTab`)**:
+    - High-density status panel featuring `STATUS`, `TARGET ITEM`, `DOWNLOAD ENGINE`, and `PROGRESS` cards alongside a real-time progress bar.
+    - Streaming execution log with microsecond timestamps and syntax coloring.
+- **4-Layer Separation of Concerns (Torrents vs. Direct Streams)**:
+  - Catalog Layer: Canonical show entities (Sub/Dub episode counts) vs. Scene release groupings.
+  - Probing & Decryption Layer: VRF/AES-256 `.m3u8` decryption vs. BTIH Magnet and Swarm health resolution.
+  - Inspector Layer: Audio/Sub/Dub bitrates vs. Torrent release matrix with seeders, peers, and file sizes.
+  - Downloader Dispatch: `HLSDownloader` (AES-128 TS / ffmpeg) vs. `TorrentDownloader` (aria2c / xdg-open P2P).
+
+---
+
 ## [v1.7.0] - 2026-09-24
 
 ### 🚀 Added

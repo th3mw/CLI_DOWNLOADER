@@ -1,78 +1,78 @@
 /* ==========================================================================
-   CLI MEDIA SCRAPER & DOWNLOADER - NEXT-GEN TERMINAL THEME (AWESOME-TUI STYLE)
-   Design tokens: Obsidian Deep (#0b0f19), Slate Dark (#121826), Slate High (#1b2336)
+   CLI MEDIA SCRAPER & DOWNLOADER - NEXT-GEN AWESOME-TUI THEME
+   Obsidian Deep (#090d16), Slate (#0f172a), Hairline Guide (#1e293b)
    Accents: Anime (#c084fc), Movies (#38bdf8), TV (#34d399), NSFW (#fb7185), Amber (#f59e0b)
    ========================================================================== */
 
 Screen {
-    background: #0b0f19;
-    color: #f0f6fc;
+    background: #090d16;
+    color: #f1f5f9;
 }
 
 Header {
     dock: top;
     height: 3;
-    background: #121826;
+    background: #0f172a;
     color: #38bdf8;
     text-style: bold;
-    border-bottom: solid #232d42;
+    border-bottom: solid #1e293b;
 }
 
 Footer {
     dock: bottom;
     height: 1;
-    background: #121826;
-    color: #8b949e;
+    background: #0f172a;
+    color: #94a3b8;
 }
 
 /* ==========================================================================
-   Tabs and Global Navigation
+   Tabs Navigation (Slim & Minimalist)
    ========================================================================== */
 TabbedContent {
     height: 1fr;
-    background: #0b0f19;
+    background: #090d16;
 }
 
 Tabs {
-    background: #121826;
+    background: #0f172a;
     dock: top;
-    border-bottom: solid #232d42;
+    border-bottom: solid #1e293b;
     height: 3;
 }
 
 Tab {
     padding: 0 2;
-    color: #8b949e;
+    color: #64748b;
     text-style: bold;
 }
 
 Tab:hover {
-    color: #f0f6fc;
-    background: #1b2336;
+    color: #f1f5f9;
+    background: #1e293b;
 }
 
 Tab.-active {
     color: #38bdf8;
     text-style: bold;
     border-bottom: tall #38bdf8;
-    background: #1b2336;
+    background: #1e293b;
 }
 
 TabPane {
-    padding: 1;
+    padding: 0;
     height: 1fr;
-    background: #0b0f19;
+    background: #090d16;
 }
 
 /* ==========================================================================
-   Search & Discovery Header Controls
+   Search Top Command Bar (Flat, Seamless, Non-Boxy)
    ========================================================================== */
 #search-controls {
-    height: auto;
-    padding: 1;
-    background: #121826;
-    border: round #232d42;
-    margin-bottom: 1;
+    height: 4;
+    padding: 0 1;
+    background: #0f172a;
+    border-bottom: solid #1e293b;
+    margin-bottom: 0;
 }
 
 .search-row {
@@ -80,34 +80,74 @@ TabPane {
     align-vertical: middle;
 }
 
-#category-select, #provider-select {
-    width: 26;
+.cat-btn {
+    min-width: 14;
+    height: 3;
     margin-right: 1;
-    background: #0b0f19;
-    border: tall #232d42;
+    background: #090d16;
+    color: #64748b;
+    text-style: bold;
+    border: none;
 }
 
-#category-select:focus, #provider-select:focus {
-    border: tall #38bdf8;
+.cat-btn:hover {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+.cat-btn.-active-anime {
+    background: #2e1065;
+    color: #c084fc;
+    border-bottom: tall #9333ea;
+}
+
+.cat-btn.-active-movies {
+    background: #082f49;
+    color: #38bdf8;
+    border-bottom: tall #0284c7;
+}
+
+.cat-btn.-active-tv {
+    background: #022c22;
+    color: #34d399;
+    border-bottom: tall #059669;
+}
+
+.cat-btn.-active-nsfw {
+    background: #4c0519;
+    color: #fb7185;
+    border-bottom: tall #e11d48;
+}
+
+#provider-select {
+    width: 22;
+    margin-right: 1;
+    background: #090d16;
+    border: solid #1e293b;
+    color: #f1f5f9;
+}
+
+#provider-select:focus {
+    border: solid #38bdf8;
 }
 
 #search-input {
     width: 1fr;
     margin-right: 1;
-    background: #0b0f19;
-    border: tall #232d42;
-    color: #f0f6fc;
+    background: #090d16;
+    border: solid #1e293b;
+    color: #f1f5f9;
 }
 
 #search-input:focus {
-    border: tall #38bdf8;
+    border: solid #38bdf8;
 }
 
 #btn-search {
     background: #059669;
     color: #ffffff;
     text-style: bold;
-    min-width: 14;
+    min-width: 10;
     border: none;
 }
 
@@ -115,86 +155,37 @@ TabPane {
     background: #10b981;
 }
 
-/* Quick Category Filter Bar */
-#quick-category-bar {
-    height: 3;
-    align-vertical: middle;
-    margin-top: 1;
-    padding-top: 1;
-    border-top: solid #1b2336;
-}
-
-.quick-cat-btn {
-    margin-right: 1;
-    min-width: 16;
-    text-style: bold;
-    border: round #232d42;
-    background: #121826;
-    color: #8b949e;
-}
-
-.quick-cat-btn:hover {
-    background: #1b2336;
-    color: #f0f6fc;
-}
-
-.quick-cat-btn.-active-anime {
-    background: #2e1065;
-    color: #c084fc;
-    border: round #9333ea;
-}
-
-.quick-cat-btn.-active-movie {
-    background: #082f49;
-    color: #38bdf8;
-    border: round #0284c7;
-}
-
-.quick-cat-btn.-active-tv {
-    background: #022c22;
-    color: #34d399;
-    border: round #059669;
-}
-
-.quick-cat-btn.-active-nsfw {
-    background: #4c0519;
-    color: #fb7185;
-    border: round #e11d48;
-}
-
 /* ==========================================================================
-   Main Split View: Results vs Target Inspector
+   Master-Detail Workspace Split (Borderless Flat Panes)
    ========================================================================== */
 #search-split-container {
     height: 1fr;
+    background: #090d16;
 }
 
 #results-pane {
     width: 50%;
     height: 1fr;
-    background: #121826;
-    border: round #232d42;
+    background: #090d16;
+    border-right: solid #1e293b;
     padding: 0 1;
-    margin-right: 1;
 }
 
 #details-pane {
     width: 50%;
     height: 1fr;
-    background: #121826;
-    border: round #232d42;
-    padding: 1;
-    overflow-y: auto;
+    background: #090d16;
+    padding: 0 1;
 }
 
-/* Section Titles */
-.pane-title {
+.pane-header-title {
+    height: 2;
+    padding: 0 1;
     color: #38bdf8;
     text-style: bold;
-    margin-top: 1;
-    margin-bottom: 1;
-    border-bottom: solid #1b2336;
-    padding-bottom: 0;
+    background: #0f172a;
+    border-bottom: solid #1e293b;
+    margin-bottom: 0;
 }
 
 /* ==========================================================================
@@ -202,12 +193,13 @@ TabPane {
    ========================================================================== */
 DataTable {
     height: 1fr;
-    background: #121826;
+    background: #090d16;
     border: none;
+    padding: 0;
 }
 
 DataTable > .datatable--header {
-    background: #1b2336;
+    background: #0f172a;
     color: #38bdf8;
     text-style: bold;
 }
@@ -219,125 +211,91 @@ DataTable > .datatable--cursor {
 }
 
 DataTable > .datatable--hover {
-    background: #1b2336;
+    background: #1e293b;
 }
 
 /* ==========================================================================
-   Target Inspector Panel Details
+   Target Inspector Elements
    ========================================================================== */
-#details-header-row {
-    height: auto;
-    margin-bottom: 1;
-    border-bottom: solid #232d42;
-    padding-bottom: 1;
-    align-vertical: middle;
-}
-
-#details-title {
-    text-style: bold;
-    color: #38bdf8;
-    width: 1fr;
-}
-
-.category-badge {
+#details-card-header {
+    height: 2;
+    background: #0f172a;
     padding: 0 1;
-    text-style: bold;
-    border: round #232d42;
-}
-
-.badge-anime {
-    background: #2e1065;
-    color: #c084fc;
-    border: round #9333ea;
-}
-
-.badge-movie {
-    background: #082f49;
     color: #38bdf8;
-    border: round #0284c7;
-}
-
-.badge-tv {
-    background: #022c22;
-    color: #34d399;
-    border: round #059669;
-}
-
-.badge-nsfw {
-    background: #4c0519;
-    color: #fb7185;
-    border: round #e11d48;
+    text-style: bold;
+    border-bottom: solid #1e293b;
 }
 
 #details-meta {
     height: auto;
-    margin-bottom: 1;
-    color: #e2e8f0;
+    padding: 1 1 0 1;
+    color: #cbd5e1;
 }
 
 #details-synopsis {
-    max-height: 5;
-    border: round #1b2336;
-    padding: 1;
-    margin-bottom: 1;
-    background: #0b0f19;
-    color: #8b949e;
+    max-height: 4;
+    padding: 0 1;
+    color: #64748b;
     overflow-y: auto;
 }
 
-/* Dynamic Configuration & Release Matrix Container */
-#dynamic-controls-box {
-    height: auto;
-    background: #0b0f19;
-    border: round #232d42;
-    padding: 1;
-    margin-bottom: 1;
-}
-
-.form-field-row {
+/* Inline Dynamic Controls Row */
+#dynamic-controls-strip {
     height: 3;
+    padding: 0 1;
     align-vertical: middle;
-    margin-bottom: 1;
+    background: #0f172a;
+    border-top: solid #1e293b;
+    border-bottom: solid #1e293b;
 }
 
-.form-label {
-    width: 18;
-    color: #8b949e;
+.inline-label {
+    width: auto;
+    margin-right: 1;
+    color: #94a3b8;
     text-style: bold;
 }
 
-.form-widget {
-    width: 1fr;
+#audio-pref-select {
+    width: 22;
+    margin-right: 2;
+    background: #090d16;
+    border: solid #1e293b;
 }
 
-.badge-full-movie {
+#episode-range-input {
+    width: 16;
+    background: #090d16;
+    border: solid #1e293b;
+}
+
+.movie-badge-inline {
     background: #082f49;
     color: #38bdf8;
     padding: 0 1;
     text-style: bold;
-    border: round #0284c7;
+    border: solid #0284c7;
 }
 
-/* Interactive Release Matrix Widget */
+/* Release Matrix Container */
 #release-matrix-container {
-    height: 10;
-    margin-top: 1;
-    margin-bottom: 1;
-    border: round #232d42;
-    background: #0b0f19;
-    padding: 0;
+    height: 1fr;
+    background: #090d16;
 }
 
 #release-matrix-table {
     height: 1fr;
-    background: #0b0f19;
+    background: #090d16;
 }
 
-/* Action Buttons */
-.action-btn-row {
+/* Action Buttons Strip */
+#action-buttons-strip {
     height: 3;
+    padding: 0 1;
+    align-vertical: middle;
     align-horizontal: right;
-    margin-top: 1;
+    background: #0f172a;
+    border-top: solid #1e293b;
 }
 
 #btn-probe {
@@ -345,7 +303,8 @@ DataTable > .datatable--hover {
     color: #38bdf8;
     text-style: bold;
     margin-right: 1;
-    border: round #38bdf8;
+    min-width: 14;
+    border: none;
 }
 
 #btn-probe:hover {
@@ -357,6 +316,7 @@ DataTable > .datatable--hover {
     color: #ffffff;
     text-style: bold;
     margin-right: 1;
+    min-width: 14;
     border: none;
 }
 
@@ -368,6 +328,7 @@ DataTable > .datatable--hover {
     background: #7c3aed;
     color: #ffffff;
     text-style: bold;
+    min-width: 12;
     border: none;
 }
 
@@ -376,31 +337,38 @@ DataTable > .datatable--hover {
 }
 
 /* ==========================================================================
-   Activity & Live Downloads Tab
+   Activity / Downloads Tab
    ========================================================================== */
 #downloads-root {
     height: 1fr;
+    padding: 1;
+    background: #090d16;
 }
 
 #downloads-summary-panel {
     height: auto;
-    background: #121826;
-    border: round #232d42;
+    background: #0f172a;
+    border: solid #1e293b;
     padding: 1;
     margin-bottom: 1;
 }
 
+#downloads-metrics-row {
+    height: 4;
+    margin-bottom: 1;
+}
+
 .metric-card {
-    background: #0b0f19;
-    border: round #1b2336;
-    padding: 1;
+    background: #090d16;
+    border: solid #1e293b;
+    padding: 0 1;
     margin-right: 1;
     width: 1fr;
     height: 4;
 }
 
 .metric-label {
-    color: #8b949e;
+    color: #64748b;
     text-style: bold;
 }
 
@@ -411,8 +379,8 @@ DataTable > .datatable--hover {
 
 #log-viewer {
     height: 1fr;
-    background: #0b0f19;
-    border: round #232d42;
+    background: #090d16;
+    border: solid #1e293b;
     padding: 1;
     color: #34d399;
 }
@@ -422,29 +390,21 @@ DataTable > .datatable--hover {
    ========================================================================== */
 #history-controls {
     height: 3;
-    margin-bottom: 1;
-    background: #121826;
-    border: round #232d42;
+    background: #0f172a;
+    border-bottom: solid #1e293b;
     padding: 0 1;
     align-vertical: middle;
 }
 
 #history-table-container {
     height: 1fr;
-    background: #121826;
-    border: round #232d42;
-    padding: 0 1;
-    margin-bottom: 1;
-}
-
-.history-btn-row {
-    height: 3;
+    background: #090d16;
+    padding: 0;
 }
 
 #settings-container {
     height: 1fr;
-    background: #121826;
-    border: round #232d42;
+    background: #090d16;
     padding: 1 2;
     overflow-y: auto;
 }
@@ -454,8 +414,7 @@ DataTable > .datatable--hover {
     text-style: bold;
     margin-top: 1;
     margin-bottom: 1;
-    border-bottom: solid #1b2336;
-    padding-bottom: 0;
+    border-bottom: solid #1e293b;
 }
 
 .settings-row {
@@ -466,7 +425,7 @@ DataTable > .datatable--hover {
 
 .settings-label {
     width: 25;
-    color: #e2e8f0;
+    color: #cbd5e1;
 }
 
 .settings-input {
@@ -479,6 +438,7 @@ DataTable > .datatable--hover {
     text-style: bold;
     margin-top: 2;
     width: 24;
+    border: none;
 }
 
 #btn-save-settings:hover {
@@ -488,8 +448,9 @@ DataTable > .datatable--hover {
 #status-banner {
     dock: bottom;
     height: 1;
-    background: #1b2336;
+    background: #0f172a;
     color: #f59e0b;
     padding-left: 1;
     text-style: bold;
 }
+

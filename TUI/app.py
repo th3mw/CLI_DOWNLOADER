@@ -31,8 +31,11 @@ class MediaScraperTUI(App):
         Binding("2", "quick_category('Movies')", "🎬 Movies", show=True),
         Binding("3", "quick_category('TV Shows')", "📺 TV", show=True),
         Binding("4", "quick_category('Hentai (NSFW)')", "🔞 NSFW", show=True),
+        Binding("p", "trigger_probe", "Probe [p]", show=True),
+        Binding("d", "trigger_download", "Download [d]", show=True),
+        Binding("r", "trigger_dryrun", "Dry Run [r]", show=True),
         Binding("s", "switch_tab('tab-search')", "Search Tab", show=False),
-        Binding("d", "switch_tab('tab-downloads')", "Activity", show=True),
+        Binding("a", "switch_tab('tab-downloads')", "Activity", show=True),
         Binding("h", "switch_tab('tab-history')", "History", show=True),
         Binding("c", "switch_tab('tab-settings')", "Settings", show=True),
     ]
@@ -53,7 +56,7 @@ class MediaScraperTUI(App):
                 yield HistoryTab()
             with TabPane("⚙️ Settings", id="tab-settings"):
                 yield SettingsTab(config_path=self.config_file)
-        yield Static("Ready. [b]1-4[/b] Category  [b]/[/b] Search  [b]Tab[/b] Focus  [b]j/k[/b] Navigate  [b]Enter[/b] Select  [b]q[/b] Quit", id="status-banner")
+        yield Static("Ready. [b]1-4[/b] Category  [b]/[/b] Search  [b]p[/b] Probe  [b]d[/b] Download  [b]r[/b] Dry Run  [b]q[/b] Quit", id="status-banner")
         yield Footer()
 
     def action_switch_tab(self, tab_id: str) -> None:
@@ -76,6 +79,30 @@ class MediaScraperTUI(App):
         try:
             search_tab = self.query_one(SearchTab)
             search_tab.switch_category_by_name(category_name)
+        except Exception:
+            pass
+
+    def action_trigger_probe(self) -> None:
+        """Trigger release probe via keyboard shortcut 'p'."""
+        try:
+            search_tab = self.query_one(SearchTab)
+            search_tab.action_probe_releases()
+        except Exception:
+            pass
+
+    def action_trigger_download(self) -> None:
+        """Trigger download via keyboard shortcut 'd'."""
+        try:
+            search_tab = self.query_one(SearchTab)
+            search_tab._dispatch_download(dry_run=False)
+        except Exception:
+            pass
+
+    def action_trigger_dryrun(self) -> None:
+        """Trigger dry run inspection via keyboard shortcut 'r'."""
+        try:
+            search_tab = self.query_one(SearchTab)
+            search_tab._dispatch_download(dry_run=True)
         except Exception:
             pass
 

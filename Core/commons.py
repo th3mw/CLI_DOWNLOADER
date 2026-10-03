@@ -84,22 +84,26 @@ def truncate_ansi(text, max_len):
         result.append('…\033[0m')
     return ''.join(result)
 
-def render_box(title, lines, max_width=84, indent=2, center=False):
+def render_box(title, lines, max_width=84, indent=2, center=False, pad_x=(1, 3)):
     '''
     Render a clean Unicode bordered card container.
     Adapts dynamically to terminal width and content size without line overflow.
-    Includes left indentation margin for clean breathing room.
+    Includes left indentation margin and customizable internal padding (pad_x=(pad_left, pad_right)).
     '''
     try:
         term_cols = shutil.get_terminal_size((80, 24)).columns
     except Exception:
         term_cols = 80
 
+    pad_l_in, pad_r_in = pad_x if isinstance(pad_x, (tuple, list)) and len(pad_x) == 2 else (1, 3)
+
     title_vlen = visible_len(title) + 2 if title else 0
-    max_content_vlen = max([visible_len(l) for l in lines] + [title_vlen + 2], default=40)
-    desired_width = max(50, max_content_vlen + 4)
-    term_width = min(term_cols - (indent * 2), max_width, desired_width)
-    inner_width = max(term_width - 4, 30)
+    max_content_vlen = max([visible_len(l) for l in lines] + [title_vlen], default=40)
+    desired_inner = max(40, max_content_vlen + pad_l_in + pad_r_in)
+    max_allowed_box = min(term_cols - (indent * 2), max_width)
+    inner_space = min(max_allowed_box - 2, desired_inner)
+    inner_space = max(inner_space, 20)
+
     pad_left = ' ' * indent
 
     c_border = PRINT_THEMES['primary'] if DISPLAY_COLORS else ''
@@ -107,25 +111,30 @@ def render_box(title, lines, max_width=84, indent=2, center=False):
     c_reset = PRINT_THEMES['reset'] if DISPLAY_COLORS else ''
 
     title_str = f' {c_title}{title}{c_reset}{c_border} ' if title else ''
-    dash_count = max(inner_width - title_vlen, 2)
+    dash_count = max(inner_space - title_vlen - 2, 2)
 
     out = [f'{pad_left}{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}']
+    max_text_len = max(10, inner_space - pad_l_in - pad_r_in)
+
     for line in lines:
         vlen = visible_len(line)
-        if vlen > inner_width:
-            line_str = truncate_ansi(line, inner_width)
+        if vlen > max_text_len:
+            line_str = truncate_ansi(line, max_text_len)
             vlen = visible_len(line_str)
         else:
             line_str = line
-        pad = max(0, inner_width - vlen)
-        if center:
-            pad_l = ' ' * (pad // 2)
-            pad_r = ' ' * (pad - len(pad_l))
-            out.append(f'{pad_left}{c_border}│{c_reset} {pad_l}{line_str}{pad_r} {c_border}│{c_reset}')
-        else:
-            out.append(f'{pad_left}{c_border}│{c_reset} {line_str}' + (' ' * pad) + f' {c_border}│{c_reset}')
 
-    out.append(f'{pad_left}{c_border}╰' + ('─' * (inner_width + 2)) + f'╯{c_reset}')
+        if center:
+            rem = max(0, inner_space - vlen)
+            pl = ' ' * (rem // 2)
+            pr = ' ' * (rem - len(pl))
+            out.append(f'{pad_left}{c_border}│{c_reset}{pl}{line_str}{pr}{c_border}│{c_reset}')
+        else:
+            pl = ' ' * pad_l_in
+            pr = ' ' * max(0, inner_space - pad_l_in - vlen)
+            out.append(f'{pad_left}{c_border}│{c_reset}{pl}{line_str}{pr}{c_border}│{c_reset}')
+
+    out.append(f'{pad_left}{c_border}╰' + ('─' * inner_space) + f'╯{c_reset}')
     return '\n'.join(out)
 
 def clear_screen(disable_clear=False):
@@ -146,13 +155,13 @@ def render_step_header(breadcrumbs=None, step_title=None):
     banner = render_box('', [
         f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0{c_reset}',
         f'{c_muted}Anime • Asian Dramas • Movies • TV Shows • NSFW{c_reset}'
-    ], max_width=64, indent=10, center=True)
+    ], max_width=76, indent=2, center=True, pad_x=(10, 10))
     print(f'\n{banner}\n')
     if breadcrumbs:
         trail = f' {c_muted}›{c_reset} '.join(f'{c_green}{b}{c_reset}' for b in breadcrumbs if b)
-        print(f"          {c_muted}📍 Location:{c_reset} {trail}\n")
+        print(f"  {c_muted}📍 Location:{c_reset} {trail}\n")
     elif step_title:
-        print(f"          {c_yellow}➜ {step_title}{c_reset}\n")
+        print(f"  {c_yellow}➜ {step_title}{c_reset}\n")
 
 class ExitException(Exception):
     '''

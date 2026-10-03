@@ -17,8 +17,8 @@ CATEGORY_PROVIDERS = {
         {
             'key': 'anikoto',
             'name': 'AniKoto',
-            'desc': 'HD Anime (Sub & Dub)',
-            'label': 'AniKoto (HD Anime • Sub & Dub)',
+            'desc': 'HD Anime Streams',
+            'label': 'AniKoto (HD Anime)',
             'class_path': 'Content.Anime.Providers.AnikotoClient.AnikotoClient',
             'content_filter': None,
             'type': 'direct'
@@ -35,8 +35,8 @@ CATEGORY_PROVIDERS = {
         {
             'key': 'anisnatch',
             'name': 'AniSnatch',
-            'desc': 'Direct Anime Streams (Sub & Dub)',
-            'label': 'AniSnatch (Direct Anime • Sub & Dub)',
+            'desc': 'Direct Anime Streams',
+            'label': 'AniSnatch (Direct Anime)',
             'class_path': 'Content.Anime.Providers.AniSnatchClient.AniSnatchClient',
             'content_filter': None,
             'type': 'direct'

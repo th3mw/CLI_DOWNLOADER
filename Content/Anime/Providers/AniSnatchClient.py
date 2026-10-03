@@ -111,11 +111,6 @@ class AniSnatchClient(BaseClient):
             if ep_count and ep_count != '?':
                 meta_parts.append(f"Episodes: {ep_count}")
 
-            audio_tags = ['Sub']
-            if dub_flag == 1 or dub_flag is True:
-                audio_tags.append('Dub')
-            meta_parts.append(f"Audio: {' + '.join(audio_tags)}")
-
             if status and status != 'N/A':
                 meta_parts.append(status)
 
@@ -215,11 +210,6 @@ class AniSnatchClient(BaseClient):
         if len(items) <= 24:
             for ep in items:
                 ep_label = f"  Episode {ep['episode']:02d}: {ep.get('episode_name', '')}"
-                audio_tags = []
-                if ep.get('sub'): audio_tags.append('Sub')
-                if ep.get('dub'): audio_tags.append('Dub')
-                if audio_tags:
-                    ep_label += f" [{' + '.join(audio_tags)}]"
                 colprint('results', ep_label)
         else:
             first_ep = items[0].get('episode', 1)

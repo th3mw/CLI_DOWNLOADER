@@ -147,7 +147,10 @@ ffmpeg -y -loglevel warning -i "sub_file.vtt" "sub_file.srt"
 ## 5. Technical Changelog & Historical Bug Fixes
 
 | Issue | Commit / File | Summary & Fix |
-|-------|---------------|---------------|
+| **AniSnatch Provider (`anisnatch.top`)** | `Content/Anime/Providers/AniSnatchClient.py`, `anisnatch_engine.js`, `Core/provider_factory.py` | Reverse-engineered `anisnatch.top` encrypted XOR + Pako gzip protocol, binary PNG marker parsing, and parallel multi-server stream resolver (Sub, Soft Sub, Dub) with WebVTT subtitles and master HLS playlist resolution extraction. |
+| **Purged AniDB Provider** | `Content/Anime/Providers/AniDbClient.py`, `Core/provider_factory.py`, `config_scraper.yaml` | Fully removed legacy AniDB client, configuration, and factory entries. |
+| **Direct Default Audio Proceeding** | `scraper.py` | Removed interactive sub/dub questioning after server selection since multi-server menus display all available Sub, Soft-Sub, and Dub servers directly. |
+| **Refined Card Padding & Hero Header Margins** | `Core/commons.py` | Set top Hero Header banner horizontal margins to ~10 chars on left/right (`indent=10`), maintaining clean 2-char left margin and breathing room on the right for content cards. |
 | **Multi-Line Non-Overlapping Parallel Progress Bars** | `Core/BaseDownloader.py` | Implemented dynamic multi-line ANSI terminal cursor management (`\033[NA` / `\r\033[K`) with synchronized registry (`_active_bars`) so concurrent parallel downloads render on dedicated separate terminal lines without overlapping or flickering. |
 | **Reentrant RLock & HTTP Connection Pool Scaling** | `Core/BaseDownloader.py`, `Content/Anime/Downloaders/HLSDownloader.py` | Replaced non-reentrant `threading.Lock()` with `threading.RLock()` in `ProgressBar` to eliminate self-deadlock at 100% completion during `__exit__` cleanup; scaled HTTP adapter connection pools to 64; preserved playlist segment order with `dict.fromkeys`. |
 | **Non-Blocking Post-Processing & Process Timeouts** | `Content/Anime/Downloaders/HLSDownloader.py`, `Core/commons.py` | Added `-nostdin` flag to all FFmpeg muxing commands, added 300s process execution timeout protection in `exec_os_cmd` with automatic termination on timeout, and added post-processing status indicators. |

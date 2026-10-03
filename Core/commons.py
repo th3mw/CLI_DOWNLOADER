@@ -146,13 +146,13 @@ def render_step_header(breadcrumbs=None, step_title=None):
     banner = render_box('', [
         f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0{c_reset}',
         f'{c_muted}Anime • Asian Dramas • Movies • TV Shows • NSFW{c_reset}'
-    ], max_width=64, indent=2, center=True)
+    ], max_width=64, indent=10, center=True)
     print(f'\n{banner}\n')
     if breadcrumbs:
         trail = f' {c_muted}›{c_reset} '.join(f'{c_green}{b}{c_reset}' for b in breadcrumbs if b)
-        print(f"  {c_muted}📍 Location:{c_reset} {trail}\n")
+        print(f"          {c_muted}📍 Location:{c_reset} {trail}\n")
     elif step_title:
-        print(f"  {c_yellow}➜ {step_title}{c_reset}\n")
+        print(f"          {c_yellow}➜ {step_title}{c_reset}\n")
 
 class ExitException(Exception):
     '''
@@ -571,9 +571,8 @@ def run_config_wizard(config_file, existing_config=None):
                     'search_url': '/filter',
                     'preferred_server_types': ['sub', 'hsub', 'dub']
                 },
-                'anidb': {
-                    'base_url': 'https://anidb.app',
-                    'search_url': 'https://anidb.app/browse?q='
+                'anisnatch': {
+                    'base_url': 'https://anisnatch.top'
                 },
                 'kisskh': {
                     'base_url': 'https://kisskh.co'

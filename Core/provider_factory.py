@@ -33,11 +33,11 @@ CATEGORY_PROVIDERS = {
             'type': 'direct'
         },
         {
-            'key': 'anidb',
-            'name': 'AniDB',
-            'desc': 'Direct Episode Streams',
-            'label': 'AniDB (Direct Streams)',
-            'class_path': 'Content.Anime.Providers.AniDbClient.AniDbClient',
+            'key': 'anisnatch',
+            'name': 'AniSnatch',
+            'desc': 'Direct Anime Streams (Sub & Dub)',
+            'label': 'AniSnatch (Direct Anime • Sub & Dub)',
+            'class_path': 'Content.Anime.Providers.AniSnatchClient.AniSnatchClient',
             'content_filter': None,
             'type': 'direct'
         },

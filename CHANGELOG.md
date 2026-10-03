@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.7.0] - 2026-10-03
 
-### 🚀 Added
+- **AniSnatch (`anisnatch.top`) Provider**:
+  - Full reverse engineering and integration of `anisnatch.top` high-speed direct anime streaming provider (`Content/Anime/Providers/AniSnatchClient.py` and `anisnatch_engine.js`).
+  - Binary XOR + Pako decompression codec, dynamic session token handshake (`/api/init`), and fast parallel multi-server stream extraction (Sub, Soft-Sub, Dub).
+  - Multi-resolution master HLS stream extraction with WebVTT subtitle tracks and intro/outro timestamps.
 - **Categorized Provider Selection (Direct Streams vs. BitTorrent)**:
   - Provider selection menus now cleanly categorize sources into `⚡ DIRECT STREAMS & CDN` and `🧲 BITTORRENT SWARMS & MAGNETS`.
   - TorrentGalaxy (`TGx`) positioned as the **2nd option** for Movies (after YTS) and TV Series (after EZTV).
 - **Multi-Server Resolution Aggregation for Anime**:
-  - Probes all available streaming servers (e.g. `Server 1 (HD-1) [Sub]`, `Server 2 (Vidstream-1) [Sub]`, `Server 3 (HD-1) [Dub]`) for anime episodes across AniKoto and AnimeSuge.
+  - Probes all available streaming servers (e.g. `Server 1 (SnatchCDN) [Sub]`, `Server 7 (SnatchCDN) [Dub]`, `Server 8 (Vidwish) [Dub]`) for anime episodes across AniSnatch, AniKoto, and AnimeSuge.
   - Groups resolutions hierarchically under each server header in the resolution menu, allowing direct selection of specific servers and bitrates.
 - **TorrentGalaxy (`TGx`) Provider for Movies and TV Series**:
   - Direct integration with TorrentGalaxy (`https://torrentgalaxy.one`, `https://torrentgalaxy.info`) across Movies (`Content/Movies/Providers/TGxClient.py`) and TV Series (`Content/Series/Providers/TGxClient.py`).
@@ -22,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TV Shows integration with TVMaze metadata catalog for episode/season mapping.
 
 ### 🛠️ Fixed & Improved
+- **Removed AniDB Provider**:
+  - Completely purged legacy AniDB provider (`Content/Anime/Providers/AniDbClient.py`), configuration, and factory entries.
+- **Streamlined Audio Flow**:
+  - Bypassed redundant interactive Sub/Dub preference prompts during provider setup since multi-server menus already display and differentiate all available Sub, Soft-Sub, and Dub servers.
+- **Header & Card Margin Refinements**:
+  - Adjusted top hero header banner horizontal padding to ~10 chars on both left and right (`indent=10`), while retaining clean 2-char left margin and breathing room on the right for all content cards.
 - **AnimeSuge MegaPlay AES-256 Decryption**:
   - Implemented `_decrypt_megaplay_sources()` with `MEGAPLAY_KEY`/`MEGAPLAY_IV` to decrypt AES-256-CBC ciphertext (`enc`) from updated `megaplay.buzz` stream players.
   - Added multi-candidate ID resolver (`data-id`, `data-realid`, `data-mediaid`, URL ID) with `tcdn`/`bcdn` fallback.

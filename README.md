@@ -211,10 +211,11 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 
 | Category | Provider Client | Engine / Type | Key Features |
 |----------|-----------------|---------------|--------------|
-| **Anime** | `🧲 Nyaa` (`nyaa.si`) | Torrent / `aria2c` | Kitsu API metadata, multi-resolution (1080p, 720p, 480p), Complete Season Batches |
-| **Anime** | `AniDB` (`anidb.app`) | HLS Stream | Fast HLS master stream resolution, multi-language audio tracks (`jpn`, `eng`), clean API |
+| **Anime** | `AniKoto` (`anikoto.cz`) | HLS Stream | Full HD Anime streams, Sub & Dub audio tracks, RC4 verification, multi-resolution HLS |
+| **Anime** | `AniSnatch` (`anisnatch.top`) | HLS Stream | High-speed Anime streams, encrypted binary handshake, multi-server Sub & Dub, WebVTT subtitles |
 | **Anime** | `AnimeSuge` (`animesuge.cz`) | HLS Stream | 2-Line search cards, multi-domain dynamic embeds, multi-server fallbacks, HLS links |
 | **Anime** | `KissKh` (`kisskh.co`) | HLS Stream | Anime-filtered search, episode list fetching, encrypted subtitles |
+| **Anime** | `🧲 Nyaa` (`nyaa.si`) | Torrent / `aria2c` | Kitsu API metadata, multi-resolution (1080p, 720p, 480p), Complete Season Batches |
 | **Movies** | `🧲 YTS / YIFY` (`yts.lt`) | Torrent / `aria2c` | IMDb metadata, 720p, 1080p, 2160p (4K), 3D torrent qualities |
 | **Movies** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads |
 | **Movies** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama movies & Hollywood films |

@@ -178,10 +178,7 @@ def get_client(provider_key=None):
         if provider_key == 'BACK':
             return None
 
-    if series_type == 'Anime' and getattr(args, 'audio', None) is None and getattr(args, 'series_type', None) is None:
-        audio_pref = get_audio_preference(series_type)
-    else:
-        audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')
+    audio_pref = getattr(args, 'audio', None) or (config.get('AudioPreference', {}).get('default_audio', 'sub') if config else 'sub')
 
     category_config = config.setdefault(series_type, {})
     client_inst = create_client(series_type, provider_key, category_config, hls_size_accuracy, audio_preference=audio_pref)
@@ -763,15 +760,15 @@ Examples:
     python scraper.py
   
   One-Line Direct Downloads:
-    python scraper.py -s anime -p anidb -n "Solo Leveling" -e "1-3" -r 1080 -d
+    python scraper.py -s anime -p anisnatch -n "Solo Leveling" -e "1-3" -r 1080 -d
     python scraper.py -s movies -p oneshows -n "Inception" -r 1080 -d
     python scraper.py -s tv -p kisskh -n "Vincenzo" -S "1" -e "1-5" -r 720 -d
 
   Quick Search Only (no download):
-    python scraper.py -s anime -p anidb -n "Jobless" --search-only
+    python scraper.py -s anime -p anisnatch -n "Jobless" --search-only
 
   Dry Run Inspection (resolve links without downloading):
-    python scraper.py -s anime -p anidb -n "Solo Leveling" -e "1" --dry-run
+    python scraper.py -s anime -p anisnatch -n "Solo Leveling" -e "1" --dry-run
 '''
         )
         parser.add_argument('-c', '--conf', default='config_scraper.yaml',

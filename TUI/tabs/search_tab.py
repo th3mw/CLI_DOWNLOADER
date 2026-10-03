@@ -627,6 +627,11 @@ class SearchTab(Static):
 
         synthesized_releases = []
         for opt_k, opt_d in sample_ep_links.items():
+            if str(opt_k).lower() == 'error' or (isinstance(opt_k, str) and 'error' in opt_k.lower()):
+                continue
+            if isinstance(opt_d, dict) and 'error' in opt_d and len(opt_d) == 1:
+                continue
+
             if isinstance(opt_d, dict):
                 synthesized_releases.append({
                     'quality': opt_d.get('quality', opt_k),

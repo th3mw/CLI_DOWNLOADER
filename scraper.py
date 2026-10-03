@@ -963,16 +963,30 @@ Examples:
                 target_ep_links.update(sample_links)
 
             sample_ep_links = next(iter(sample_links.values()), {}) if sample_links else {}
+            # Filter out error keys and failed probe dicts
+            clean_sample_links = {}
+            if isinstance(sample_ep_links, dict):
+                for k, v in sample_ep_links.items():
+                    if str(k).lower() == 'error' or (isinstance(k, str) and 'error' in k.lower()):
+                        continue
+                    if isinstance(v, dict) and 'error' in v and len(v) == 1:
+                        continue
+                    clean_sample_links[k] = v
+            sample_ep_links = clean_sample_links
 
-            # Check if options contain torrent release details / sizes
-            has_release_sizes = any(isinstance(v, dict) and (v.get('resolution_size') or v.get('size')) for v in sample_ep_links.values())
+            # Check if options contain actual torrent release details / file sizes (e.g. 1.2 GB, magnet)
+            has_release_sizes = any(
+                isinstance(v, dict) and (v.get('size') or v.get('magnet') or (v.get('downloadType') == 'torrent'))
+                for v in sample_ep_links.values()
+            )
 
             # Sort options: 2160 -> 1080 -> 720 -> 480 -> 360, and by seeds descending
             def sort_res_option(entry):
                 opt_k, opt_d = entry
-                q = str(opt_d.get('quality') if isinstance(opt_d, dict) else opt_k).upper().replace('P', '')
+                q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
+                q = str(q_raw).upper().replace('P', '')
                 seeds = int(opt_d.get('seeds') or (opt_d.get('torrent_info', {}).get('seeds', 0) if isinstance(opt_d, dict) else 0)) if isinstance(opt_d, dict) else 0
-                q_score = 300000 if q == '2160' else (200000 if q == '1080' else (100000 if q == '720' else (50000 if q == '480' else 0)))
+                q_score = 300000 if q == '2160' else (200000 if q == '1080' else (100000 if q == '720' else (50000 if q == '480' else (25000 if q in ('360', '682') else 0))))
                 return q_score + seeds
 
             sorted_options = sorted(sample_ep_links.items(), key=sort_res_option, reverse=True) if sample_ep_links else []
@@ -989,8 +1003,11 @@ Examples:
             has_1080_default = False
 
             for idx, (opt_k, opt_d) in enumerate(sorted_options, start=1):
+                q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
+                q = str(q_raw).upper().replace('P', '')
+                if not q or q.lower() in ('error', 'none'):
+                    continue
                 res_map[str(idx)] = opt_k
-                q = str(opt_d.get('quality') if isinstance(opt_d, dict) else opt_k).upper().replace('P', '')
                 if q not in res_map:
                     res_map[q] = opt_k
                     res_map[f"{q}p"] = opt_k
@@ -1007,19 +1024,22 @@ Examples:
 
                 def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
 
-                if isinstance(opt_d, dict) and (opt_d.get('resolution_size') or opt_d.get('size')):
-                    size_meta = opt_d.get('resolution_size') or f"{opt_d.get('size')} • Seeds: {opt_d.get('seeds', 0)}"
+                is_torrent = isinstance(opt_d, dict) and (opt_d.get('size') or opt_d.get('magnet') or opt_d.get('downloadType') == 'torrent')
+                if is_torrent:
+                    size_meta = f"{opt_d.get('size', 'Ready')} • Seeds: {opt_d.get('seeds', 0)}"
                     res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {size_meta}\033[0m{def_tag}")
                 else:
-                    label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q == '720' else 'SD'))
+                    label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
                     res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
 
             if not res_lines:
-                ordered_res = ['1080', '720', '480']
+                ordered_res = ['1080', '720', '480', '360']
                 for idx, r in enumerate(ordered_res, start=1):
                     res_map[str(idx)] = r
                     res_map[r] = r
-                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m")
+                    label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
+                    def_tag = ' \033[38;5;39m[default]\033[0m' if r == '1080' else ''
+                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
 
             card_title = 'AVAILABLE TORRENT RELEASES' if has_release_sizes else 'AVAILABLE RESOLUTIONS'
             print('\n' + render_box(card_title, res_lines))

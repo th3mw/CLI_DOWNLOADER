@@ -1,7 +1,8 @@
 import os
 import re
 import base64
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, parse_qs
+from Cryptodome.Cipher import AES
 
 from Core.BaseClient import BaseClient
 
@@ -11,6 +12,9 @@ class AnimeSugeClient(BaseClient):
     Client for animesuge.cz site supporting anime streaming without Cloudflare/Turnstile protection.
     Uses pure HTTP requests — no browser automation required.
     '''
+    MEGAPLAY_KEY = b'i?LMTAx0Q6,:}50U'.ljust(32, b'\0')
+    MEGAPLAY_IV = b"W0;27ToaUpl_P%'c"
+
     def __init__(self, config, session=None, series_type=None, content_filter=None, **kwargs):
         self.series_type = series_type
         self.content_filter = content_filter
@@ -31,6 +35,25 @@ class AnimeSugeClient(BaseClient):
             self.preferred_server_types = config.get('preferred_server_types', ['sub', 'hsub', 'dub'])
         self.vidtube_origin = config.get('vidtube_origin', 'https://vidtube.site/')
         super().__init__(config.get('request_timeout', 30), session)
+
+    def _decrypt_megaplay_sources(self, enc_str):
+        '''
+        Decrypt AES-256-CBC ciphertext from MegaPlay / Vidstream getSourcesNew API.
+        '''
+        try:
+            enc_fixed = str(enc_str).replace('-', '+').replace('_', '/')
+            enc_fixed += '=' * ((4 - len(enc_fixed) % 4) % 4)
+            ciphertext = base64.b64decode(enc_fixed)
+
+            cipher = AES.new(self.MEGAPLAY_KEY, AES.MODE_CBC, iv=self.MEGAPLAY_IV)
+            decrypted = cipher.decrypt(ciphertext)
+            pad_len = decrypted[-1]
+            if 1 <= pad_len <= 16:
+                decrypted = decrypted[:-pad_len]
+            return decrypted.decode('utf-8', errors='ignore')
+        except Exception as e:
+            self.logger.debug(f'MegaPlay decryption error: {e}')
+            return ''
 
     def _compute_vrf(self, anime_id):
         '''
@@ -133,46 +156,96 @@ class AnimeSugeClient(BaseClient):
         '''
         Given an embed stream URL (e.g. vidtube, megaplay, vidstream), fetch the page
         to extract the media ID, then query getSourcesNew / getSources on the embed domain.
+        Handles encrypted ('enc') AES-256 payloads, multiple CDN selectors, and track subtitles.
         Returns: (m3u8_url, subtitles_dict, stream_origin)
         '''
-        page_html = self._send_request(stream_url, referer=f'{self.base_url}/', silent=True)
-        if not page_html:
+        if not stream_url:
             return None, {}, self.vidtube_origin
 
         parsed = urlparse(stream_url)
         stream_origin = f"{parsed.scheme}://{parsed.netloc}"
 
-        # Extract data-id (media ID) from the page
-        match = re.search(r'data-id="(\d+)"', page_html)
-        if not match:
+        qs = parse_qs(parsed.query)
+        s_param = qs.get('s', [None])[0]
+
+        parts = parsed.path.rstrip('/').split('/')
+        url_id = None
+        vid_type = 'sub'
+        if parts:
+            vid_type = parts[-1] if parts[-1] in ('sub', 'dub', 'raw', 'hsub') else 'sub'
+            for p in reversed(parts[:-1] if parts[-1] in ('sub', 'dub', 'raw', 'hsub') else parts):
+                if p.isdigit():
+                    url_id = p
+                    break
+
+        page_html = self._send_request(stream_url, referer=f'{self.base_url}/', silent=True)
+        candidate_ids = []
+        if page_html:
+            soup = self._get_bsoup_from_html(page_html)
+            player = soup.select_one('#megaplay-player, [data-id], .fix-area')
+            if player:
+                for attr in ['data-id', 'data-realid', 'data-mediaid']:
+                    val = player.get(attr)
+                    if val and val not in candidate_ids:
+                        candidate_ids.append(val)
+            for m in re.finditer(r'data-(?:id|realid|mediaid)=[\"\'](\d+)[\"\']', page_html):
+                cid = m.group(1)
+                if cid not in candidate_ids:
+                    candidate_ids.append(cid)
+
+        if url_id and url_id not in candidate_ids:
+            candidate_ids.append(url_id)
+
+        if not candidate_ids:
             self.logger.warning(f'Could not find media ID on stream page: {stream_url}')
             return None, {}, stream_origin
 
-        media_id = match.group(1)
-        # Extract the type from the stream URL path
-        parts = parsed.path.rstrip('/').split('/')
-        vid_type = parts[-1] if parts else 'sub'
+        s_options = [f"&s={s_param}"] if s_param else [""]
+        if not s_param:
+            s_options.extend(["&s=tcdn", "&s=bcdn"])
+        elif s_param not in ["tcdn", "bcdn"]:
+            s_options.extend(["&s=tcdn", "&s=bcdn"])
 
-        # Try getSourcesNew then fallback to getSources on the embed's own origin domain
-        for endpoint in ['getSourcesNew', 'getSources']:
-            sources_url = f'{stream_origin}/stream/{endpoint}?id={media_id}&type={vid_type}'
-            sources_resp = self._send_request(
-                sources_url,
-                referer=stream_url,
-                extra_headers={'X-Requested-With': 'XMLHttpRequest'},
-                return_type='json',
-                silent=True
-            )
-            if sources_resp and isinstance(sources_resp.get('sources'), dict) and sources_resp['sources'].get('file'):
-                m3u8_url = sources_resp['sources']['file']
-                subtitles = {}
-                tracks = sources_resp.get('tracks', [])
-                if isinstance(tracks, list):
-                    for track in tracks:
-                        if isinstance(track, dict) and track.get('file'):
-                            label = track.get('label', 'English')
-                            subtitles[label] = track['file']
-                return m3u8_url, subtitles, stream_origin
+        for cid in candidate_ids:
+            for endpoint in ['getSourcesNew', 'getSources']:
+                for s_suffix in s_options:
+                    sources_url = f'{stream_origin}/stream/{endpoint}?id={cid}&type={vid_type}{s_suffix}'
+                    sources_resp = self._send_request(
+                        sources_url,
+                        referer=stream_url,
+                        extra_headers={'X-Requested-With': 'XMLHttpRequest'},
+                        return_type='json',
+                        silent=True
+                    )
+                    if not sources_resp or not isinstance(sources_resp, dict):
+                        continue
+
+                    subtitles = {}
+                    tracks = sources_resp.get('tracks', [])
+                    if isinstance(tracks, list):
+                        for track in tracks:
+                            if isinstance(track, dict) and track.get('file'):
+                                label = track.get('label', 'English')
+                                subtitles[label] = track['file']
+
+                    # Case A: Encrypted payload ('enc')
+                    if 'enc' in sources_resp and sources_resp['enc']:
+                        dec_json = self._decrypt_megaplay_sources(sources_resp['enc'])
+                        if dec_json:
+                            import json
+                            try:
+                                dec_obj = json.loads(dec_json)
+                                m3u8_url = dec_obj.get('file')
+                                if m3u8_url:
+                                    return m3u8_url, subtitles, stream_origin
+                            except Exception:
+                                pass
+
+                    # Case B: Plain sources object / list
+                    if isinstance(sources_resp.get('sources'), dict) and sources_resp['sources'].get('file'):
+                        return sources_resp['sources']['file'], subtitles, stream_origin
+                    elif isinstance(sources_resp.get('sources'), list) and sources_resp['sources'] and sources_resp['sources'][0].get('file'):
+                        return sources_resp['sources'][0]['file'], subtitles, stream_origin
 
         self.logger.warning(f'Could not get m3u8 from stream source: {stream_url}')
         return None, {}, stream_origin

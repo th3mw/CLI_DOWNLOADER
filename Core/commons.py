@@ -35,24 +35,70 @@ PRINT_THEMES = {
 }
 DISPLAY_COLORS = True
 
+import unicodedata
+
 # strip ANSI characters
 strip_ansi = lambda text: re.sub(r'\x1b\[[0-9;]*m', '', str(text)) if text is not None else ''
 
 def visible_len(text):
-    '''Calculate visible display length of string ignoring ANSI codes'''
-    return len(strip_ansi(text))
+    '''Calculate visible display length of string ignoring ANSI codes and accounting for wide Unicode/emojis'''
+    if text is None:
+        return 0
+    clean = strip_ansi(text)
+    length = 0
+    for ch in clean:
+        w = unicodedata.east_asian_width(ch)
+        if w in ('W', 'F'):
+            length += 2
+        else:
+            length += 1
+    return length
 
-def render_box(title, lines, max_width=76, indent=2, center=False):
+def truncate_ansi(text, max_len):
+    '''Truncate string to max_len visual columns while preserving ANSI styling and appending ellipsis'''
+    if text is None:
+        return ''
+    tokens = re.split(r'(\x1b\[[0-9;]*m)', text)
+    result = []
+    curr_len = 0
+    truncated = False
+
+    for token in tokens:
+        if not token:
+            continue
+        if token.startswith('\x1b['):
+            result.append(token)
+        else:
+            for ch in token:
+                w = unicodedata.east_asian_width(ch)
+                ch_w = 2 if w in ('W', 'F') else 1
+                if curr_len + ch_w > max_len - 1:
+                    truncated = True
+                    break
+                result.append(ch)
+                curr_len += ch_w
+        if truncated:
+            break
+
+    if truncated:
+        result.append('…\033[0m')
+    return ''.join(result)
+
+def render_box(title, lines, max_width=84, indent=2, center=False):
     '''
     Render a clean Unicode bordered card container.
-    Adapts dynamically to terminal width without line overflow.
+    Adapts dynamically to terminal width and content size without line overflow.
     Includes left indentation margin for clean breathing room.
     '''
     try:
         term_cols = shutil.get_terminal_size((80, 24)).columns
     except Exception:
         term_cols = 80
-    term_width = min(term_cols - (indent * 2), max_width)
+
+    title_vlen = visible_len(title) + 2 if title else 0
+    max_content_vlen = max([visible_len(l) for l in lines] + [title_vlen + 2], default=40)
+    desired_width = max(50, max_content_vlen + 4)
+    term_width = min(term_cols - (indent * 2), max_width, desired_width)
     inner_width = max(term_width - 4, 30)
     pad_left = ' ' * indent
 
@@ -61,15 +107,14 @@ def render_box(title, lines, max_width=76, indent=2, center=False):
     c_reset = PRINT_THEMES['reset'] if DISPLAY_COLORS else ''
 
     title_str = f' {c_title}{title}{c_reset}{c_border} ' if title else ''
-    title_vlen = visible_len(title) + 2 if title else 0
     dash_count = max(inner_width - title_vlen, 2)
 
     out = [f'{pad_left}{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}']
     for line in lines:
         vlen = visible_len(line)
         if vlen > inner_width:
-            line_str = line[:inner_width]
-            vlen = inner_width
+            line_str = truncate_ansi(line, inner_width)
+            vlen = visible_len(line_str)
         else:
             line_str = line
         pad = max(0, inner_width - vlen)
@@ -99,9 +144,9 @@ def render_step_header(breadcrumbs=None, step_title=None):
     c_yellow = PRINT_THEMES['user_input'] if DISPLAY_COLORS else ''
 
     banner = render_box('', [
-        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5{c_reset}',
+        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0{c_reset}',
         f'{c_muted}Anime • Asian Dramas • Movies • TV Shows • NSFW{c_reset}'
-    ], max_width=76, indent=0, center=True)
+    ], max_width=64, indent=2, center=True)
     print(f'\n{banner}\n')
     if breadcrumbs:
         trail = f' {c_muted}›{c_reset} '.join(f'{c_green}{b}{c_reset}' for b in breadcrumbs if b)

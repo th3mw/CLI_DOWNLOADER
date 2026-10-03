@@ -66,18 +66,26 @@ def get_provider(category_name, predefined_provider=None):
         if direct_provs: groups.append(('⚡  DIRECT STREAMS & CDN', direct_provs))
         if torrent_provs: groups.append(('🧲  BITTORRENT SWARMS & MAGNETS', torrent_provs))
 
+    max_name_len = max(len(p.get('name') or p.get('label', p['key'])) for p in providers)
+
     for group_title, prov_list in groups:
         if menu_lines:
             menu_lines.append("")
-        menu_lines.append(f"\033[1m\033[38;5;39m{group_title}\033[0m")
+        menu_lines.append(f"  \033[1m\033[38;5;39m{group_title}\033[0m")
         for prov in prov_list:
-            label = prov['label']
-            menu_lines.append(f"  \033[1m[{current_idx}]\033[0m  {label}")
+            prov_name = prov.get('name') or prov.get('label', prov['key'])
+            prov_desc = prov.get('desc', '')
+            name_padded = prov_name.ljust(max_name_len)
+            if prov_desc:
+                line = f"    \033[1m[{current_idx}]\033[0m  {name_padded}  \033[38;5;244m•  {prov_desc}\033[0m"
+            else:
+                line = f"    \033[1m[{current_idx}]\033[0m  {name_padded}"
+            menu_lines.append(line)
             choices[current_idx] = prov['key']
             current_idx += 1
 
     menu_lines.append("")
-    menu_lines.append(f"\033[38;5;244m[0]  ‹   Back to Content Types\033[0m")
+    menu_lines.append(f"    \033[38;5;244m[0]  ‹ Back to Content Types\033[0m")
     choices[0] = 'BACK'
 
     print('\n' + render_box(f'SELECT {category_name.upper()} PROVIDER', menu_lines))
@@ -89,7 +97,7 @@ def get_provider(category_name, predefined_provider=None):
             raise ExitException(0)
         return predefined_provider
     else:
-        choice = colprint('user_input', f'\n  ➜ Enter choice [1-{len(choices)-1}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
+        choice = colprint('user_input', f'\n  ➜ Select provider [1-{len(choices)-1}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
         return choices[choice]
 
 def parse_task_selection(user_input: str, total_tasks: int) -> list:
@@ -143,9 +151,9 @@ def get_audio_preference(category_name, predefined_audio=None):
     default_idx = 2 if default_pref in ('dub', 'english') else 1
 
     menu_lines = [
-        f"\033[1m[1]\033[0m  🇯🇵  \033[1mSub (Original Japanese Audio + English Subtitles)\033[0m \033[38;5;39m[default]\033[0m",
-        f"\033[1m[2]\033[0m  🇺🇸  Dub (English Voice Acting)",
-        f"\033[1m[3]\033[0m  🌐  Dual Audio / Multi-Audio",
+        f"  \033[1m[1]\033[0m  🇯🇵  Sub         \033[38;5;244m•  Original Japanese Audio + English Subtitles\033[0m \033[38;5;39m[default]\033[0m",
+        f"  \033[1m[2]\033[0m  🇺🇸  Dub         \033[38;5;244m•  English Voice Acting\033[0m",
+        f"  \033[1m[3]\033[0m  🌐  Dual Audio  \033[38;5;244m•  Multi-Audio (Japanese + English Track)\033[0m",
     ]
     print('\n' + render_box('AUDIO LANGUAGE PREFERENCE', menu_lines))
     choice = colprint('user_input', f'\n  ➜ Select Audio [1=Sub, 2=Dub, 3=Dual Audio] [default={default_idx}]: ', input_type='recurring', input_options=['1', '2', '3', 'sub', 'dub', 'dual', 's', 'd', 1, 2, 3], allow_empty_input=True)
@@ -350,10 +358,11 @@ def handle_history_menu():
         clear_screen()
         render_step_header(step_title='Download History & Tasks')
         lines = [
-            "\033[1m[1]\033[0m  📜  View Download History",
-            "\033[1m[2]\033[0m  🔄  Resume Incomplete Downloads",
-            "\033[1m[3]\033[0m  🗑   Clear Download History",
-            "\033[38;5;244m[0]  ‹   Back to Main Menu\033[0m"
+            "  \033[1m[1]\033[0m  📜  View Download History       \033[38;5;244m•  Recent completed & active downloads\033[0m",
+            "  \033[1m[2]\033[0m  🔄  Resume Incomplete Downloads  \033[38;5;244m•  Pick up paused or failed tasks\033[0m",
+            "  \033[1m[3]\033[0m  🗑   Clear Download History       \033[38;5;244m•  Purge local task database records\033[0m",
+            "",
+            "  \033[38;5;244m[0]  ‹   Back to Main Menu\033[0m"
         ]
         print('\n' + render_box('HISTORY & TASK MANAGER', lines))
         c = colprint('user_input', '\n  ➜ Enter choice [1-3, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3])
@@ -401,12 +410,13 @@ def get_series_type(keys, predefined_input=None):
             render_step_header(step_title='Select Content Category')
 
         menu_lines = [
-            f"\033[1m[1]\033[0m  🎬  Anime",
-            f"\033[1m[2]\033[0m  🍿  Movies",
-            f"\033[1m[3]\033[0m  📺  TV Shows",
-            f"\033[1m[4]\033[0m  🔞  Hentai (NSFW)",
-            f"\033[1m[5]\033[0m  📜  Download History & Task Manager",
-            f"\033[38;5;244m[0]  🚪  Exit\033[0m"
+            f"  \033[1m[1]\033[0m  🎬  Anime          \033[38;5;244m•  TV Series, Movies & OVAs\033[0m",
+            f"  \033[1m[2]\033[0m  🍿  Movies         \033[38;5;244m•  Blockbusters & Cinema\033[0m",
+            f"  \033[1m[3]\033[0m  📺  TV Shows       \033[38;5;244m•  Series, Seasons & Episodes\033[0m",
+            f"  \033[1m[4]\033[0m  🔞  Hentai (NSFW)  \033[38;5;244m•  Adult Anime & Content\033[0m",
+            "",
+            f"  \033[1m[5]\033[0m  📜  History        \033[38;5;244m•  Download Tasks & Manager\033[0m",
+            f"  \033[38;5;244m[0]  🚪  Exit\033[0m"
         ]
         print('\n' + render_box('SELECT CONTENT TYPE', menu_lines))
         choice = colprint('user_input', '\n  ➜ Enter choice [1-5, 0=Exit]: ', input_type='recurring', input_dtype='int', input_options=[0, 1, 2, 3, 4, 5], allow_empty_input=False)
@@ -451,10 +461,10 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
         card_lines = []
         for idx, (res_no, res_item) in enumerate(search_results.items()):
             title = res_item.get('card_title') or res_item.get('title', 'Unknown')
-            line1 = f"\033[1m[{res_no}]\033[0m \033[38;5;39m{title}\033[0m"
+            line1 = f"  \033[1m[{res_no}]\033[0m  \033[38;5;39m{title}\033[0m"
 
             if res_item.get('card_meta'):
-                line2 = f"    \033[38;5;244m{res_item['card_meta']}\033[0m"
+                line2 = f"       \033[38;5;244m{res_item['card_meta']}\033[0m"
             else:
                 rating = res_item.get('rating', 'N/A')
                 year = res_item.get('year', '')
@@ -465,19 +475,19 @@ def search_and_select_series(predefined_search_input=None, search_only=False):
                 if year and year != 'XXXX': meta.append(f"Year: {year}")
                 if format_tag: meta.append(f"\033[38;5;141m[{str(format_tag).upper()}]\033[0m")
                 if eps: meta.append(f"Eps: {eps}")
-                line2 = "    " + " \033[38;5;244m•\033[0m ".join(meta)
+                line2 = "       " + " \033[38;5;244m•\033[0m ".join(meta)
 
             genres = res_item.get('genres', '')
             card_lines.append(line1)
             card_lines.append(line2)
             if genres:
-                card_lines.append(f"    \033[38;5;244mGenres: {genres}\033[0m")
+                card_lines.append(f"       \033[38;5;244mGenres: {genres}\033[0m")
             if idx < len(search_results) - 1:
                 card_lines.append("")
 
         if not search_only:
             card_lines.append("")
-            card_lines.append("\033[38;5;244m[0] 🔍 Search again with a different title\033[0m")
+            card_lines.append("  \033[38;5;244m[0]  🔍 Search again with a different title\033[0m")
 
         print('\n' + render_box(f'Search Results ({len(search_results)} matches)', card_lines))
 
@@ -1037,7 +1047,7 @@ Examples:
                 for srv_title, srv_opts in servers_grouped.items():
                     if res_lines:
                         res_lines.append("")
-                    res_lines.append(f"\033[1m\033[38;5;39m🖥️  {srv_title}\033[0m")
+                    res_lines.append(f"  \033[1m\033[38;5;39m🖥️  {srv_title}\033[0m")
                     for opt_k, opt_d in srv_opts:
                         q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
                         q = str(q_raw).upper().replace('P', '')
@@ -1062,7 +1072,7 @@ Examples:
 
                         def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
                         label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
-                        res_lines.append(f"  \033[1m[{idx_str}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+                        res_lines.append(f"    \033[1m[{idx_str}]\033[0m  \033[1m{q}P\033[0m  \033[38;5;244m•  {label}\033[0m{def_tag}")
                         current_choice_num += 1
             else:
                 for idx, (opt_k, opt_d) in enumerate(sorted_options, start=1):
@@ -1090,10 +1100,10 @@ Examples:
                     is_torrent = isinstance(opt_d, dict) and (opt_d.get('size') or opt_d.get('magnet') or opt_d.get('downloadType') == 'torrent')
                     if is_torrent:
                         size_meta = f"{opt_d.get('size', 'Ready')} • Seeds: {opt_d.get('seeds', 0)}"
-                        res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {size_meta}\033[0m{def_tag}")
+                        res_lines.append(f"  \033[1m[{idx}]\033[0m  \033[1m{q}P\033[0m  \033[38;5;244m•  {size_meta}\033[0m{def_tag}")
                     else:
                         label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
-                        res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+                        res_lines.append(f"  \033[1m[{idx}]\033[0m  \033[1m{q}P\033[0m  \033[38;5;244m•  {label}\033[0m{def_tag}")
 
             if not res_lines:
                 ordered_res = ['1080', '720', '480', '360']
@@ -1102,7 +1112,7 @@ Examples:
                     res_map[r] = r
                     label = 'Full HD (Recommended)' if r == '1080' else ('HD' if r == '720' else 'SD')
                     def_tag = ' \033[38;5;39m[default]\033[0m' if r == '1080' else ''
-                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{r}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+                    res_lines.append(f"  \033[1m[{idx}]\033[0m  \033[1m{r}P\033[0m  \033[38;5;244m•  {label}\033[0m{def_tag}")
 
             card_title = 'AVAILABLE TORRENT RELEASES' if has_release_sizes else 'AVAILABLE RESOLUTIONS'
             print('\n' + render_box(card_title, res_lines))
@@ -1203,17 +1213,19 @@ Examples:
         audio_pref_val = getattr(client, 'audio_preference', None) or 'sub'
         audio_label = '🇺🇸 English Dubbed (Dub)' if audio_pref_val == 'dub' else ('🌐 Dual Audio / Multi-Audio' if audio_pref_val == 'dual' else '🇯🇵 Sub (Original Japanese)')
         first_dl = next(iter(target_dl_links.values()), {}) if target_dl_links else {}
-        res_display = first_dl.get('resolution') or (f"{str(resolution).upper()}P" if not str(resolution).upper().endswith('P') else str(resolution).upper())
+        raw_res = first_dl.get('resolution') or str(resolution)
+        clean_res = re.sub(r'^srv\d+_', '', str(raw_res), flags=re.IGNORECASE)
+        res_display = f"{clean_res.upper()}P" if not clean_res.upper().endswith('P') else clean_res.upper()
 
         checklist_lines = [
-            f"\033[1mSeries:\033[0m     \033[38;5;39m{series_title}\033[0m",
-            f"\033[1mSave Path:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
-            f"\033[1mResolution:\033[0m \033[38;5;220m{res_display}\033[0m (MKV with Forced English Subtitles)",
-            f"\033[1mAudio:\033[0m      \033[38;5;39m{audio_label}\033[0m",
-            f"\033[1mQueued:\033[0m     {available_dl_count} episode(s) ready to download"
+            f"  \033[1mSeries:\033[0m      \033[38;5;39m{series_title}\033[0m",
+            f"  \033[1mSave Path:\033[0m   \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+            f"  \033[1mResolution:\033[0m  \033[38;5;220m{res_display}\033[0m \033[38;5;244m(MKV with Forced English Subtitles)\033[0m",
+            f"  \033[1mAudio:\033[0m       \033[38;5;39m{audio_label}\033[0m",
+            f"  \033[1mQueued:\033[0m      {available_dl_count} episode(s) ready to download"
         ]
         if already_downloaded_count > 0:
-            checklist_lines.append(f"\033[38;5;82m✔ {already_downloaded_count} existing episode(s) skipped\033[0m")
+            checklist_lines.append(f"  \033[38;5;82m✔  {already_downloaded_count} existing episode(s) skipped\033[0m")
         print('\n' + render_box('PRE-DOWNLOAD INSPECTION', checklist_lines))
 
         if args.dry_run:
@@ -1249,9 +1261,9 @@ Examples:
 
         # Post-download receipt card
         receipt_lines = [
-            f"\033[1mSeries:\033[0m   \033[38;5;39m{series_title}\033[0m",
-            f"\033[1mSaved To:\033[0m \033[38;5;244m{downloader_config['download_dir']}\033[0m",
-            f"\033[1mEpisodes:\033[0m {summary['total']} processed ({summary['success']} succeeded, {summary['skipped']} skipped, {summary['failed']} failed)"
+            f"  \033[1mSeries:\033[0m    \033[38;5;39m{series_title}\033[0m",
+            f"  \033[1mSaved To:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+            f"  \033[1mEpisodes:\033[0m  {summary['total']} processed ({summary['success']} succeeded, {summary['skipped']} skipped, {summary['failed']} failed)"
         ]
 
         if summary['failed'] > 0:

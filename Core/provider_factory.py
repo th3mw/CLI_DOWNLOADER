@@ -18,31 +18,36 @@ CATEGORY_PROVIDERS = {
             'key': 'anikoto',
             'label': '🔥  AniKoto (HD Anime • Sub & Dub)',
             'class_path': 'Content.Anime.Providers.AnikotoClient.AnikotoClient',
-            'content_filter': None
-        },
-        {
-            'key': 'nyaa',
-            'label': '🧲  Nyaa (Anime Torrents)',
-            'class_path': 'Content.Anime.Providers.NyaaClient.NyaaClient',
-            'content_filter': 'anime'
+            'content_filter': None,
+            'type': 'direct'
         },
         {
             'key': 'anime_suge',
-            'label': '🎬  AnimeSuge',
+            'label': '🎬  AnimeSuge (Fast Streams)',
             'class_path': 'Content.Anime.Providers.AnimeSugeClient.AnimeSugeClient',
-            'content_filter': None
+            'content_filter': None,
+            'type': 'direct'
         },
         {
             'key': 'anidb',
-            'label': '🎌  AniDB',
+            'label': '🎌  AniDB (Direct Streams)',
             'class_path': 'Content.Anime.Providers.AniDbClient.AniDbClient',
-            'content_filter': None
+            'content_filter': None,
+            'type': 'direct'
         },
         {
             'key': 'kisskh',
             'label': '🌸  KissKh (Anime Only)',
             'class_path': 'Content.Anime.Providers.KissKhClient.KissKhClient',
-            'content_filter': 'anime'
+            'content_filter': 'anime',
+            'type': 'direct'
+        },
+        {
+            'key': 'nyaa',
+            'label': '🧲  Nyaa (Anime Torrents)',
+            'class_path': 'Content.Anime.Providers.NyaaClient.NyaaClient',
+            'content_filter': 'anime',
+            'type': 'torrent'
         }
     ],
     'Movies': [
@@ -50,25 +55,29 @@ CATEGORY_PROVIDERS = {
             'key': 'yts',
             'label': '🧲  YTS / YIFY (Movie Torrents)',
             'class_path': 'Content.Movies.Providers.YTSClient.YTSClient',
-            'content_filter': 'movie'
+            'content_filter': 'movie',
+            'type': 'torrent'
         },
         {
             'key': 'tgx',
             'label': '🌌  TorrentGalaxy (Movies Torrents)',
             'class_path': 'Content.Movies.Providers.TGxClient.TGxClient',
-            'content_filter': 'movie'
+            'content_filter': 'movie',
+            'type': 'torrent'
         },
         {
             'key': 'oneshows',
-            'label': '🎬  1Shows (Movies)',
+            'label': '🎬  1Shows (Direct Movies)',
             'class_path': 'Content.Movies.Providers.OneShowsClient.OneShowsClient',
-            'content_filter': 'movie'
+            'content_filter': 'movie',
+            'type': 'direct'
         },
         {
             'key': 'kisskh',
             'label': '🌸  KissKh (Asian Movies)',
             'class_path': 'Content.Movies.Providers.KissKhClient.KissKhClient',
-            'content_filter': 'movie'
+            'content_filter': 'movie',
+            'type': 'direct'
         }
     ],
     'TV Shows': [
@@ -76,25 +85,29 @@ CATEGORY_PROVIDERS = {
             'key': 'eztv',
             'label': '🧲  EZTV (TV Torrents)',
             'class_path': 'Content.Series.Providers.EZTVClient.EZTVClient',
-            'content_filter': 'tv'
+            'content_filter': 'tv',
+            'type': 'torrent'
         },
         {
             'key': 'tgx',
             'label': '🌌  TorrentGalaxy (TV Shows Torrents)',
             'class_path': 'Content.Series.Providers.TGxClient.TGxClient',
-            'content_filter': 'tv'
+            'content_filter': 'tv',
+            'type': 'torrent'
         },
         {
             'key': 'oneshows',
-            'label': '🎬  1Shows (TV Shows)',
+            'label': '🎬  1Shows (Direct TV Shows)',
             'class_path': 'Content.Series.Providers.OneShowsClient.OneShowsClient',
-            'content_filter': 'tv'
+            'content_filter': 'tv',
+            'type': 'direct'
         },
         {
             'key': 'kisskh',
             'label': '🌸  KissKh (Asian Dramas & TV)',
             'class_path': 'Content.Series.Providers.KissKhClient.KissKhClient',
-            'content_filter': 'tv'
+            'content_filter': 'tv',
+            'type': 'direct'
         }
     ],
     'Hentai (NSFW)': [
@@ -102,7 +115,8 @@ CATEGORY_PROVIDERS = {
             'key': 'hanime',
             'label': '🔞  Hanime (Hentai & NSFW Anime)',
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
-            'content_filter': 'nsfw'
+            'content_filter': 'nsfw',
+            'type': 'direct'
         }
     ],
     'NSFW': [
@@ -110,7 +124,8 @@ CATEGORY_PROVIDERS = {
             'key': 'hanime',
             'label': '🔞  Hanime (Hentai & NSFW Anime)',
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
-            'content_filter': 'nsfw'
+            'content_filter': 'nsfw',
+            'type': 'direct'
         }
     ],
     'NSFW / Hentai': [
@@ -118,7 +133,8 @@ CATEGORY_PROVIDERS = {
             'key': 'hanime',
             'label': '🔞  Hanime (Hentai & NSFW Anime)',
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
-            'content_filter': 'nsfw'
+            'content_filter': 'nsfw',
+            'type': 'direct'
         }
     ]
 }

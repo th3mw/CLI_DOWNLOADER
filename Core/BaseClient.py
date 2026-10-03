@@ -605,7 +605,9 @@ class BaseClient():
         res_str = ''
         if resolution:
             r = str(resolution).strip().upper()
-            if not r.endswith('P') and r.isdigit():
+            if '_' in r:
+                r = r.split('_')[-1]
+            if not r.endswith('P') and any(c.isdigit() for c in r):
                 r = f"{r}P"
             res_str = f" - {r}"
 
@@ -777,37 +779,52 @@ class BaseClient():
 
     def _resolution_selector(self, available_resolutions, target_resolution, selector_strategy='lowest'):
         '''
-        Select a resolution based on selection strategy
+        Select a resolution based on selection strategy, supporting server-prefixed keys (e.g. srv1_1080).
         '''
-        if 'error' in available_resolutions or len(available_resolutions) == 0:
-            return
+        if not available_resolutions or 'error' in available_resolutions:
+            return None
 
+        # Direct exact match
         if target_resolution in available_resolutions:
             return target_resolution
+
+        # Suffix / quality match (e.g. '1080' matching 'srv1_1080')
+        target_str = str(target_resolution).rstrip('pP')
+        for res_key in available_resolutions:
+            if res_key == target_str or str(res_key).endswith(f"_{target_str}"):
+                return res_key
 
         if len(available_resolutions) == 1:
             return next(iter(available_resolutions))
 
-        sorted_resolutions = sorted(available_resolutions, key=lambda x: int(x))
+        def extract_num(k):
+            import re
+            m = re.search(r'(\d+)(?:p|P)?$', str(k))
+            if m:
+                return int(m.group(1))
+            digits = ''.join(c for c in str(k) if c.isdigit())
+            return int(digits) if digits else 0
+
+        target_num = extract_num(target_resolution)
+        valid_res = [r for r in available_resolutions if r != 'error']
+        if not valid_res:
+            return None
+
+        sorted_resolutions = sorted(valid_res, key=extract_num)
 
         if selector_strategy == 'highest':
-            # if selector_strategy is higher, select the next highest resolution
             for resolution in sorted_resolutions:
-                if int(resolution) > int(target_resolution):
+                if extract_num(resolution) >= target_num:
                     return resolution
-            else:
-                return resolution      # return highest resolution if reached end of loop
+            return sorted_resolutions[-1]
 
         elif selector_strategy == 'lowest':
-            # if selector_strategy is lower, select the next lowest resolution
             for resolution in sorted_resolutions[::-1]:
-                if int(resolution) < int(target_resolution):
+                if extract_num(resolution) <= target_num:
                     return resolution
-            else:
-                return resolution      # return lowest resolution if reached start of loop
+            return sorted_resolutions[0]
 
-        else:
-            return None
+        return sorted_resolutions[0]
 
     def _get_undetected_chrome_driver(self, client):
         '''

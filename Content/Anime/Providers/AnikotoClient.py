@@ -504,11 +504,16 @@ class AnikotoClient(BaseClient):
 
         merged_m3u8_links = {}
         all_subtitles = {}
+        server_idx = 1
 
         for s_elem in server_candidates:
             link_id = s_elem.get('data-link-id')
             if not link_id:
                 continue
+
+            srv_label = s_elem.text.strip() or f"Server {server_idx}"
+            parent_type_div = s_elem.find_parent(class_='type') or s_elem.find_parent('div', attrs={'data-type': True})
+            srv_type = parent_type_div.get('data-type', 'sub').upper() if parent_type_div else 'SUB'
 
             embed_url = self._resolve_server_embed(link_id)
             if not embed_url:
@@ -526,20 +531,31 @@ class AnikotoClient(BaseClient):
                 all_subtitles.update(subtitles)
 
             m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
-            if m3u8_links:
-                for res_k, res_v in m3u8_links.items():
-                    if res_k not in merged_m3u8_links:
-                        merged_m3u8_links[res_k] = res_v
-            elif not merged_m3u8_links:
-                merged_m3u8_links['720'] = {
-                    'downloadLink': m3u8_url,
-                    'downloadType': 'hls',
-                    'refererLink': stream_referer,
-                    'duration': 0,
+            if not m3u8_links:
+                m3u8_links = {
+                    '720': {
+                        'resolution_size': 'Direct HLS',
+                        'downloadLink': m3u8_url,
+                        'downloadType': 'hls',
+                        'refererLink': stream_referer,
+                        'duration': 0,
+                    }
                 }
 
-            if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p', '480', '480p', '360', '360p']):
-                break
+            if m3u8_links:
+                for res_k, res_v in m3u8_links.items():
+                    res_dict = dict(res_v)
+                    res_dict['server_name'] = f"Server {server_idx} ({srv_label})"
+                    res_dict['server_type'] = srv_type.capitalize()
+                    res_dict['server_id'] = link_id
+                    res_dict['quality'] = res_k
+
+                    key = f"srv{server_idx}_{res_k}"
+                    merged_m3u8_links[key] = res_dict
+                    if res_k not in merged_m3u8_links:
+                        merged_m3u8_links[res_k] = res_dict
+
+                server_idx += 1
 
         if merged_m3u8_links:
             if all_subtitles:

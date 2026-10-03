@@ -505,6 +505,7 @@ class AnimeSugeClient(BaseClient):
 
             merged_m3u8_links = {}
             all_subtitles = {}
+            server_idx = 1
 
             for srv_type, link_id in ordered_servers:
                 stream_url = self._get_stream_url(link_id)
@@ -520,21 +521,31 @@ class AnimeSugeClient(BaseClient):
 
                 stream_referer = stream_origin.rstrip('/') + '/'
                 m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
-                if m3u8_links:
-                    for res_k, res_v in m3u8_links.items():
-                        if res_k not in merged_m3u8_links:
-                            merged_m3u8_links[res_k] = res_v
-                elif not merged_m3u8_links:
-                    merged_m3u8_links['720'] = {
-                        'downloadLink': m3u8_url,
-                        'downloadType': 'hls',
-                        'refererLink': stream_referer,
-                        'duration': 0,
+                if not m3u8_links:
+                    m3u8_links = {
+                        '720': {
+                            'resolution_size': 'Direct HLS',
+                            'downloadLink': m3u8_url,
+                            'downloadType': 'hls',
+                            'refererLink': stream_referer,
+                            'duration': 0,
+                        }
                     }
 
-                # Stop scanning if we have collected both high and standard qualities
-                if any(r in merged_m3u8_links for r in ['1080', '1080p']) and any(r in merged_m3u8_links for r in ['720', '720p', '360', '360p', '480', '480p']):
-                    break
+                if m3u8_links:
+                    for res_k, res_v in m3u8_links.items():
+                        res_dict = dict(res_v)
+                        res_dict['server_name'] = f"Server {server_idx}"
+                        res_dict['server_type'] = srv_type.upper()
+                        res_dict['server_id'] = link_id
+                        res_dict['quality'] = res_k
+
+                        key = f"srv{server_idx}_{res_k}"
+                        merged_m3u8_links[key] = res_dict
+                        if res_k not in merged_m3u8_links:
+                            merged_m3u8_links[res_k] = res_dict
+
+                    server_idx += 1
 
             if merged_m3u8_links:
                 if all_subtitles:

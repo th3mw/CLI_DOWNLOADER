@@ -7,57 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [v1.8.0] - 2026-09-26
+## [v1.7.0] - 2026-10-03
 
 ### 🚀 Added
-- **Next-Gen Keyboard-Native Terminal Interface (Awesome-TUI Style)**:
-  - Transitioned the TUI to a fluid, borderless, typography-first architecture inspired by [Awesome TUI](https://awesometui.com/) (*LazyGit*, *btop*, *k9s*, *Yazi*).
-  - Implemented the **Obsidian Deep & Slate High-Contrast Color System** (`#0b0f19`, `#121826`, `#1b2336`, `#232d42`) with neon accents for Anime (`#c084fc`), Movies (`#38bdf8`), TV (`#34d399`), NSFW (`#fb7185`), and Action focus (`#f59e0b`).
-  - **Interactive Release Matrix Component (`#release-matrix-table`)**:
-    - Replaced traditional dropdown selects with an interactive DataTable showcasing release quality badges (`2160P`, `1080P`, `720P`), exact byte sizes (`8.9 GB`, `916.9 MB`), visual health bar meters (`██████████ Seeds: 701`, `████████░░ Seeds: 285`), scene release groups, and metadata tags (`[REMUX]`, `[PROPER]`, `[BLURAY]`, `[AV1]`).
-    - Direct magnet and stream resolution upon row selection.
-  - **Power Keyboard Shortcuts & Category Switchers**:
-    - `1` - `4`: Instant 1-key quick category switching (Anime, Movies, TV, NSFW).
-    - `/`: Focus search input bar from anywhere.
-    - `j` / `k` & `↑` / `↓`: Fast row selection in Results Table & Release Matrix.
-    - `Space` / `p`: Trigger asynchronous release probing.
-    - `d` / `Enter`: Dispatch high-speed download task.
-    - `r`: Execute pre-download inspection dry run.
-  - **Live Activity Dashboard & Metrics Cards (`DownloadsTab`)**:
-    - High-density status panel featuring `STATUS`, `TARGET ITEM`, `DOWNLOAD ENGINE`, and `PROGRESS` cards alongside a real-time progress bar.
-    - Streaming execution log with microsecond timestamps and syntax coloring.
-- **4-Layer Separation of Concerns (Torrents vs. Direct Streams)**:
-  - Catalog Layer: Canonical show entities (Sub/Dub episode counts) vs. Scene release groupings.
-  - Probing & Decryption Layer: VRF/AES-256 `.m3u8` decryption vs. BTIH Magnet and Swarm health resolution.
-  - Inspector Layer: Audio/Sub/Dub bitrates vs. Torrent release matrix with seeders, peers, and file sizes.
-  - Downloader Dispatch: `HLSDownloader` (AES-128 TS / ffmpeg) vs. `TorrentDownloader` (aria2c / xdg-open P2P).
-
----
-
-## [v1.7.0] - 2026-09-24
-
-### 🚀 Added
-- **TorrentGalaxy (`TGx`) Provider for Movies and TV Series (2nd Option)**:
+- **Categorized Provider Selection (Direct Streams vs. BitTorrent)**:
+  - Provider selection menus now cleanly categorize sources into `⚡ DIRECT STREAMS & CDN` and `🧲 BITTORRENT SWARMS & MAGNETS`.
+  - TorrentGalaxy (`TGx`) positioned as the **2nd option** for Movies (after YTS) and TV Series (after EZTV).
+- **Multi-Server Resolution Aggregation for Anime**:
+  - Probes all available streaming servers (e.g. `Server 1 (HD-1) [Sub]`, `Server 2 (Vidstream-1) [Sub]`, `Server 3 (HD-1) [Dub]`) for anime episodes across AniKoto and AnimeSuge.
+  - Groups resolutions hierarchically under each server header in the resolution menu, allowing direct selection of specific servers and bitrates.
+- **TorrentGalaxy (`TGx`) Provider for Movies and TV Series**:
   - Direct integration with TorrentGalaxy (`https://torrentgalaxy.one`, `https://torrentgalaxy.info`) across Movies (`Content/Movies/Providers/TGxClient.py`) and TV Series (`Content/Series/Providers/TGxClient.py`).
-  - Positioned as the **2nd option** in both Movies (following YTS) and TV Shows (following EZTV).
-  - **Single-Movie Grouping & Multi-Release Torrent Selection (Sizes & Seeds UX)**:
-    - Grouped raw torrent results into clean single-movie search cards displaying available quality tiers, release counts, and top seed counts.
-    - Preserved all distinct torrent releases in `AVAILABLE TORRENT RELEASES` menu so users can inspect exact file sizes, seeds, peers, and release tags (e.g. 1080p Remux 11GB vs 1080p WEB-DL 5.7GB vs 1080p x265 2GB).
-    - Supported instant numeric selection (`1`, `2`, `3`...) and resolution keyword selection (`1080`, `720`, `4k`) with smart default targeting.
-  - TV Shows integration with TVMaze metadata catalog for episode/season mapping and pattern matching across single episodes (`S01E01`), episode ranges (`S01E01-07`), and season packs (`Season 1` / `S01`).
-  - Resilient search fallback stripping leading articles (`The`, `A`, `An`) when strict exact matches return empty.
-  - Fast concurrent magnet resolution via `ThreadPoolExecutor`.
-- **Textual TUI Groundwork (`--tui`)**:
-  - Added modern interactive Terminal User Interface (TUI) powered by `Textual` and `Rich`.
-  - Built `TUI/` architecture with responsive dark cyberpunk styling (`styles.tcss`).
-  - Search & Browse tab (`SearchTab`) with live category/provider dropdowns, keyboard-driven search, interactive `DataTable`, details & synopsis pane, and instant resolution picker.
-  - Activity & Logs tab (`DownloadsTab`) with live `RichLog` stream viewer.
-  - History & Resume tab (`HistoryTab`) connected with SQLite ledger for status filtering, record tracking, and download resumption.
-  - Settings & Preferences tab (`SettingsTab`) for visual configuration of download paths, default torrent engine (aria2 / system / auto), default audio, and video compression presets.
-  - Integrated `--tui` CLI flag in `scraper.py` and global `media-scraper` command.
+  - Single-Movie Grouping with complete release matrix (file sizes, seeds, peers, scene tags like REMUX/AV1).
+  - TV Shows integration with TVMaze metadata catalog for episode/season mapping.
 
 ### 🛠️ Fixed & Improved
-- **TUI Client Interface Fix (`fetch_episodes_list`)**:
+- **AnimeSuge MegaPlay AES-256 Decryption**:
+  - Implemented `_decrypt_megaplay_sources()` with `MEGAPLAY_KEY`/`MEGAPLAY_IV` to decrypt AES-256-CBC ciphertext (`enc`) from updated `megaplay.buzz` stream players.
+  - Added multi-candidate ID resolver (`data-id`, `data-realid`, `data-mediaid`, URL ID) with `tcdn`/`bcdn` fallback.
+- **Resolution Probing & Formatting Bug Fix**:
+  - Filtered error dictionaries from resolution probes to eliminate erroneous `[1] ERRORP • SD` choices.
+  - Fixed quality parser to avoid `NONEP` when `opt_d.get('quality')` is `None`.
+  - Corrected torrent release detection so HLS stream dimensions (`1280x720`) no longer falsely trigger torrent release banners.
+- **Removed Experimental TUI**:
+  - Removed experimental Textual TUI prototype from the CLI package in preparation for a standalone application architecture.
+  - Streamlined `pyproject.toml` dependencies and CLI footprint.
   - Fixed `'YTSClient' object has no attribute 'get_episodes'` by standardizing episode catalog retrieval on `client.fetch_episodes_list(item)`.
 - **TUI Context-Aware Dynamic Controls & Theming**:
   - Implemented category-specific form adaptation in `SearchTab`:

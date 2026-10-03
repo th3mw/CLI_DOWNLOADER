@@ -38,7 +38,7 @@ get_current_time = lambda fmt='%F %T': datetime.now().strftime(fmt)
 
 def get_provider(category_name, predefined_provider=None):
     '''
-    Show provider selection menu for the given category.
+    Show provider selection menu for the given category categorized into Direct Streams & Torrents.
     Returns the selected provider key or 'BACK'.
     '''
     providers = get_providers_for_category(category_name)
@@ -50,15 +50,33 @@ def get_provider(category_name, predefined_provider=None):
         clear_screen()
         render_step_header(breadcrumbs=[category_name, 'Select Provider'])
 
-    # Show provider selection menu
+    direct_provs = [p for p in providers if p.get('type') == 'direct']
+    torrent_provs = [p for p in providers if p.get('type') == 'torrent']
+
     menu_lines = []
     choices = {}
-    icons = {'anime_suge': '⚡', 'anidb': '🌐', 'kisskh': '🎌', 'oneshows': '🍿', 'nyaa': '🧲', 'yts': '🧲', 'eztv': '🧲', 'hanime': '🔞'}
-    for idx, prov in enumerate(providers):
-        icon = icons.get(prov['key'], '▸')
-        label = prov['label']
-        menu_lines.append(f"\033[1m[{idx+1}]\033[0m  {icon}  {label}")
-        choices[idx+1] = prov['key']
+    current_idx = 1
+
+    # Order sections intuitively by content type (Torrents first for Movies/TV, Direct first for Anime/NSFW)
+    groups = []
+    if category_name in ('Movies', 'TV Shows'):
+        if torrent_provs: groups.append(('🧲  BITTORRENT SWARMS & MAGNETS', torrent_provs))
+        if direct_provs: groups.append(('⚡  DIRECT STREAMS & CDN', direct_provs))
+    else:
+        if direct_provs: groups.append(('⚡  DIRECT STREAMS & CDN', direct_provs))
+        if torrent_provs: groups.append(('🧲  BITTORRENT SWARMS & MAGNETS', torrent_provs))
+
+    for group_title, prov_list in groups:
+        if menu_lines:
+            menu_lines.append("")
+        menu_lines.append(f"\033[1m\033[38;5;39m{group_title}\033[0m")
+        for prov in prov_list:
+            label = prov['label']
+            menu_lines.append(f"  \033[1m[{current_idx}]\033[0m  {label}")
+            choices[current_idx] = prov['key']
+            current_idx += 1
+
+    menu_lines.append("")
     menu_lines.append(f"\033[38;5;244m[0]  ‹   Back to Content Types\033[0m")
     choices[0] = 'BACK'
 
@@ -71,7 +89,7 @@ def get_provider(category_name, predefined_provider=None):
             raise ExitException(0)
         return predefined_provider
     else:
-        choice = colprint('user_input', f'\n  ➜ Enter choice [1-{len(providers)}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
+        choice = colprint('user_input', f'\n  ➜ Enter choice [1-{len(choices)-1}, 0=Back]: ', input_type='recurring', input_dtype='int', input_options=choices, allow_empty_input=False)
         return choices[choice]
 
 def parse_task_selection(user_input: str, total_tasks: int) -> list:
@@ -770,19 +788,9 @@ Examples:
                          help='accuracy to display the file size of hls files (0-100)')
         parser.add_argument('-tc', '--torrent-client', choices=['aria2', 'system', 'auto'], help='preferred torrent engine (aria2 for in-terminal, system for desktop app, auto for automatic)')
         parser.add_argument('-dl', '--disable-looping', default=False, action='store_true', help='disable auto-restart')
-        parser.add_argument('--tui', action='store_true', help='launch interactive Textual TUI interface')
 
         global args
         args = parser.parse_args()
-
-        if args.tui:
-            try:
-                from TUI.app import run_tui
-                run_tui(config_file=args.conf)
-                sys.exit(0)
-            except Exception as e:
-                print(f"Error launching TUI: {e}")
-                sys.exit(1)
 
         config_file = args.conf
         log_file_name = args.log_file
@@ -851,7 +859,7 @@ Examples:
         # Display hero banner
         if not args.quiet and series_type_predef is not None:
             hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.5\033[0m',
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0\033[0m',
                 '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows • NSFW\033[0m'
             ], center=True)
             print(f'\n{hero_box}\n')
@@ -980,6 +988,9 @@ Examples:
                 for v in sample_ep_links.values()
             )
 
+            # Check if options have server groupings (multi-server anime)
+            has_servers = any(isinstance(v, dict) and v.get('server_name') for v in sample_ep_links.values())
+
             # Sort options: 2160 -> 1080 -> 720 -> 480 -> 360, and by seeds descending
             def sort_res_option(entry):
                 opt_k, opt_d = entry
@@ -989,7 +1000,26 @@ Examples:
                 q_score = 300000 if q == '2160' else (200000 if q == '1080' else (100000 if q == '720' else (50000 if q == '480' else (25000 if q in ('360', '682') else 0))))
                 return q_score + seeds
 
-            sorted_options = sorted(sample_ep_links.items(), key=sort_res_option, reverse=True) if sample_ep_links else []
+            # Deduplicate entries: if has_servers, use srv-prefixed entries to keep all servers
+            if has_servers:
+                filtered_sample_options = [(k, v) for k, v in sample_ep_links.items() if str(k).startswith('srv')]
+                if not filtered_sample_options:
+                    filtered_sample_options = list(sample_ep_links.items())
+            else:
+                filtered_sample_options = list(sample_ep_links.items())
+
+            # Group by server if has_servers
+            servers_grouped = {}
+            if has_servers:
+                for opt_k, opt_d in filtered_sample_options:
+                    srv_title = opt_d.get('server_name', 'Default Server')
+                    if opt_d.get('server_type'):
+                        srv_title += f" [{opt_d.get('server_type')}]"
+                    servers_grouped.setdefault(srv_title, []).append((opt_k, opt_d))
+                for srv_t in servers_grouped:
+                    servers_grouped[srv_t].sort(key=sort_res_option, reverse=True)
+            else:
+                sorted_options = sorted(filtered_sample_options, key=sort_res_option, reverse=True)
 
             if not args.quiet:
                 clear_screen()
@@ -1001,36 +1031,69 @@ Examples:
             res_map = {}
             default_choice_idx = "1"
             has_1080_default = False
+            current_choice_num = 1
 
-            for idx, (opt_k, opt_d) in enumerate(sorted_options, start=1):
-                q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
-                q = str(q_raw).upper().replace('P', '')
-                if not q or q.lower() in ('error', 'none'):
-                    continue
-                res_map[str(idx)] = opt_k
-                if q not in res_map:
-                    res_map[q] = opt_k
-                    res_map[f"{q}p"] = opt_k
-                    res_map[f"{q}P"] = opt_k
-                    if q == '2160':
-                        res_map['4k'] = opt_k
-                        res_map['4K'] = opt_k
+            if has_servers:
+                for srv_title, srv_opts in servers_grouped.items():
+                    if res_lines:
+                        res_lines.append("")
+                    res_lines.append(f"\033[1m\033[38;5;39m🖥️  {srv_title}\033[0m")
+                    for opt_k, opt_d in srv_opts:
+                        q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
+                        q = str(q_raw).upper().replace('P', '')
+                        if not q or q.lower() in ('error', 'none'):
+                            continue
 
-                is_default = False
-                if q == '1080' and not has_1080_default:
-                    default_choice_idx = str(idx)
-                    has_1080_default = True
-                    is_default = True
+                        idx_str = str(current_choice_num)
+                        res_map[idx_str] = opt_k
+                        if q not in res_map:
+                            res_map[q] = opt_k
+                            res_map[f"{q}p"] = opt_k
+                            res_map[f"{q}P"] = opt_k
+                            if q == '2160':
+                                res_map['4k'] = opt_k
+                                res_map['4K'] = opt_k
 
-                def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
+                        is_default = False
+                        if q == '1080' and not has_1080_default:
+                            default_choice_idx = idx_str
+                            has_1080_default = True
+                            is_default = True
 
-                is_torrent = isinstance(opt_d, dict) and (opt_d.get('size') or opt_d.get('magnet') or opt_d.get('downloadType') == 'torrent')
-                if is_torrent:
-                    size_meta = f"{opt_d.get('size', 'Ready')} • Seeds: {opt_d.get('seeds', 0)}"
-                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {size_meta}\033[0m{def_tag}")
-                else:
-                    label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
-                    res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+                        def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
+                        label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
+                        res_lines.append(f"  \033[1m[{idx_str}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
+                        current_choice_num += 1
+            else:
+                for idx, (opt_k, opt_d) in enumerate(sorted_options, start=1):
+                    q_raw = (opt_d.get('quality') if isinstance(opt_d, dict) else None) or opt_k
+                    q = str(q_raw).upper().replace('P', '')
+                    if not q or q.lower() in ('error', 'none'):
+                        continue
+                    res_map[str(idx)] = opt_k
+                    if q not in res_map:
+                        res_map[q] = opt_k
+                        res_map[f"{q}p"] = opt_k
+                        res_map[f"{q}P"] = opt_k
+                        if q == '2160':
+                            res_map['4k'] = opt_k
+                            res_map['4K'] = opt_k
+
+                    is_default = False
+                    if q == '1080' and not has_1080_default:
+                        default_choice_idx = str(idx)
+                        has_1080_default = True
+                        is_default = True
+
+                    def_tag = ' \033[38;5;39m[default]\033[0m' if is_default else ''
+
+                    is_torrent = isinstance(opt_d, dict) and (opt_d.get('size') or opt_d.get('magnet') or opt_d.get('downloadType') == 'torrent')
+                    if is_torrent:
+                        size_meta = f"{opt_d.get('size', 'Ready')} • Seeds: {opt_d.get('seeds', 0)}"
+                        res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {size_meta}\033[0m{def_tag}")
+                    else:
+                        label = '4K UHD' if q == '2160' else ('Full HD (Recommended)' if q == '1080' else ('HD' if q in ('720', '682') else ('SD' if q in ('480', '360') else 'Stream')))
+                        res_lines.append(f"\033[1m[{idx}]\033[0m \033[1m{q}P\033[0m \033[38;5;244m• {label}\033[0m{def_tag}")
 
             if not res_lines:
                 ordered_res = ['1080', '720', '480', '360']

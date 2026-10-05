@@ -2,7 +2,7 @@ import os
 import re
 
 from Core.commons import retry
-from Core.BaseDownloader import BaseDownloader, _sort_subtitles_english_first
+from Core.BaseDownloader import BaseDownloader, _sort_subtitles_english_first, _get_iso_lang
 
 NON_MEDIA_EXTENSIONS = {
     '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg', '.ico',
@@ -44,22 +44,6 @@ def _strip_fake_header(data):
                     return data[i:]
     return data
 
-
-def _get_iso_lang(lang_str):
-    l = str(lang_str).lower().strip()
-    if 'eng' in l: return 'eng'
-    if 'spa' in l or 'esp' in l: return 'spa'
-    if 'fre' in l or 'fra' in l: return 'fre'
-    if 'ger' in l or 'deu' in l: return 'ger'
-    if 'jap' in l or 'jpn' in l: return 'jpn'
-    if 'chi' in l or 'zho' in l: return 'chi'
-    if 'rus' in l: return 'rus'
-    if 'por' in l: return 'por'
-    if 'ita' in l: return 'ita'
-    if 'ind' in l: return 'ind'
-    if 'ara' in l: return 'ara'
-    if 'kor' in l: return 'kor'
-    return 'eng'
 
 
 class HLSDownloader(BaseDownloader):
@@ -211,6 +195,8 @@ class HLSDownloader(BaseDownloader):
             metadata.append(f'-metadata:s:s:{sub_idx} language={iso_code}')
             if is_default:
                 metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            elif 'sign' in lang.lower() or 'song' in lang.lower() or 'forced' in lang.lower():
+                metadata.append(f'-disposition:s:{sub_idx} forced')
             else:
                 metadata.append(f'-disposition:s:{sub_idx} 0')
 

@@ -312,9 +312,17 @@ class AniSnatchClient(BaseClient):
 
             subs = stream.get('subtitles', [])
             if isinstance(subs, list):
+                is_dub_srv = str(srv_type).strip().lower() == 'dub'
                 for sub_item in subs:
                     if isinstance(sub_item, dict) and sub_item.get('file'):
                         lang_label = sub_item.get('label', 'English')
+                        # If server is DUB, its English subtitle is Signs & Songs only!
+                        if is_dub_srv and ('eng' in lang_label.lower() or lang_label.lower() == 'english'):
+                            lang_label = 'English (Signs & Songs)'
+
+                        # Never allow signs/songs to overwrite full dialogue English
+                        if lang_label == 'English' and 'English' in all_subtitles:
+                            continue
                         all_subtitles[lang_label] = sub_item['file']
 
             m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)

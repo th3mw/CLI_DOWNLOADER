@@ -528,7 +528,12 @@ class AnikotoClient(BaseClient):
                 continue
 
             if subtitles:
-                all_subtitles.update(subtitles)
+                is_dub_srv = str(srv_type).strip().upper() == 'DUB'
+                for k, v in subtitles.items():
+                    lang_k = 'English (Signs & Songs)' if is_dub_srv and ('eng' in k.lower() or k.lower() == 'english') else k
+                    if lang_k == 'English' and 'English' in all_subtitles:
+                        continue
+                    all_subtitles[lang_k] = v
 
             m3u8_links = self._parse_m3u8_links(m3u8_url, stream_referer)
             if not m3u8_links:

@@ -147,24 +147,70 @@ class ProgressBar:
 tqdm = ProgressBar
 
 
+def _get_iso_lang(lang_str):
+    '''Map natural language subtitle label to 3-letter ISO-639-2 code for MKV/MP4 track metadata'''
+    l = str(lang_str).lower().strip()
+    if 'ben' in l or 'ban' in l or 'বাংলা' in l: return 'ben'
+    if 'eng' in l or l.startswith('en'): return 'eng'
+    if 'spa' in l or 'esp' in l: return 'spa'
+    if 'fre' in l or 'fra' in l: return 'fre'
+    if 'ger' in l or 'deu' in l: return 'ger'
+    if 'jap' in l or 'jpn' in l: return 'jpn'
+    if 'chi' in l or 'zho' in l: return 'chi'
+    if 'rus' in l: return 'rus'
+    if 'por' in l: return 'por'
+    if 'ita' in l: return 'ita'
+    if 'ind' in l: return 'ind'
+    if 'ara' in l: return 'ara'
+    return 'und'
+
+
 def _sort_subtitles_english_first(subtitles_dict):
     '''
-    Sort subtitles dictionary so that English is always the first track (stream 0).
+    Sort subtitles dictionary so that full dialogue English is always the first track (stream 0, default).
+    Signs & songs or forced English subtitles are placed next without default disposition.
+    All remaining languages follow in sorted order.
     Returns a list of tuples: [(lang_name, sub_file_or_url, is_default), ...]
     '''
-    def is_english(lang_str):
+    def is_full_english(lang_str):
         l = str(lang_str).lower()
-        return 'eng' in l or l == 'en' or 'english' in l
+        if 'ben' in l or 'ban' in l or 'বাংলা' in l:
+            return False
+        is_eng = 'english' in l or re.search(r'\beng\b', l) or l == 'en' or l.startswith('en-') or l.startswith('en_') or l.startswith('eng')
+        is_signs = 'sign' in l or 'song' in l or 'forced' in l
+        return is_eng and not is_signs
+
+    def is_signs_english(lang_str):
+        l = str(lang_str).lower()
+        if 'ben' in l or 'ban' in l or 'বাংলা' in l:
+            return False
+        is_eng = 'english' in l or re.search(r'\beng\b', l) or l == 'en' or l.startswith('en-') or l.startswith('en_') or l.startswith('eng')
+        is_signs = 'sign' in l or 'song' in l or 'forced' in l
+        return is_eng and is_signs
 
     sorted_subs = []
-    # English first
+    # 1. Primary full English dialogue first
     for lang, url in subtitles_dict.items():
-        if is_english(lang):
-            sorted_subs.append((lang, url, True))
-    # Non-English next
+        if is_full_english(lang):
+            is_def = (len(sorted_subs) == 0)
+            sorted_subs.append((lang, url, is_def))
+            break
+
+    # Remaining full English variants (if any)
     for lang, url in subtitles_dict.items():
-        if not is_english(lang):
-            is_def = (len(sorted_subs) == 0)  # default if no English exists
+        if is_full_english(lang) and not any(s[0] == lang for s in sorted_subs):
+            sorted_subs.append((lang, url, False))
+
+    # 2. English Signs / Songs next (not default)
+    for lang, url in subtitles_dict.items():
+        if is_signs_english(lang):
+            is_def = (len(sorted_subs) == 0)
+            sorted_subs.append((lang, url, is_def))
+
+    # 3. Non-English next
+    for lang, url in subtitles_dict.items():
+        if not is_full_english(lang) and not is_signs_english(lang):
+            is_def = (len(sorted_subs) == 0)
             sorted_subs.append((lang, url, is_def))
 
     return sorted_subs
@@ -410,6 +456,12 @@ class BaseDownloader():
                 self.logger.debug(f'Downloading {sub_name} subtitle from {sub_link} to {sub_file}')
                 if not os.path.isfile(sub_file):
                     sub_content = self._get_stream_data(sub_link)
+                    if isinstance(sub_content, (bytes, bytearray)):
+                        # If HTML error response received instead of subtitle text, discard
+                        if sub_content.lstrip().startswith(b'<!DOCTYPE') or sub_content.lstrip().startswith(b'<html'):
+                            self.logger.warning(f'Invalid HTML payload received for {sub_name} subtitle ({len(sub_content)} bytes). Discarding.')
+                            self.subtitles.pop(sub_name, None)
+                            continue
                     # download the subtitle to local
                     with open(sub_file, 'wb') as f:
                         f.write(sub_content)
@@ -432,7 +484,7 @@ class BaseDownloader():
 
             except Exception as e:
                 self.logger.warning(f'Failed to download {sub_name} subtitle with error: {e}')
-                self.subtitles.pop(sub_name)
+                self.subtitles.pop(sub_name, None)
 
     def _decrypt_subtitle_file(self, sub_file, **kwargs):
         self.logger.debug(f'Decrypting subtitle file: {sub_file}')
@@ -487,12 +539,15 @@ class BaseDownloader():
         sorted_subs = _sort_subtitles_english_first(self.subtitles)
         for i, (lang, url, is_default) in enumerate(sorted_subs, start=1):
             sub_idx = i - 1
+            iso_code = _get_iso_lang(lang)
             command.append(f'-i "{url}"')
             maps.append(f'-map {i}')
             metadata.append(f'-metadata:s:s:{sub_idx} title="{lang}"')
-            metadata.append(f'-metadata:s:s:{sub_idx} language=eng')
+            metadata.append(f'-metadata:s:s:{sub_idx} language={iso_code}')
             if is_default:
                 metadata.append(f'-disposition:s:{sub_idx} default+forced')
+            elif 'sign' in lang.lower() or 'song' in lang.lower() or 'forced' in lang.lower():
+                metadata.append(f'-disposition:s:{sub_idx} forced')
             else:
                 metadata.append(f'-disposition:s:{sub_idx} 0')
 

@@ -255,7 +255,7 @@ class AniSnatchEngine {
 
         const categories = audioPreference === 'dub'
             ? ['dub', 'soft-sub', 'sub']
-            : ['sub', 'soft-sub', 'dub'];
+            : ['soft-sub', 'sub', 'dub'];
 
         for (const cat of categories) {
             const list = serverCategories[cat] || [];
@@ -264,7 +264,7 @@ class AniSnatchEngine {
                 if (!s.source) continue;
                 const idx = serverIdx++;
                 const srvTitle = s.title || s.server || `Server ${idx}`;
-                const srvType = cat.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                const srvType = cat === 'sub' ? 'Hardsub' : (cat === 'soft-sub' ? 'Soft Sub' : 'Dub');
 
                 tasks.push(
                     (async () => {

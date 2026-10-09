@@ -234,8 +234,11 @@ class BaseDownloader():
         self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if dl_config.get('temp_download_dir', 'auto') == 'auto' else dl_config['temp_download_dir']
         self.temp_dir = os.path.join(f"{self.parent_temp_dir}", f"{self.out_file.rsplit('.', 1)[0]}") #create temp directory per episode
         self.request_timeout = dl_config.get('request_timeout', 20)
-        self.series_type = ep_details.get('type', 'series')
-        self.subtitles = ep_details.get('subtitles', {})
+        srv_type = str(ep_details.get('server_type', '')).lower()
+        if 'hard' in srv_type or 'hsub' in srv_type:
+            self.subtitles = {}
+        else:
+            self.subtitles = dict(ep_details.get('subtitles', {}))
         # special case for encrypted subtitles in kisskh client
         self.encrypted_subs_details = ep_details.get('encrypted_subs_details', {})
         self.thread_name_prefix = 'scraper-mp4-'

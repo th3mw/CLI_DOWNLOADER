@@ -559,19 +559,30 @@ class AnikotoClient(BaseClient):
                     merged_m3u8_links[key] = res_dict
                     if res_k not in merged_m3u8_links:
                         merged_m3u8_links[res_k] = res_dict
+                    else:
+                        curr_type = str(merged_m3u8_links[res_k].get('server_type', '')).lower()
+                        new_type = str(res_dict.get('server_type', '')).lower()
+                        if 'soft' in new_type and 'soft' not in curr_type:
+                            merged_m3u8_links[res_k] = res_dict
 
                 server_idx += 1
 
         if merged_m3u8_links:
-            if all_subtitles:
-                for res_dict in merged_m3u8_links.values():
-                    res_dict['subtitles'] = all_subtitles
+            for res_dict in merged_m3u8_links.values():
+                srv_t = str(res_dict.get('server_type', '')).lower()
+                if 'hard' in srv_t or 'hsub' in srv_t:
+                    res_dict['subtitles'] = {}
+                else:
+                    if all_subtitles:
+                        res_dict['subtitles'] = all_subtitles
 
             self._update_scraper_dict(ep_no, episode)
+            first_stream = next(iter(merged_m3u8_links.values()))
+            first_subtitles = first_stream.get('subtitles', {})
             self._update_scraper_dict(ep_no, {
-                'streamLink': next(iter(merged_m3u8_links.values())).get('downloadLink'),
+                'streamLink': first_stream.get('downloadLink'),
                 'refererLink': stream_referer,
-                'subtitles': all_subtitles
+                'subtitles': first_subtitles
             })
             return ep_no, merged_m3u8_links
 

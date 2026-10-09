@@ -549,13 +549,22 @@ class AnimeSugeClient(BaseClient):
                         merged_m3u8_links[key] = res_dict
                         if res_k not in merged_m3u8_links:
                             merged_m3u8_links[res_k] = res_dict
+                        else:
+                            curr_type = str(merged_m3u8_links[res_k].get('server_type', '')).lower()
+                            new_type = str(res_dict.get('server_type', '')).lower()
+                            if 'soft' in new_type and 'soft' not in curr_type:
+                                merged_m3u8_links[res_k] = res_dict
 
                     server_idx += 1
 
             if merged_m3u8_links:
-                if all_subtitles:
-                    for res_dict in merged_m3u8_links.values():
-                        res_dict['subtitles'] = all_subtitles
+                for res_dict in merged_m3u8_links.values():
+                    srv_t = str(res_dict.get('server_type', '')).lower()
+                    if 'hard' in srv_t or 'hsub' in srv_t:
+                        res_dict['subtitles'] = {}
+                    else:
+                        if all_subtitles:
+                            res_dict['subtitles'] = all_subtitles
                 return ep_no, merged_m3u8_links
 
             return ep_no, {'error': 'Failed to fetch m3u8 link from available servers'}

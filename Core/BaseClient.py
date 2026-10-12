@@ -594,12 +594,12 @@ class BaseClient():
 
         self._colprint('results', info)
 
-    def format_media_filename(self, series_title: str, season=1, episode=1, number2=None, resolution=None, is_movie=False, ext='.mkv') -> str:
+    def format_media_filename(self, series_title: str, season=1, episode=1, number2=None, resolution=None, is_movie=False, ext='.mkv', provider=None) -> str:
         '''
         Format standardized filename:
-        Series/Anime: '{Series Title} - S01 - E01 - 1080P.mkv'
-        Multi-part:   '{Series Title} - S01 - E01-E02 - 1080P.mkv'
-        Movie:        '{Movie Title} - 1080P.mkv' or '{Movie Title}.mkv'
+        Series/Anime: '{Series Title} - E01 - 1080P [Provider].mkv'
+        Multi-part:   '{Series Title} - E01-E02 - 1080P [Provider].mkv'
+        Movie:        '{Movie Title} - 1080P [Provider].mkv' or '{Movie Title} [Provider].mkv'
         '''
         clean_title = self._windows_safe_string(series_title).strip()
         res_str = ''
@@ -611,15 +611,15 @@ class BaseClient():
                 r = f"{r}P"
             res_str = f" - {r}"
 
+        prov_val = provider or getattr(self, 'provider_name', None) or getattr(self, 'name', None)
+        prov_str = ''
+        if prov_val:
+            clean_prov = self._windows_safe_string(str(prov_val)).strip()
+            if clean_prov:
+                prov_str = f" [{clean_prov}]"
+
         if is_movie:
-            return f"{clean_title}{res_str}{ext}"
-
-        try:
-            s_val = int(season)
-        except Exception:
-            s_val = 1
-
-        s_str = f"S{s_val:02d}"
+            return f"{clean_title}{res_str}{prov_str}{ext}"
 
         if number2 and str(number2) != str(episode) and str(number2) not in ('0', 'None'):
             try:
@@ -635,7 +635,7 @@ class BaseClient():
             except Exception:
                 e_str = f"E{episode}"
 
-        return f"{clean_title} - {s_str} - {e_str}{res_str}{ext}"
+        return f"{clean_title} - {e_str}{res_str}{prov_str}{ext}"
 
     def fetch_m3u8_links(self, target_links, resolution, episode_prefix):
         '''

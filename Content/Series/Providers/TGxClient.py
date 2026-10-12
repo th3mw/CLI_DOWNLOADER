@@ -437,22 +437,32 @@ class TGxClient(BaseClient):
             season = ep_meta.get('season', 1)
             ep_no = ep_meta.get('ep_no', 1)
 
+            res_label = str(resolution) if str(resolution) in res_data else (next((k for k, v in res_data.items() if v == res_dict), '1080P'))
+            clean_res = res_label.upper().replace('P', '')
+            res_str = f"{clean_res}P" if any(c.isdigit() for c in clean_res) else res_label
+
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}S{season:02d}E{ep_no:02d} [{res_key}P].mkv"
+            title = self.format_media_filename(
+                series_title=title_clean,
+                season=season,
+                episode=ep_no,
+                resolution=res_str
+            )
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')
 
-            colprint('results', f"  Series | S{season:02d}E{ep_no:02d} | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+            colprint('results', f"  Series | E{ep_no:02d} | {res_str} | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
 
             episode_links[ep_key] = {
-                'episode': f"S{season:02d}E{ep_no:02d}",
+                'episode': f"E{ep_no:02d}",
+                'season': season,
                 'title': title_clean,
                 'episodeName': title,
                 'out_file': title,
                 'downloadLink': selected_magnet,
                 'downloadType': 'torrent',
-                'resolution': f"{res_key}P",
+                'resolution': res_str,
                 'subtitles': [],
                 'size': size,
                 'seeds': seeds,

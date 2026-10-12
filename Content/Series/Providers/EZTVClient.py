@@ -478,7 +478,7 @@ class EZTVClient(BaseClient):
 
             if is_season_pack:
                 title_clean = episode_prefix.rstrip(' -')
-                title = f"{episode_prefix}Season {is_season_pack:02d} [Complete Season Pack] [{res_key}P].mkv"
+                title = f"{title_clean} - Season {is_season_pack:02d} [Complete Season Pack] [{res_key}P] [{self.name}].mkv"
                 seeds = t_info.get('seeds', 'N/A')
                 peers = t_info.get('peers', 'N/A')
                 size = t_info.get('size', 'Unknown')
@@ -508,12 +508,17 @@ class EZTVClient(BaseClient):
             raw_ep_name = ep_item.get('raw_name', f"Episode {e_num}")
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{title_clean} - S{s_num:02d} - E{e_num:02d} - {res_key}P.mkv"
+            title = self.format_media_filename(
+                series_title=title_clean,
+                season=s_num,
+                episode=e_num,
+                resolution=f"{res_key}P"
+            )
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')
 
-            colprint('results', f"  S{s_num:02d}E{e_num:02d} | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
+            colprint('results', f"  E{e_num:02d} | {res_key}P | Seeds: {seeds} | Peers: {peers} | Size: {size} | Magnet Ready")
 
             episode_links[ep_idx] = {
                 'episode': f"{e_num:02d}",

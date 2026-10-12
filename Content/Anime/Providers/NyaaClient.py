@@ -339,7 +339,12 @@ class NyaaClient(BaseClient):
             t_info = res_dict.get('torrent_info', {})
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{title_clean} - S01 - E{ep_no:02d} - {res_key}P.mkv"
+            title = self.format_media_filename(
+                series_title=title_clean,
+                season=1,
+                episode=ep_no,
+                resolution=f"{res_key}P"
+            )
             seeds = t_info.get('seeds', 'N/A')
             peers = t_info.get('peers', 'N/A')
             size = t_info.get('size', 'Unknown')

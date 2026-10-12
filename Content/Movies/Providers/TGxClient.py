@@ -395,7 +395,11 @@ class TGxClient(BaseClient):
             res_label = res_dict.get('quality', '1080P')
 
             title_clean = episode_prefix.rstrip(' -')
-            title = f"{episode_prefix}{ep_no:02d} [{res_label}].mkv"
+            title = self.format_media_filename(
+                series_title=title_clean,
+                is_movie=True,
+                resolution=res_label
+            )
             seeds = res_dict.get('seeds', t_info.get('seeds', 'N/A'))
             peers = res_dict.get('peers', t_info.get('peers', 'N/A'))
             size = res_dict.get('size', t_info.get('size', 'Unknown'))

@@ -180,7 +180,12 @@ WebAssembly.instantiate(wasmBuffer, {{ env: {{ abort: () => {{ throw new Error('
                 continue
             ep_count = s.get('episode_count', 0)
             for ep_i in range(1, ep_count + 1):
-                ep_name = f"{title} S{season_num:02d}E{ep_i:02d}"
+                ep_name = self.format_media_filename(
+                    series_title=title,
+                    season=season_num,
+                    episode=ep_i,
+                    is_movie=False
+                )
                 all_episodes.append({
                     'episode': ep_counter,
                     'episodeName': self._windows_safe_string(ep_name),

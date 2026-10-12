@@ -10,7 +10,7 @@ from Content.Anime.Downloaders.HLSDownloader import HLSDownloader
 def test_base_downloader_attributes():
     dl_cfg = {'download_dir': '/tmp/test_base', 'concurrency_per_file': 4, 'request_timeout': 15}
     ep_details = {
-        'episodeName': 'Test Show - S01 - E01.mkv',
+        'episodeName': 'Test Show - E01.mkv',
         'type': 'tv',
         'season': 1,
         'episode': 1,
@@ -27,7 +27,7 @@ def test_base_downloader_attributes():
 def test_series_downloader_hls_forwarding():
     dl_cfg = {'download_dir': '/tmp/test_series', 'concurrency_per_file': 4}
     ep_details = {
-        'episodeName': 'Take Charge of My Heart (2026) - S01 - E01 - 720P.mkv',
+        'episodeName': 'Take Charge of My Heart (2026) - E01 - 720P [KissKh].mkv',
         'type': 'tv',
         'season': 1,
         'episode': 1,
@@ -49,7 +49,7 @@ def test_series_downloader_hls_forwarding():
 def test_series_downloader_movie_forwarding():
     dl_cfg = {'download_dir': '/tmp/test_series_direct', 'concurrency_per_file': 4}
     ep_details = {
-        'episodeName': 'Direct Show - S01 - E01 - 720P.mp4',
+        'episodeName': 'Direct Show - E01 - 720P.mp4',
         'type': 'tv',
         'season': 1,
         'episode': 1,

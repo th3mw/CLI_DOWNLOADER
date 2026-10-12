@@ -1174,13 +1174,29 @@ Examples:
             alt_mkv = os.path.join(ep_out_dir, f"{base_without_ext}.mkv")
             alt_mp4 = os.path.join(ep_out_dir, f"{base_without_ext}.mp4")
 
+            candidate_files = [target_file_path, alt_mkv, alt_mp4]
+
+            # Detect legacy files without provider tag or with legacy Sxx token
+            clean_no_prov = re.sub(r'\s*\[.*?\]\s*$', '', base_without_ext).strip()
+            if clean_no_prov != base_without_ext:
+                candidate_files.append(os.path.join(ep_out_dir, f"{clean_no_prov}.mkv"))
+                candidate_files.append(os.path.join(ep_out_dir, f"{clean_no_prov}.mp4"))
+
+            season_num = ep_val.get('season', 1)
+            try:
+                s_int = int(season_num)
+            except Exception:
+                s_int = 1
+            if ' - E' in clean_no_prov:
+                legacy_s_name = clean_no_prov.replace(' - E', f" - S{s_int:02d} - E", 1)
+                candidate_files.append(os.path.join(ep_out_dir, f"{legacy_s_name}.mkv"))
+                candidate_files.append(os.path.join(ep_out_dir, f"{legacy_s_name}.mp4"))
+
             existing_file = None
-            if os.path.isfile(target_file_path) and os.path.getsize(target_file_path) > 1024 * 1024:
-                existing_file = target_file_path
-            elif os.path.isfile(alt_mkv) and os.path.getsize(alt_mkv) > 1024 * 1024:
-                existing_file = alt_mkv
-            elif os.path.isfile(alt_mp4) and os.path.getsize(alt_mp4) > 1024 * 1024:
-                existing_file = alt_mp4
+            for cand in candidate_files:
+                if os.path.isfile(cand) and os.path.getsize(cand) > 1024 * 1024:
+                    existing_file = cand
+                    break
 
             if existing_file:
                 size_mb = round(os.path.getsize(existing_file) / (1024 * 1024), 1)

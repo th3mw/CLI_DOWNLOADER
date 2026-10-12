@@ -40,3 +40,6 @@ include = ["Core*", "Content*", "Clients*", "Utils*"]
 
 [tool.setuptools.package-data]
 "*" = ["*.yaml", "*.yml", "*.wasm", "*.js"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

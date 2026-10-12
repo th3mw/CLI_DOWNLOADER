@@ -19,8 +19,8 @@ class MovieDownloader(BaseDownloader):
     - Seamless HLS m3u8 fallback for HLS movie sources.
     - FFmpeg container packaging to MKV with forced English subtitles.
     '''
-    def __init__(self, dl_config, ep_details):
-        super().__init__(dl_config, ep_details)
+    def __init__(self, dl_config, ep_details, session=None):
+        super().__init__(dl_config, ep_details, session)
         self.stream_chunk_size = 1024 * 1024  # 1MB buffer for fast streaming
 
     def _download_direct_stream(self, dl_link, out_file_path):
@@ -96,19 +96,14 @@ class MovieDownloader(BaseDownloader):
         out_file_path = os.path.join(self.out_dir, self.out_file)
 
         # Check if source is HLS m3u8
-        is_hls = (self.download_type == 'hls') or ('.m3u8' in dl_link.lower())
+        dl_type = getattr(self, 'download_type', None) or self.ep_details.get('downloadType') or ('hls' if '.m3u8' in str(dl_link).lower() else 'mp4')
+        is_hls = (dl_type == 'hls') or ('.m3u8' in str(dl_link).lower())
         
         if is_hls:
             self.logger.debug(f'Movie source is HLS: delegating to HLSDownloader engine for {dl_link}')
-            hls_dl = HLSDownloader({
-                'download_dir': self.out_dir,
-                'temp_dir': self.parent_temp_dir,
-                'concurrency_per_file': self.concurrency,
-                'request_timeout': self.request_timeout,
-                'use_http_client': self.use_http_client
-            }, self.ep_details)
-            hls_dl.start_download(dl_link)
-            return
+            forward_config = dict(self.dl_config)
+            hls_dl = HLSDownloader(forward_config, self.ep_details, session=self.req_session)
+            return hls_dl.start_download(dl_link)
 
         # Direct HTTP Stream Download
         self.logger.info(f"Starting direct movie download: {dl_link} -> {out_file_path}")
@@ -123,3 +118,4 @@ class MovieDownloader(BaseDownloader):
 
         # Cleanup temporary files
         self._remove_out_dirs()
+        return (0, None)

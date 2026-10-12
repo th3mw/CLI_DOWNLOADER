@@ -223,24 +223,31 @@ class BaseDownloader():
     def __init__(self, dl_config, ep_details, session=None):
         # logger init
         self.logger = logging.getLogger()
+        self.dl_config = dl_config or {}
         self.ep_details = ep_details or {}
         # set downloader configuration
-        self.out_file = ep_details.get('episodeName') or ep_details.get('out_file', 'media.mkv')
-        self.out_dir = dl_config['download_dir']
+        self.download_type = (
+            self.ep_details.get('downloadType') or
+            self.ep_details.get('download_type') or
+            self.dl_config.get('download_type', 'hls')
+        )
+        self.referer_link = self.ep_details.get('refererLink', '')
+        self.out_file = self.ep_details.get('episodeName') or self.ep_details.get('out_file', 'media.mkv')
+        self.out_dir = self.dl_config.get('download_dir', '.')
         # add extra folder for season
-        if ep_details.get('type', '') == 'tv':
-            self.out_dir = f"{self.out_dir}{os.sep}Season-{ep_details['season']}"
-        self.concurrency = dl_config.get('concurrency_per_file', 6) if dl_config.get('concurrency_per_file', 'auto') != 'auto' else 6
-        self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if dl_config.get('temp_download_dir', 'auto') == 'auto' else dl_config['temp_download_dir']
+        if self.ep_details.get('type', '') == 'tv':
+            self.out_dir = f"{self.out_dir}{os.sep}Season-{self.ep_details['season']}"
+        self.concurrency = self.dl_config.get('concurrency_per_file', 6) if self.dl_config.get('concurrency_per_file', 'auto') != 'auto' else 6
+        self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if self.dl_config.get('temp_download_dir', 'auto') == 'auto' else self.dl_config.get('temp_download_dir', os.path.join(self.out_dir, 'temp_dir'))
         self.temp_dir = os.path.join(f"{self.parent_temp_dir}", f"{self.out_file.rsplit('.', 1)[0]}") #create temp directory per episode
-        self.request_timeout = dl_config.get('request_timeout', 20)
-        srv_type = str(ep_details.get('server_type', '')).lower()
+        self.request_timeout = self.dl_config.get('request_timeout', 20)
+        srv_type = str(self.ep_details.get('server_type', '')).lower()
         if 'hard' in srv_type or 'hsub' in srv_type:
             self.subtitles = {}
         else:
-            self.subtitles = dict(ep_details.get('subtitles', {}))
+            self.subtitles = dict(self.ep_details.get('subtitles', {}))
         # special case for encrypted subtitles in kisskh client
-        self.encrypted_subs_details = ep_details.get('encrypted_subs_details', {})
+        self.encrypted_subs_details = self.ep_details.get('encrypted_subs_details', {})
         self.thread_name_prefix = 'scraper-mp4-'
 
         # create a requests session and use across to re-use cookies
@@ -250,7 +257,7 @@ class BaseDownloader():
         self.req_session.mount('https://', adapter)
 
         # set http client usage based on config. As on Feb 21 2025, kisskh works with only http.client
-        self.use_http_client = dl_config.get('use_http_client', False)
+        self.use_http_client = self.dl_config.get('use_http_client', False)
 
         self.req_session.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36",
@@ -258,7 +265,7 @@ class BaseDownloader():
             "Connection": "keep-alive"
         }
         # update referer if defined
-        if ep_details.get('refererLink'): self.req_session.headers.update({"Referer": ep_details['refererLink']})
+        if self.referer_link: self.req_session.headers.update({"Referer": self.referer_link})
 
     def _colprint(self, theme, text, **kwargs):
         '''

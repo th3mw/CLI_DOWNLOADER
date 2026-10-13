@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TV Shows integration with TVMaze metadata catalog for episode/season mapping.
 
 ### 🛠️ Fixed & Improved
+- **Progress Bar Description Fix**:
+  - Resolved duplicate `'Downloading Downloading'` progress label in `BaseDownloader._get_display_prefix()` by safely reading series type and episode details, parsing `E\d+` / `S\d+E\d+` tokens, and preventing recursive `'Downloading'` prefixing.
+- **Per-Episode & Aggregate Download Timing in Summary**:
+  - Tracked duration for each episode and overall batch wall-clock time in `scraper.py:batch_downloader()`.
+  - Added `Total Time:` and `Episode Breakdown:` to the post-download receipt summary card, displaying exact elapsed times for all downloaded, skipped, or failed episodes in original order.
 - **Removed AniDB Provider**:
   - Completely purged legacy AniDB provider (`Content/Anime/Providers/AniDbClient.py`), configuration, and factory entries.
 - **Streamlined Audio Flow**:

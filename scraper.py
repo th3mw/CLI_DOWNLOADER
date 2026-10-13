@@ -590,7 +590,15 @@ def downloader(ep_details, dl_config):
     max_parallel_downloads = dl_config.get('max_parallel_downloads', 1)
 
     if 'downloadLink' not in ep_details:
-        return f'{error_clr}[{start}] Download skipped for {out_file}, due to error: {ep_details.get("error", "Unknown")}{reset_clr}'
+        err_msg = ep_details.get("error", "Unknown")
+        return {
+            'status': 'failed',
+            'file': out_file,
+            'log': f'{error_clr}[{start}] Download skipped for {out_file}, due to error: {err_msg}{reset_clr}',
+            'error': err_msg,
+            'time': 'Failed',
+            'duration_sec': 0
+        }
 
     download_type = ep_details['downloadType']
     # set output directory based on series type
@@ -632,7 +640,9 @@ def downloader(ep_details, dl_config):
             'status': 'skipped',
             'file': out_file,
             'log': f'{skipped_clr}[{start}] Download skipped for {out_file}. File already exists!{reset_clr}',
-            'error': None
+            'error': None,
+            'time': 'Skipped',
+            'duration_sec': 0
         }
     else:
         try:
@@ -648,6 +658,10 @@ def downloader(ep_details, dl_config):
         dlClient._cleanup_out_dirs()
 
         end = get_current_time()
+        end_epoch = int(time())
+        duration_sec = max(0, end_epoch - start_epoch)
+        download_time = pretty_time(duration_sec, fmt='h m s')
+
         if status != 0:
             history_manager.record_failure(dl_id, str(msg))
             colprint('error', f"  [✗] Failed: {out_file} ({msg})\n")
@@ -655,7 +669,9 @@ def downloader(ep_details, dl_config):
                 'status': 'failed',
                 'file': out_file,
                 'log': f'{error_clr}[{end}] Download failed for {out_file}, with error: {msg}{reset_clr}',
-                'error': str(msg)
+                'error': str(msg),
+                'time': download_time,
+                'duration_sec': duration_sec
             }
 
         # Successful download
@@ -674,8 +690,6 @@ def downloader(ep_details, dl_config):
             new_size = os.path.getsize(full_target_path) if os.path.isfile(full_target_path) else file_size
             history_manager.record_complete(dl_id, new_size)
 
-        end_epoch = int(time())
-        download_time = pretty_time(end_epoch-start_epoch, fmt='h m s')
         if max_parallel_downloads <= 1:
             colprint('results', f"  [✓] Completed: {out_file} ({download_time})\n")
         return {
@@ -683,10 +697,12 @@ def downloader(ep_details, dl_config):
             'file': out_file,
             'log': f'{success_clr}[{end}] Download completed for {out_file} in {download_time}!{reset_clr}',
             'error': None,
-            'time': download_time
+            'time': download_time,
+            'duration_sec': duration_sec
         }
 
 def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
+    batch_start_epoch = time()
     raw_results = []
     total_items = len(links)
 
@@ -697,21 +713,31 @@ def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
     else:
         colprint('header', f"\n  ⚡ Starting Simultaneous Download of {total_items} item(s) (Concurrency: {max_parallel_downloads})...\n")
         with ThreadPoolExecutor(max_workers=max_parallel_downloads) as executor:
-            future_to_link = {executor.submit(download_fn, link, dl_config): link for link in links.values()}
-            for future in as_completed(future_to_link):
+            future_to_idx = {executor.submit(download_fn, link, dl_config): idx for idx, link in enumerate(links.values())}
+            results_indexed = [None] * total_items
+            for future in as_completed(future_to_idx):
+                idx = future_to_idx[future]
                 try:
                     res = future.result()
-                    raw_results.append(res)
+                    results_indexed[idx] = res
                 except Exception as e:
-                    raw_results.append({
+                    results_indexed[idx] = {
                         'status': 'failed',
                         'file': 'Unknown',
                         'log': f"Download failed with exception: {e}",
-                        'error': str(e)
-                    })
+                        'error': str(e),
+                        'time': 'Failed',
+                        'duration_sec': 0
+                    }
+            raw_results = [r for r in results_indexed if r is not None]
+
+    batch_end_epoch = time()
+    total_session_sec = max(0, int(batch_end_epoch - batch_start_epoch))
+    total_session_time = pretty_time(total_session_sec, fmt='h m s')
 
     log_lines = [r['log'] if isinstance(r, dict) and 'log' in r else str(r) for r in raw_results]
-    logger.info(strip_ansi('\n'.join(log_lines)))
+    if logger:
+        logger.info(strip_ansi('\n'.join(log_lines)))
 
     successes = [r for r in raw_results if isinstance(r, dict) and r.get('status') == 'success']
     failures = [r for r in raw_results if isinstance(r, dict) and r.get('status') == 'failed']
@@ -724,7 +750,10 @@ def batch_downloader(download_fn, links, dl_config, max_parallel_downloads):
         'skipped': len(skipped),
         'failures': failures,
         'successes': successes,
-        'skipped_items': skipped
+        'skipped_items': skipped,
+        'results': raw_results,
+        'total_time': total_session_time,
+        'total_duration_sec': total_session_sec
     }
 
 def close_handlers():
@@ -1274,10 +1303,27 @@ Examples:
 
         # Post-download receipt card
         receipt_lines = [
-            f"  \033[1mSeries:\033[0m    \033[38;5;39m{series_title}\033[0m",
-            f"  \033[1mSaved To:\033[0m  \033[38;5;244m{downloader_config['download_dir']}\033[0m",
-            f"  \033[1mEpisodes:\033[0m  {summary['total']} processed ({summary['success']} succeeded, {summary['skipped']} skipped, {summary['failed']} failed)"
+            f"  \033[1mSeries:\033[0m      \033[38;5;39m{series_title}\033[0m",
+            f"  \033[1mSaved To:\033[0m    \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+            f"  \033[1mEpisodes:\033[0m    {summary['total']} processed ({summary['success']} succeeded, {summary['skipped']} skipped, {summary['failed']} failed)",
+            f"  \033[1mTotal Time:\033[0m  \033[38;5;82m{summary.get('total_time', '00m 00s')}\033[0m"
         ]
+
+        if summary.get('results'):
+            receipt_lines.append("")
+            receipt_lines.append("  \033[1mEpisode Breakdown:\033[0m")
+            for item in summary['results']:
+                f_name = item.get('file', 'Unknown')
+                status = item.get('status', 'unknown')
+                t_str = item.get('time', 'N/A')
+                if status == 'success':
+                    receipt_lines.append(f"    \033[38;5;82m•\033[0m \033[1m{f_name}\033[0m: \033[38;5;220m{t_str}\033[0m")
+                elif status == 'skipped':
+                    receipt_lines.append(f"    \033[38;5;244m•\033[0m \033[1m{f_name}\033[0m: \033[38;5;244mSkipped (already exists)\033[0m")
+                else:
+                    err_msg = item.get('error') or 'Failed'
+                    first_line = str(err_msg).strip().splitlines()[0] if err_msg else 'Failed'
+                    receipt_lines.append(f"    \033[38;5;196m•\033[0m \033[1m{f_name}\033[0m: \033[38;5;196mFailed ({first_line[:40]})\033[0m")
 
         if summary['failed'] > 0:
             receipt_lines.append("")
@@ -1297,7 +1343,7 @@ Examples:
             receipt_lines.append(f"\033[38;5;82m✔ Download session completed successfully! ({summary['success']} downloaded, {summary['skipped']} skipped)\033[0m")
 
         card_title = 'DOWNLOAD SUMMARY [FAILED]' if summary['failed'] == summary['total'] else ('DOWNLOAD SUMMARY [PARTIAL]' if summary['failed'] > 0 else 'DOWNLOAD SUMMARY')
-        print('\n' + render_box(card_title, receipt_lines))
+        print('\n' + render_box(card_title, receipt_lines, max_width=96))
 
     except SystemExit as se:
         # propagate the exit from argparse after printing help or on parse error

@@ -235,7 +235,7 @@ class BaseDownloader():
         self.out_file = self.ep_details.get('episodeName') or self.ep_details.get('out_file', 'media.mkv')
         self.out_dir = self.dl_config.get('download_dir', '.')
         # add extra folder for season
-        if self.ep_details.get('type', '') == 'tv':
+        if self.ep_details.get('type', '') == 'tv' and self.ep_details.get('season') is not None:
             self.out_dir = f"{self.out_dir}{os.sep}Season-{self.ep_details['season']}"
         self.concurrency = self.dl_config.get('concurrency_per_file', 6) if self.dl_config.get('concurrency_per_file', 'auto') != 'auto' else 6
         self.parent_temp_dir = os.path.join(f'{self.out_dir}', 'temp_dir') if self.dl_config.get('temp_download_dir', 'auto') == 'auto' else self.dl_config.get('temp_download_dir', os.path.join(self.out_dir, 'temp_dir'))
@@ -346,18 +346,25 @@ class BaseDownloader():
 
     def _get_display_prefix(self):
         try:
-            if self.series_type.lower() == 'movie':
+            content_type = str(getattr(self, 'series_type', '') or self.ep_details.get('type', '')).lower()
+            if content_type == 'movie':
                 return 'Movie'
             base_name = self.out_file.rsplit('.', 1)[0]
-            m = re.search(r'(S\d+\s*-\s*E\d+|S\d+E\d+|E\d+)', base_name, re.IGNORECASE)
+            m = re.search(r'(S\d+\s*-\s*E\d+(?:-E\d+)?|S\d+E\d+|E\d+(?:-E\d+)?)', base_name, re.IGNORECASE)
             if m:
                 return m.group(1).replace(' ', '')
             ep_match = re.search(r'Episode\s*(\d+)', base_name, re.IGNORECASE)
             if ep_match:
-                return f"Episode-{int(ep_match.group(1)):02d}"
-            return base_name
+                return f"E{int(ep_match.group(1)):02d}"
+            ep_val = self.ep_details.get('episode')
+            if ep_val is not None:
+                try:
+                    return f"E{int(float(ep_val)):02d}"
+                except Exception:
+                    return f"E{ep_val}"
+            return 'Episode'
         except Exception:
-            return 'Downloading'
+            return 'Episode'
 
     def _create_chunk_header(self, start):
         end = start + self.chunk_size - 1
@@ -407,9 +414,10 @@ class BaseDownloader():
         type = metadata.pop('type')
         self.logger.debug(f'[{ep_no}] Downloading {len(urls)} {type} using {self.concurrency} workers...')
 
+        desc = f'Downloading {ep_no}' if not str(ep_no).lower().startswith('downloading') else ep_no
         theme = PRINT_THEMES['results'] if DISPLAY_COLORS else ''
         metadata.update({
-            'desc': f'Downloading {ep_no}',
+            'desc': desc,
             'file': sys.stdout,
             'ascii': '░▒█',
             'leave': True,

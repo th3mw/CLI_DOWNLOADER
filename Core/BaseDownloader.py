@@ -67,6 +67,9 @@ class ProgressBar:
                     ProgressBar._active_bars.remove(self)
             sys.stdout.flush()
 
+    def close(self):
+        self.__exit__(None, None, None)
+
     def set_postfix_str(self, s, refresh=True):
         self.postfix = f', {s}' if s else ''
         if refresh:

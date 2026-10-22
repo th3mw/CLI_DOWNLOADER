@@ -145,6 +145,33 @@ CATEGORY_PROVIDERS = {
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
             'content_filter': 'nsfw',
             'type': 'direct'
+        },
+        {
+            'key': 'miohentai',
+            'name': 'MioHentai',
+            'desc': 'Free HD Hentai Videos & Episodes',
+            'label': 'MioHentai (HD Adult Anime)',
+            'class_path': 'Content.NSFW.Providers.MioHentaiClient.MioHentaiClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'hentaihaven',
+            'name': 'HentaiHaven',
+            'desc': 'Classic & New HD Hentai Streams',
+            'label': 'HentaiHaven (HD Hentai & HLS)',
+            'class_path': 'Content.NSFW.Providers.HentaiHavenClient.HentaiHavenClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'trixhentai',
+            'name': 'TrixHentai',
+            'desc': 'Direct MP4 Hentai Videos & Episodes',
+            'label': 'TrixHentai (Direct MP4 Hentai)',
+            'class_path': 'Content.NSFW.Providers.TrixHentaiClient.TrixHentaiClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
         }
     ],
     'NSFW': [
@@ -156,6 +183,33 @@ CATEGORY_PROVIDERS = {
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
             'content_filter': 'nsfw',
             'type': 'direct'
+        },
+        {
+            'key': 'miohentai',
+            'name': 'MioHentai',
+            'desc': 'Free HD Hentai Videos & Episodes',
+            'label': 'MioHentai (HD Adult Anime)',
+            'class_path': 'Content.NSFW.Providers.MioHentaiClient.MioHentaiClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'hentaihaven',
+            'name': 'HentaiHaven',
+            'desc': 'Classic & New HD Hentai Streams',
+            'label': 'HentaiHaven (HD Hentai & HLS)',
+            'class_path': 'Content.NSFW.Providers.HentaiHavenClient.HentaiHavenClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'trixhentai',
+            'name': 'TrixHentai',
+            'desc': 'Direct MP4 Hentai Videos & Episodes',
+            'label': 'TrixHentai (Direct MP4 Hentai)',
+            'class_path': 'Content.NSFW.Providers.TrixHentaiClient.TrixHentaiClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
         }
     ],
     'NSFW / Hentai': [
@@ -165,6 +219,33 @@ CATEGORY_PROVIDERS = {
             'desc': 'Adult Anime & Hentai Streams',
             'label': 'Hanime (Hentai & NSFW Anime)',
             'class_path': 'Content.NSFW.Providers.HanimeClient.HanimeClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'miohentai',
+            'name': 'MioHentai',
+            'desc': 'Free HD Hentai Videos & Episodes',
+            'label': 'MioHentai (HD Adult Anime)',
+            'class_path': 'Content.NSFW.Providers.MioHentaiClient.MioHentaiClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'hentaihaven',
+            'name': 'HentaiHaven',
+            'desc': 'Classic & New HD Hentai Streams',
+            'label': 'HentaiHaven (HD Hentai & HLS)',
+            'class_path': 'Content.NSFW.Providers.HentaiHavenClient.HentaiHavenClient',
+            'content_filter': 'nsfw',
+            'type': 'direct'
+        },
+        {
+            'key': 'trixhentai',
+            'name': 'TrixHentai',
+            'desc': 'Direct MP4 Hentai Videos & Episodes',
+            'label': 'TrixHentai (Direct MP4 Hentai)',
+            'class_path': 'Content.NSFW.Providers.TrixHentaiClient.TrixHentaiClient',
             'content_filter': 'nsfw',
             'type': 'direct'
         }
@@ -189,17 +270,20 @@ CATEGORY_DOWNLOADERS = {
     },
     'Hentai (NSFW)': {
         'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
-        'http': 'Core.BaseDownloader.BaseDownloader',
+        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
+        'mp4': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
         'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     },
     'NSFW': {
         'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
-        'http': 'Core.BaseDownloader.BaseDownloader',
+        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
+        'mp4': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
         'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     },
     'NSFW / Hentai': {
         'hls': 'Content.Anime.Downloaders.HLSDownloader.HLSDownloader',
-        'http': 'Core.BaseDownloader.BaseDownloader',
+        'http': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
+        'mp4': 'Content.Movies.Downloaders.MovieDownloader.MovieDownloader',
         'torrent': 'Content.Movies.Downloaders.TorrentDownloader.TorrentDownloader'
     }
 }

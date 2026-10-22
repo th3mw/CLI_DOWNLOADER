@@ -393,7 +393,7 @@ def get_series_type(keys, predefined_input=None):
         '1': 'Anime', 'anime': 'Anime',
         '2': 'Movies', 'movies': 'Movies', 'movie': 'Movies',
         '3': 'TV Shows', 'tv': 'TV Shows', 'tvshows': 'TV Shows', 'tv_shows': 'TV Shows', 'series': 'TV Shows',
-        '4': 'Hentai (NSFW)', 'nsfw': 'Hentai (NSFW)', 'hentai': 'Hentai (NSFW)', 'hanime': 'Hentai (NSFW)', 'nsfw / hentai': 'Hentai (NSFW)', 'hentai (nsfw)': 'Hentai (NSFW)'
+        '4': 'Hentai (NSFW)', 'nsfw': 'Hentai (NSFW)', 'hentai': 'Hentai (NSFW)', 'hanime': 'Hentai (NSFW)', 'miohentai': 'Hentai (NSFW)', 'hentaihaven': 'Hentai (NSFW)', 'trixhentai': 'Hentai (NSFW)', 'nsfw / hentai': 'Hentai (NSFW)', 'hentai (nsfw)': 'Hentai (NSFW)'
     }
     if predefined_input is not None:
         pre_str = str(predefined_input).lower().strip()

@@ -470,9 +470,33 @@ def migrate_config(config, config_file):
                 'hanime': {
                     'base_url': 'https://hanime.tv',
                     'search_url': 'https://search.htv-services.com'
+                },
+                'miohentai': {
+                    'base_url': 'https://miohentai.com'
+                },
+                'hentaihaven': {
+                    'base_url': 'https://hentaihaven.xxx'
+                },
+                'trixhentai': {
+                    'base_url': 'https://www.trixhentai.com'
+                },
+                'hentaihaven': {
+                    'base_url': 'https://hentaihaven.xxx'
+                },
+                'trixhentai': {
+                    'base_url': 'https://www.trixhentai.com'
                 }
             }
         }
+    else:
+        nsfw_key = 'Hentai (NSFW)' if 'Hentai (NSFW)' in config else ('NSFW' if 'NSFW' in config else 'NSFW / Hentai')
+        nsfw_provs = config[nsfw_key].setdefault('providers', {})
+        if 'miohentai' not in nsfw_provs:
+            nsfw_provs['miohentai'] = {'base_url': 'https://miohentai.com'}
+        if 'hentaihaven' not in nsfw_provs:
+            nsfw_provs['hentaihaven'] = {'base_url': 'https://hentaihaven.xxx'}
+        if 'trixhentai' not in nsfw_provs:
+            nsfw_provs['trixhentai'] = {'base_url': 'https://www.trixhentai.com'}
 
     # Ensure PostProcessing section exists
     if 'PostProcessing' not in config:
@@ -622,6 +646,15 @@ def run_config_wizard(config_file, existing_config=None):
                 'hanime': {
                     'base_url': 'https://hanime.tv',
                     'search_url': 'https://search.htv-services.com'
+                },
+                'miohentai': {
+                    'base_url': 'https://miohentai.com'
+                },
+                'hentaihaven': {
+                    'base_url': 'https://hentaihaven.xxx'
+                },
+                'trixhentai': {
+                    'base_url': 'https://www.trixhentai.com'
                 }
             }
         },

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.7.0] - 2026-10-03
 
+- **NSFW Providers Expansion (`MioHentai`, `HentaiHaven`, `TrixHentai`)**:
+  - **MioHentai (`miohentai.com`)**: Integrated direct scraper and streamer with series taxonomy auto-grouping, multi-episode batching, and high-speed direct MP4 extraction from `cdn.miohentai.com`.
+  - **HentaiHaven (`hentaihaven.xxx`)**: Integrated Next.js catalog search via `/api/manga/`, season/episode listing, and multi-resolution master HLS extraction (`octopusmanifest.org`) with multilingual subtitle support.
+  - **TrixHentai (`trixhentai.com`)**: Integrated scraper with automated Age Gate bypass and direct static MP4 extraction via embedded JWPlayer video assets.
 - **AniSnatch (`anisnatch.top`) Provider**:
   - Full reverse engineering and integration of `anisnatch.top` high-speed direct anime streaming provider (`Content/Anime/Providers/AniSnatchClient.py` and `anisnatch_engine.js`).
   - Binary XOR + Pako decompression codec, dynamic session token handshake (`/api/init`), and fast parallel multi-server stream extraction (Sub, Soft-Sub, Dub).
@@ -25,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TV Shows integration with TVMaze metadata catalog for episode/season mapping.
 
 ### 🛠️ Fixed & Improved
+- **ProgressBar `close()` Support**:
+  - Implemented `.close()` method on `Core.BaseDownloader.ProgressBar` for full compatibility with direct stream download handlers (`MovieDownloader._download_direct_stream`).
 - **Progress Bar Description Fix**:
   - Resolved duplicate `'Downloading Downloading'` progress label in `BaseDownloader._get_display_prefix()` by safely reading series type and episode details, parsing `E\d+` / `S\d+E\d+` tokens, and preventing recursive `'Downloading'` prefixing.
 - **Per-Episode & Aggregate Download Timing in Summary**:

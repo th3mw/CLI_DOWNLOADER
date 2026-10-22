@@ -222,6 +222,10 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | **TV Shows** | `🧲 EZTV` (`eztvx.to`) | Torrent / `aria2c` | TVMaze metadata, multi-season pagination, Complete Season Batch Packs (`S01 COMPLETE`) |
 | **TV Shows** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb series metadata, season/episode list fetching, WebAssembly decryption, direct HTTP downloads |
 | **TV Shows** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama series, season breakdowns, encrypted subtitle support |
+| **NSFW** | `Hanime` (`hanime.tv`) | HLS Stream / WASM | Adult Anime & Hentai streams, dynamic WASM signature handshake, multi-resolution HLS |
+| **NSFW** | `MioHentai` (`miohentai.com`) | Direct MP4 | Series taxonomy auto-grouping, multi-episode batching, high-speed direct MP4 CDN |
+| **NSFW** | `HentaiHaven` (`hentaihaven.xxx`) | HLS Master Stream | Next.js catalog integration, multi-resolution HLS master streams, multilingual WebVTT subtitles |
+| **NSFW** | `TrixHentai` (`trixhentai.com`) | Direct MP4 | Automated Age Gate bypass, high-speed direct MP4 video streaming via static CDN |
 
 ---
 

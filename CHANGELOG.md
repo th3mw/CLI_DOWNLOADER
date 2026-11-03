@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [v1.8.0] - 2026-11-03
+
+- **Ext.to (`ext.to`) Provider & Complete Season Packs**:
+  - Integrated `ext.to` as the primary #1 provider for TV Shows.
+  - Reverse-engineered `ext.to` season pack index (`completed=1`) to discover full season torrent releases.
+  - Automated HMAC-SHA256 signature generation and AJAX token retrieval (`/ajax/getTorrentMagnet.php`) to extract high-speed BitTorrent magnet URIs.
+  - Multi-resolution segregation (`4K / 2160p`, `1080p`, `720p`, `480p`) with ranking by active seeders.
+- **Selective File / Episode Download Support in Torrent Engine**:
+  - Overhauled TV series torrent downloader flow to support all-in-one complete season torrents instead of disjointed individual episode swarms.
+  - Pre-parsed episode file hierarchy from torrent release metadata.
+  - Integrated `--select-file` filtering with `aria2c` in-terminal engine, allowing users to download all episodes or selectively uncheck unwanted episodes.
+  - Direct handoff to system desktop torrent managers (qBittorrent, FDM, Transmission) where supported.
+
+---
+
 ## [v1.7.0] - 2026-10-03
 
 - **NSFW Providers Expansion (`MioHentai`, `HentaiHaven`, `TrixHentai`)**:

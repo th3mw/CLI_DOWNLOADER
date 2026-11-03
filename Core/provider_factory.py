@@ -100,6 +100,15 @@ CATEGORY_PROVIDERS = {
     ],
     'TV Shows': [
         {
+            'key': 'ext',
+            'name': 'Ext.to',
+            'desc': 'Complete Season Packs & Torrents',
+            'label': 'Ext.to (Complete Season Packs)',
+            'class_path': 'Content.Series.Providers.ExtClient.ExtClient',
+            'content_filter': 'tv',
+            'type': 'torrent'
+        },
+        {
             'key': 'eztv',
             'name': 'EZTV',
             'desc': 'TV Torrents & Episodes',

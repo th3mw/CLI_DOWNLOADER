@@ -29,6 +29,7 @@ A powerful command-line interface (CLI) application for searching and downloadin
 
 ## ✨ Features
 
+- **Complete Season Torrent Packs & Selective Episode Downloading**: In V1.8, TV Series torrent downloading discovers All-in-One complete season packs (`Ext.to`, `completed=1`) segregated by resolution (4K, 1080p, 720p, 480p) and ranked by seeders. Choose to download all episodes or selectively uncheck unwanted episodes via `--select-file` with the built-in `aria2` engine or default system torrent client.
 - **Modern Unicode UI Engine**: Sleek bordered cards, single-line hero banners, and dynamic status indicators built for Linux, macOS, and Windows.
 - **Multi-Source Scraping**: Download content seamlessly from top Anime and Movie/TV Show providers.
 - **Interactive Navigation with Back Support**: Context-aware provider cards with `0. Back` to change categories on the fly.
@@ -219,7 +220,9 @@ python scraper.py [-h] [-c CONF] [-l LOG_FILE] [-s SERIES_TYPE] [-p PROVIDER]
 | **Movies** | `🧲 YTS / YIFY` (`yts.lt`) | Torrent / `aria2c` | IMDb metadata, 720p, 1080p, 2160p (4K), 3D torrent qualities |
 | **Movies** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb movie metadata, WebAssembly decryption, direct high-speed HTTP downloads |
 | **Movies** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama movies & Hollywood films |
+| **TV Shows** | `🧲 Ext.to` (`ext.to`) | Torrent / `aria2c` | Complete Season Packs (`completed=1`), seed-based ranking, resolution segregation, selective episode download |
 | **TV Shows** | `🧲 EZTV` (`eztvx.to`) | Torrent / `aria2c` | TVMaze metadata, multi-season pagination, Complete Season Batch Packs (`S01 COMPLETE`) |
+| **TV Shows** | `🧲 TorrentGalaxy` (`torrentgalaxy.one`) | Torrent / `aria2c` | TVMaze metadata catalog, high-speed release swarms, 720p/1080p/4K releases |
 | **TV Shows** | `1Shows` (`1shows.org`) | HTTP / WebAssembly | TMDb series metadata, season/episode list fetching, WebAssembly decryption, direct HTTP downloads |
 | **TV Shows** | `KissKh` (`kisskh.co`) | HLS Stream | Asian Drama series, season breakdowns, encrypted subtitle support |
 | **NSFW** | `Hanime` (`hanime.tv`) | HLS Stream / WASM | Adult Anime & Hentai streams, dynamic WASM signature handshake, multi-resolution HLS |

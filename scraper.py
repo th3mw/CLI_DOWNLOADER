@@ -895,7 +895,7 @@ Examples:
         # Display hero banner
         if not args.quiet and series_type_predef is not None:
             hero_box = render_box('', [
-                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0\033[0m',
+                '\033[38;5;39m\033[1m🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.8.0\033[0m',
                 '\033[38;5;244mAnime • Asian Dramas • Movies • TV Shows • NSFW\033[0m'
             ], center=True)
             print(f'\n{hero_box}\n')
@@ -954,28 +954,63 @@ Examples:
             logger.error('No episodes found in selected series!')
             raise ExitException(1)
 
-        if not args.quiet and not episodes_predef:
-            clear_screen()
-            prov_name = getattr(client, 'name', '') or str(series_type)
-            render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Episodes'])
+        is_season_pack_provider = bool(episodes and episodes[0].get('is_season_pack'))
 
-        ep_overview = [
-            f"\033[1mSeries:\033[0m \033[38;5;39m{target_series.get('title', 'Unknown')}\033[0m",
-            f"\033[1mTotal Episodes Available:\033[0m \033[38;5;82m{len(episodes)}\033[0m (1 - {len(episodes)})"
-        ]
-        print('\n' + render_box('AVAILABLE EPISODES', ep_overview))
-        client.show_episode_results(episodes, seasons_predef, episodes_predef)
+        if is_season_pack_provider:
+            if not args.quiet and not seasons_predef:
+                clear_screen()
+                prov_name = getattr(client, 'name', '') or str(series_type)
+                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Season'])
 
-        # get user input for episodes range and parse start and end number
-        season_ranges = client.get_season_ep_ranges(episodes)
-        if series_type in (3, '3', 'TV Shows', 'tv') and len(season_ranges) > 1:
-            selected_eps = get_ep_range_multiple(season_ranges, episodes, seasons_predef, episodes_predef)
-        elif len(episodes) == 1 or series_type in ('Movies', 2, '2', 'movies'):
-            ep_start = episodes[0]['episode']
-            ep_end = episodes[-1]['episode']
-            selected_eps = {'start': ep_start, 'end': ep_end, 'specific_no': [ep_start]}
+            ep_overview = [
+                f"\033[1mSeries:\033[0m \033[38;5;39m{target_series.get('title', 'Unknown')}\033[0m",
+                f"\033[1mTotal Seasons Available:\033[0m \033[38;5;82m{len(episodes)}\033[0m (Season {episodes[0]['season']} - {episodes[-1]['season']})"
+            ]
+            print('\n' + render_box('AVAILABLE SEASONS', ep_overview))
+            client.show_episode_results(episodes, seasons_predef, episodes_predef)
+
+            if seasons_predef:
+                try:
+                    chosen_season = int(seasons_predef)
+                except ValueError:
+                    chosen_season = episodes[0]['season']
+            else:
+                season_nums = [ep['season'] for ep in episodes]
+                chosen_season = colprint(
+                    'user_input',
+                    f"\n  ➜ Select Season [1-{len(episodes)}, default={episodes[0]['season']}]: ",
+                    input_type='recurring',
+                    input_dtype='int',
+                    input_options=season_nums,
+                    allow_empty_input=True
+                )
+                if not chosen_season:
+                    chosen_season = episodes[0]['season']
+
+            selected_eps = {'start': chosen_season, 'end': chosen_season, 'specific_no': [chosen_season]}
         else:
-            selected_eps = get_ep_range(f"{episodes[0]['episode']}-{episodes[-1]['episode']}", 'Enter', episodes_predef)
+            if not args.quiet and not episodes_predef:
+                clear_screen()
+                prov_name = getattr(client, 'name', '') or str(series_type)
+                render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), 'Select Episodes'])
+
+            ep_overview = [
+                f"\033[1mSeries:\033[0m \033[38;5;39m{target_series.get('title', 'Unknown')}\033[0m",
+                f"\033[1mTotal Episodes Available:\033[0m \033[38;5;82m{len(episodes)}\033[0m (1 - {len(episodes)})"
+            ]
+            print('\n' + render_box('AVAILABLE EPISODES', ep_overview))
+            client.show_episode_results(episodes, seasons_predef, episodes_predef)
+
+            # get user input for episodes range and parse start and end number
+            season_ranges = client.get_season_ep_ranges(episodes)
+            if series_type in (3, '3', 'TV Shows', 'tv') and len(season_ranges) > 1:
+                selected_eps = get_ep_range_multiple(season_ranges, episodes, seasons_predef, episodes_predef)
+            elif len(episodes) == 1 or series_type in ('Movies', 2, '2', 'movies'):
+                ep_start = episodes[0]['episode']
+                ep_end = episodes[-1]['episode']
+                selected_eps = {'start': ep_start, 'end': ep_end, 'specific_no': [ep_start]}
+            else:
+                selected_eps = get_ep_range(f"{episodes[0]['episode']}-{episodes[-1]['episode']}", 'Enter', episodes_predef)
 
         # set output names & make it windows safe
         logger.debug(f'Set output names based on {target_series}')
@@ -1259,13 +1294,27 @@ Examples:
         clean_res = re.sub(r'^srv\d+_', '', str(raw_res), flags=re.IGNORECASE)
         res_display = f"{clean_res.upper()}P" if not clean_res.upper().endswith('P') else clean_res.upper()
 
-        checklist_lines = [
-            f"  \033[1mSeries:\033[0m      \033[38;5;39m{series_title}\033[0m",
-            f"  \033[1mSave Path:\033[0m   \033[38;5;244m{downloader_config['download_dir']}\033[0m",
-            f"  \033[1mResolution:\033[0m  \033[38;5;220m{res_display}\033[0m \033[38;5;244m(MKV with Forced English Subtitles)\033[0m",
-            f"  \033[1mAudio:\033[0m       \033[38;5;39m{audio_label}\033[0m",
-            f"  \033[1mQueued:\033[0m      {available_dl_count} episode(s) ready to download"
-        ]
+        if first_dl.get('is_season_pack'):
+            checklist_lines = [
+                f"  \033[1mSeries:\033[0m      \033[38;5;39m{series_title}\033[0m",
+                f"  \033[1mSeason Pack:\033[0m \033[38;5;220mSeason {first_dl.get('season', 1)} Complete\033[0m",
+                f"  \033[1mSave Path:\033[0m   \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+                f"  \033[1mResolution:\033[0m  \033[38;5;220m{res_display}\033[0m",
+                f"  \033[1mPack Size:\033[0m   {first_dl.get('size', 'Unknown')} • Seeds: {first_dl.get('seeds', 'N/A')}",
+            ]
+            t_files = first_dl.get('torrent_files', [])
+            if t_files:
+                checklist_lines.append(f"  \033[1mEpisodes:\033[0m    {len(t_files)} episode(s) indexed in torrent")
+            else:
+                checklist_lines.append(f"  \033[1mQueued:\033[0m      Complete season torrent ready")
+        else:
+            checklist_lines = [
+                f"  \033[1mSeries:\033[0m      \033[38;5;39m{series_title}\033[0m",
+                f"  \033[1mSave Path:\033[0m   \033[38;5;244m{downloader_config['download_dir']}\033[0m",
+                f"  \033[1mResolution:\033[0m  \033[38;5;220m{res_display}\033[0m \033[38;5;244m(MKV with Forced English Subtitles)\033[0m",
+                f"  \033[1mAudio:\033[0m       \033[38;5;39m{audio_label}\033[0m",
+                f"  \033[1mQueued:\033[0m      {available_dl_count} episode(s) ready to download"
+            ]
         if already_downloaded_count > 0:
             checklist_lines.append(f"  \033[38;5;82m✔  {already_downloaded_count} existing episode(s) skipped\033[0m")
         print('\n' + render_box('PRE-DOWNLOAD INSPECTION', checklist_lines))

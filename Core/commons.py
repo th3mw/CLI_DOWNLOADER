@@ -153,7 +153,7 @@ def render_step_header(breadcrumbs=None, step_title=None):
     c_yellow = PRINT_THEMES['user_input'] if DISPLAY_COLORS else ''
 
     banner = render_box('', [
-        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.7.0{c_reset}',
+        f'{c_blue}🎬  CLI MEDIA SCRAPER & DOWNLOADER  v1.8.0{c_reset}',
         f'{c_muted}Anime • Asian Dramas • Movies • TV Shows • NSFW{c_reset}'
     ], max_width=76, indent=2, center=True, pad_x=(10, 10))
     print(f'\n{banner}\n')
@@ -408,7 +408,7 @@ def threaded(max_parallel=None, thread_name_prefix='scraper-', print_status=Fals
         return wrapper
     return decorator
 
-CURRENT_CONFIG_VERSION = "1.7.0"
+CURRENT_CONFIG_VERSION = "1.8.0"
 
 
 def migrate_config(config, config_file):

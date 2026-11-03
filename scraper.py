@@ -1,8 +1,10 @@
 import argparse
+import os, sys
 import re
+import shutil
+import textwrap
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-import os, sys
 
 # Ensure UTF-8 stdout/stderr and ANSI support on Windows
 if sys.platform == 'win32' or os.name == 'nt':
@@ -1132,13 +1134,18 @@ Examples:
                 pack_choice_map = {}
                 default_pack_idx = "1"
 
+                try:
+                    term_cols = shutil.get_terminal_size((80, 24)).columns
+                except Exception:
+                    term_cols = 80
+                max_box_w = min(130, max(80, term_cols - 4))
+                title_wrap_w = max(30, min(term_cols - 4, max_box_w) - 14)
+
                 for idx, (opt_k, opt_d) in enumerate(candidate_packs, start=1):
                     idx_str = str(idx)
                     pack_choice_map[idx_str] = opt_k
                     p_data = opt_d.get('pack_data', {})
                     p_title = p_data.get('title') or opt_d.get('title') or opt_d.get('show_title', 'Season Pack')
-                    if len(p_title) > 60:
-                        p_title = p_title[:57] + '...'
                     p_size = opt_d.get('size', 'Unknown')
                     p_seeds = opt_d.get('seeds', 0)
                     p_leeches = opt_d.get('leeches', 0)
@@ -1146,14 +1153,21 @@ Examples:
                     files_str = f" • {p_files} files" if p_files else ""
                     def_tag = ' \033[38;5;39m[default]\033[0m' if idx == 1 else ''
 
-                    pack_lines.append(
+                    if pack_lines:
+                        pack_lines.append("")
+
+                    meta_line = (
                         f"  \033[1m[{idx_str}]\033[0m  \033[1m\033[38;5;39m{p_size}\033[0m  \033[38;5;244m•\033[0m  "
-                        f"\033[38;5;82m▲ {p_seeds}\033[0m \033[38;5;244m/ ▼ {p_leeches}\033[0m{files_str}  \033[38;5;244m•\033[0m  "
-                        f"{p_title}{def_tag}"
+                        f"\033[38;5;82m▲ {p_seeds}\033[0m \033[38;5;244m/ ▼ {p_leeches}\033[0m{files_str}{def_tag}"
                     )
+                    pack_lines.append(meta_line)
+
+                    wrapped_title = textwrap.wrap(p_title, width=title_wrap_w)
+                    for t_line in wrapped_title:
+                        pack_lines.append(f"      \033[38;5;253m{t_line}\033[0m")
 
                 box_title = f"AVAILABLE SEASON PACKS ({chosen_res.upper()})"
-                print('\n' + render_box(box_title, pack_lines))
+                print('\n' + render_box(box_title, pack_lines, max_width=max_box_w))
 
                 while True:
                     try:

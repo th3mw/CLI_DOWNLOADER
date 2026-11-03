@@ -499,7 +499,7 @@ class ExtClient(BaseClient):
 
                 # Seeds
                 seeds = 0
-                m_seeds = re.search(r'file_upload\s*(\d+)', item_text, re.IGNORECASE) or re.search(r'(?:seeders|seeds)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
+                m_seeds = re.search(r'file_upload\s*(\d+)', item_text, re.IGNORECASE) or re.search(r'(?:seeders?|seeds?)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
                 if m_seeds:
                     seeds = int(m_seeds.group(1))
                 else:
@@ -507,11 +507,25 @@ class ExtClient(BaseClient):
                     if s_elem and s_elem.text.strip().isdigit():
                         seeds = int(s_elem.text.strip())
 
-                # Leeches
+                # Leeches / Peers
                 leeches = 0
-                m_leeches = re.search(r'file_download\s*(\d+)', item_text, re.IGNORECASE) or re.search(r'(?:leechers|leechs)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
+                m_leeches = re.search(r'(?:leechers?|leechs?|peers?)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
                 if m_leeches:
                     leeches = int(m_leeches.group(1))
+                else:
+                    l_elem = item.select_one('.detail-leechers-count, span.leech, span.red')
+                    if l_elem and l_elem.text.strip().isdigit():
+                        leeches = int(l_elem.text.strip())
+
+                # If row has explicit table cells, prioritize exact columns (th: TORRENT NAME, SIZE, FILES, AGE, SEED, LEECH)
+                tds = item.find_all('td') if hasattr(item, 'find_all') else []
+                if len(tds) >= 6:
+                    s_td = re.search(r'(\d+)', tds[4].get_text(strip=True))
+                    l_td = re.search(r'(\d+)', tds[5].get_text(strip=True))
+                    if s_td:
+                        seeds = int(s_td.group(1))
+                    if l_td:
+                        leeches = int(l_td.group(1))
 
                 # Size
                 size_str = 'Unknown'
@@ -550,13 +564,13 @@ class ExtClient(BaseClient):
                     'tags': list(set(tags))
                 })
 
-        # Filter dead releases if healthy seeds exist, sort descending by seeds, cap to top 5 per resolution
+        # Filter dead releases if healthy seeds exist, sort descending by seeds, cap to top 10 per resolution
         for res_k, p_list in list(all_packs.items()):
             has_alive = any(p['seeds'] > 0 for p in p_list)
             if has_alive:
                 p_list = [p for p in p_list if p['seeds'] > 0]
             p_list.sort(key=lambda p: p['seeds'], reverse=True)
-            all_packs[res_k] = p_list[:5]
+            all_packs[res_k] = p_list[:10]
 
         self._season_packs_cache[cache_key] = all_packs
         return all_packs

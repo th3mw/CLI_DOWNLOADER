@@ -201,8 +201,42 @@ class TestExtClient(unittest.TestCase):
             # Dead torrent (0 seeds) should be filtered out because a healthy 1080p torrent exists
             self.assertEqual(len(packs['1080p']), 1)
             self.assertEqual(packs['1080p'][0]['torrent_id'], 111111)
+            self.assertEqual(packs['1080p'][0]['seeds'], 50)
+            self.assertEqual(packs['1080p'][0]['leeches'], 5)
             self.assertEqual(len(packs['720p']), 1)
             self.assertEqual(packs['720p'][0]['torrent_id'], 333333)
+            self.assertEqual(packs['720p'][0]['seeds'], 20)
+            self.assertEqual(packs['720p'][0]['leeches'], 2)
+
+    def test_table_cell_leech_parsing(self):
+        mock_table_html = '''
+        <html>
+            <body>
+                <table>
+                    <tr><th>TORRENT NAME</th><th>SIZE</th><th>FILES</th><th>AGE</th><th>SEED</th><th>LEECH</th></tr>
+                    <tr>
+                        <td><a href="/see-s01-1080p-12345/">See S01 1080p</a></td>
+                        <td>Size 11 GB</td>
+                        <td>Files 8</td>
+                        <td>Age 1 year</td>
+                        <td>Seed 71</td>
+                        <td>Leech 63</td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.text = mock_table_html
+        mock_resp.status_code = 200
+
+        with patch.object(self.client, '_request', return_value=mock_resp):
+            packs = self.client.fetch_season_packs('see-s4954', 1)
+            self.assertIn('1080p', packs)
+            self.assertEqual(len(packs['1080p']), 1)
+            p = packs['1080p'][0]
+            self.assertEqual(p['seeds'], 71)
+            self.assertEqual(p['leeches'], 63)
 
 
 if __name__ == '__main__':

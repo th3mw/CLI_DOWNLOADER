@@ -162,6 +162,48 @@ class TestExtClient(unittest.TestCase):
             self.assertEqual(res['files'][0]['size'], '928.3 MB')
             self.assertEqual(res['files'][1]['name'], 'Breaking.Bad.S01E02.Cats.In.The.Bag.1080p.mkv')
 
+    def test_detect_resolution_and_dead_torrent_filtering(self):
+        self.assertEqual(self.client._detect_resolution('Show S01 2160p UHD HDR'), '2160p')
+        self.assertEqual(self.client._detect_resolution('Show S01 4K BluRay'), '2160p')
+        self.assertEqual(self.client._detect_resolution('Show S01 1080p BluRay x264'), '1080p')
+        self.assertEqual(self.client._detect_resolution('Show S01 720p HDTV'), '720p')
+        self.assertEqual(self.client._detect_resolution('Show S01 DVDRip XviD'), '480p')
+
+        mock_multi_res_html = '''
+        <html>
+            <body>
+                <div class="torrent-row">
+                    <a href="/show-s01-1080p-alive-111111/">Show S01 1080p BluRay</a>
+                    <div>seeders: 50 leechers: 5</div>
+                    <div>Size 4.0 GB</div>
+                </div>
+                <div class="torrent-row">
+                    <a href="/show-s01-1080p-dead-222222/">Show S01 1080p WebRip</a>
+                    <div>seeders: 0 leechers: 0</div>
+                    <div>Size 3.5 GB</div>
+                </div>
+                <div class="torrent-row">
+                    <a href="/show-s01-720p-alive-333333/">Show S01 720p HDTV</a>
+                    <div>seeders: 20 leechers: 2</div>
+                    <div>Size 2.0 GB</div>
+                </div>
+            </body>
+        </html>
+        '''
+        mock_resp = MagicMock()
+        mock_resp.text = mock_multi_res_html
+        mock_resp.status_code = 200
+
+        with patch.object(self.client, '_request', return_value=mock_resp):
+            packs = self.client.fetch_season_packs('test-show-s123', 1)
+            self.assertIn('1080p', packs)
+            self.assertIn('720p', packs)
+            # Dead torrent (0 seeds) should be filtered out because a healthy 1080p torrent exists
+            self.assertEqual(len(packs['1080p']), 1)
+            self.assertEqual(packs['1080p'][0]['torrent_id'], 111111)
+            self.assertEqual(len(packs['720p']), 1)
+            self.assertEqual(packs['720p'][0]['torrent_id'], 333333)
+
 
 if __name__ == '__main__':
     unittest.main()

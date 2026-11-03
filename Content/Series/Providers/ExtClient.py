@@ -432,175 +432,131 @@ class ExtClient(BaseClient):
         clean_title = self._windows_safe_string(title)
         return clean_title, clean_title
 
-    def _fetch_season_packs_for_resolution(self, show_slug, season, resolution):
-        '''Fetch torrent cards for a specific season and resolution'''
-        url = f"{show_slug}/torrents/{resolution}/?s={season}&completed=1"
-        resp = self._request(url)
-        if not resp or not resp.text:
-            return []
-
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        packs = []
-
-        # Find torrent rows
-        seen_ids = set()
-        for a in soup.select('a[href*="-"]'):
-            href = a.get('href', '')
-            # Match torrent slug ending with digits: e.g. /breaking-bad-...-717634/
-            m_id = re.search(r'-(\d+)/?$', href)
-            if not m_id or href.startswith('/tv/') or '/user/' in href:
-                continue
-
-            torrent_id = int(m_id.group(1))
-            if torrent_id in seen_ids:
-                continue
-            seen_ids.add(torrent_id)
-
-            raw_title = a.text.strip()
-            if not raw_title or len(raw_title) < 3:
-                continue
-
-            # Find closest parent container
-            item = a
-            while item.parent and item.parent.name not in ('body', 'html', 'table'):
-                item = item.parent
-                if item.name in ('tr', 'li') or (item.name == 'div' and any(k in str(item.get('class', '')) for k in ('torrent', 'item', 'row', 'card', 'col'))):
-                    break
-
-            item_text = item.get_text(separator=' ', strip=True) if item else raw_title
-
-            # Parse seeds & leeches
-            seeds = 0
-            m_seeds = re.search(r'(?:seeders|seeds|file_upload)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
-            if m_seeds:
-                seeds = int(m_seeds.group(1))
-            else:
-                # Look for span or class
-                s_elem = item.select_one('.detail-seeders-count, span.seed, span.green')
-                if s_elem and s_elem.text.strip().isdigit():
-                    seeds = int(s_elem.text.strip())
-
-            leeches = 0
-            m_leeches = re.search(r'(?:leechers|leechs|file_download)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
-            if m_leeches:
-                leeches = int(m_leeches.group(1))
-
-            # Parse size
-            size_str = 'Unknown'
-            m_size = re.search(r'(\d+(?:\.\d+)?\s*(?:GB|MB|TB))', item_text, re.IGNORECASE)
-            if m_size:
-                size_str = m_size.group(1).upper()
-
-            # Parse files count
-            files_count = 0
-            m_files = re.search(r'(?:files|Files)\s*[:|]?\s*(\d+)', item_text)
-            if m_files:
-                files_count = int(m_files.group(1))
-
-            # Extract tags: BluRay, WEB-DL, x265, HEVC, 10bit, AV1, etc.
-            tags = []
-            for tag_pat in [r'BluRay', r'WEB-DL', r'WEBRip', r'x265', r'x264', r'HEVC', r'10-?bit', r'AV1', r'HDR', r'DTS', r'AAC']:
-                if re.search(r'\b' + tag_pat + r'\b', raw_title + ' ' + item_text, re.IGNORECASE):
-                    tags.append(tag_pat.replace('-?', ''))
-
-            detail_url = href if href.startswith('http') else f"{self.base_url}/{href.lstrip('/')}"
-
-            packs.append({
-                'torrent_id': torrent_id,
-                'title': raw_title,
-                'detail_url': detail_url,
-                'resolution': resolution,
-                'quality': resolution.upper().replace('P', ''),
-                'size': size_str,
-                'seeds': seeds,
-                'leeches': leeches,
-                'files_count': files_count,
-                'tags': list(set(tags))
-            })
-
-        return packs
+    def _detect_resolution(self, title):
+        '''Accurately infer resolution tag from torrent release title'''
+        t = title.lower()
+        if re.search(r'\b(2160p?|4k|uhd)\b', t):
+            return '2160p'
+        if re.search(r'\b(1080p?|1080i|fhd)\b', t):
+            return '1080p'
+        if re.search(r'\b(720p?|hd)\b', t):
+            return '720p'
+        if re.search(r'\b(480p?|sd|dvd|dvdrip)\b', t):
+            return '480p'
+        if '2160' in t or '4k' in t:
+            return '2160p'
+        if '1080' in t:
+            return '1080p'
+        if '720' in t:
+            return '720p'
+        if '480' in t or 'dvd' in t:
+            return '480p'
+        return '1080p'
 
     def fetch_season_packs(self, show_slug, season):
         '''
-        Discovers all available All-in-One season packs for the season,
-        segregated by resolution and ranked by seeders.
+        Discovers all available All-in-One season packs for the season in a single query,
+        segregated by true resolution, ranked by seeders, and capped to top healthy releases.
         '''
         cache_key = f"{show_slug}_s{season}"
         if cache_key in self._season_packs_cache:
             return self._season_packs_cache[cache_key]
 
-        resolutions = ['2160p', '1080p', '720p', '480p']
         all_packs = {}
+        target_url = f"{show_slug}/?s={season}&completed=1"
+        resp = self._request(target_url)
 
-        # Query resolutions in parallel
-        def fetch_res(res):
-            return res, self._fetch_season_packs_for_resolution(show_slug, season, res)
+        # Fallback to base slug without completed=1 if needed
+        if not resp or not resp.text:
+            resp = self._request(f"{show_slug}/?s={season}")
 
-        with ThreadPoolExecutor(max_workers=4) as ex:
-            results = ex.map(lambda r: fetch_res(r), resolutions)
-            for res, packs in results:
-                if packs:
-                    # Sort packs by seeders descending
-                    packs.sort(key=lambda p: p['seeds'], reverse=True)
-                    all_packs[res] = packs
+        if resp and resp.text:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            seen_ids = set()
 
-        # If no packs found via resolution paths, probe general completed season query
-        if not all_packs:
-            fallback_url = f"{show_slug}/?s={season}&completed=1"
-            resp = self._request(fallback_url)
-            if resp and resp.text:
-                soup = BeautifulSoup(resp.text, 'html.parser')
-                seen_fallback_ids = set()
-                for a in soup.select('a[href*="-"]'):
-                    href = a.get('href', '')
-                    m_id = re.search(r'-(\d+)/?$', href)
-                    if not m_id or href.startswith('/tv/') or '/user/' in href:
-                        continue
-                    torrent_id = int(m_id.group(1))
-                    if torrent_id in seen_fallback_ids:
-                        continue
-                    seen_fallback_ids.add(torrent_id)
+            for a in soup.select('a[href*="-"]'):
+                href = a.get('href', '')
+                m_id = re.search(r'-(\d+)/?$', href)
+                if not m_id or href.startswith('/tv/') or '/user/' in href:
+                    continue
 
-                    raw_title = a.text.strip()
-                    if not raw_title or len(raw_title) < 3:
-                        continue
+                torrent_id = int(m_id.group(1))
+                if torrent_id in seen_ids:
+                    continue
 
-                    item = a
-                    while item.parent and item.parent.name not in ('body', 'html', 'table'):
-                        item = item.parent
-                        if item.name in ('tr', 'li') or (item.name == 'div' and any(k in str(item.get('class', '')) for k in ('torrent', 'item', 'row', 'card', 'col'))):
-                            break
-                    item_text = item.get_text(separator=' ', strip=True) if item else raw_title
+                raw_title = a.text.strip()
+                if not raw_title or len(raw_title) < 3:
+                    continue
 
-                    # Determine resolution
-                    res_tag = '1080p'
-                    if '2160' in raw_title or '4k' in raw_title.lower():
-                        res_tag = '2160p'
-                    elif '720' in raw_title:
-                        res_tag = '720p'
-                    elif '480' in raw_title:
-                        res_tag = '480p'
+                # Locate parent row or container
+                item = a
+                while item.parent and item.parent.name not in ('body', 'html', 'table'):
+                    item = item.parent
+                    if item.name in ('tr', 'li') or (item.name == 'div' and any(k in str(item.get('class', '')) for k in ('torrent', 'item', 'row', 'card', 'col'))):
+                        break
 
-                    m_seeds = re.search(r'(?:seeders|seeds|file_upload)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
-                    seeds = int(m_seeds.group(1)) if m_seeds else 0
-                    m_size = re.search(r'(\d+(?:\.\d+)?\s*(?:GB|MB|TB))', item_text, re.IGNORECASE)
-                    size_str = m_size.group(1).upper() if m_size else 'Unknown'
+                item_text = item.get_text(separator=' ', strip=True) if item else raw_title
 
-                    detail_url = href if href.startswith('http') else f"{self.base_url}/{href.lstrip('/')}"
-                    all_packs.setdefault(res_tag, []).append({
-                        'torrent_id': torrent_id,
-                        'title': raw_title,
-                        'detail_url': detail_url,
-                        'resolution': res_tag,
-                        'quality': res_tag.upper().replace('P', ''),
-                        'size': size_str,
-                        'seeds': seeds,
-                        'leeches': 0,
-                        'files_count': 0,
-                        'tags': []
-                    })
-                for k in all_packs:
-                    all_packs[k].sort(key=lambda p: p['seeds'], reverse=True)
+                # Seeds
+                seeds = 0
+                m_seeds = re.search(r'file_upload\s*(\d+)', item_text, re.IGNORECASE) or re.search(r'(?:seeders|seeds)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
+                if m_seeds:
+                    seeds = int(m_seeds.group(1))
+                else:
+                    s_elem = item.select_one('.detail-seeders-count, span.seed, span.green')
+                    if s_elem and s_elem.text.strip().isdigit():
+                        seeds = int(s_elem.text.strip())
+
+                # Leeches
+                leeches = 0
+                m_leeches = re.search(r'file_download\s*(\d+)', item_text, re.IGNORECASE) or re.search(r'(?:leechers|leechs)\s*:?\s*(\d+)', item_text, re.IGNORECASE)
+                if m_leeches:
+                    leeches = int(m_leeches.group(1))
+
+                # Size
+                size_str = 'Unknown'
+                m_size = re.search(r'(\d+(?:\.\d+)?\s*(?:GB|MB|TB))', item_text, re.IGNORECASE)
+                if m_size:
+                    size_str = m_size.group(1).upper()
+
+                # Files count
+                files_count = 0
+                m_files = re.search(r'(?:files|Files)\s*[:|]?\s*(\d+)', item_text)
+                if m_files:
+                    files_count = int(m_files.group(1))
+
+                # Extract tags: BluRay, WEB-DL, x265, HEVC, 10bit, AV1, etc.
+                tags = []
+                for tag_pat in [r'BluRay', r'WEB-DL', r'WEBRip', r'x265', r'x264', r'HEVC', r'10-?bit', r'AV1', r'HDR', r'DTS', r'AAC']:
+                    if re.search(r'\b' + tag_pat + r'\b', raw_title + ' ' + item_text, re.IGNORECASE):
+                        tags.append(tag_pat.replace('-?', ''))
+
+                # Detect true resolution
+                res = self._detect_resolution(raw_title)
+
+                detail_url = href if href.startswith('http') else f"{self.base_url}/{href.lstrip('/')}"
+
+                seen_ids.add(torrent_id)
+                all_packs.setdefault(res, []).append({
+                    'torrent_id': torrent_id,
+                    'title': raw_title,
+                    'detail_url': detail_url,
+                    'resolution': res,
+                    'quality': res.upper().replace('P', ''),
+                    'size': size_str,
+                    'seeds': seeds,
+                    'leeches': leeches,
+                    'files_count': files_count,
+                    'tags': list(set(tags))
+                })
+
+        # Filter dead releases if healthy seeds exist, sort descending by seeds, cap to top 5 per resolution
+        for res_k, p_list in list(all_packs.items()):
+            has_alive = any(p['seeds'] > 0 for p in p_list)
+            if has_alive:
+                p_list = [p for p in p_list if p['seeds'] > 0]
+            p_list.sort(key=lambda p: p['seeds'], reverse=True)
+            all_packs[res_k] = p_list[:5]
 
         self._season_packs_cache[cache_key] = all_packs
         return all_packs
@@ -740,6 +696,7 @@ class ExtClient(BaseClient):
                 display_label = f"{pack['size']} • Seeds: {pack['seeds']}{files_str}{tags_str}"
 
                 options_map[opt_key] = {
+                    'title': pack['title'],
                     'quality': pack['quality'],
                     'resolution': res_k,
                     'size': pack['size'],

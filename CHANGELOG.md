@@ -11,9 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Ext.to (`ext.to`) Provider & Complete Season Packs**:
   - Integrated `ext.to` as the primary #1 provider for TV Shows.
-  - Reverse-engineered `ext.to` season pack index (`completed=1`) to discover full season torrent releases.
+  - Reverse-engineered `ext.to` season pack index (`completed=1`) to discover full season torrent releases in a single optimized query.
   - Automated HMAC-SHA256 signature generation and AJAX token retrieval (`/ajax/getTorrentMagnet.php`) to extract high-speed BitTorrent magnet URIs.
   - Multi-resolution segregation (`4K / 2160p`, `1080p`, `720p`, `480p`) with ranking by active seeders.
+  - **Compact Two-Step Selection UX**: Replaced overwhelming 67+ item flat lists with an intuitive two-step wizard:
+    - *Step 1*: Pick resolution from compact list (1080p, 720p, 2160p, 480p) displaying pack count and top seeds (auto-skipped if `--resolution` specified).
+    - *Step 2*: Pick specific release pack from top 3–5 seeded releases displaying release names, sizes, seeds, peers, and file counts.
+  - **Resolution Auto-Detection & Deduplication**: Accurately classifies true release resolution directly from release titles and containers, eliminating redundant queries and cross-resolution duplication.
+  - **Dead Torrent Filter**: Automatically purges 0-seed dead torrents when healthy seeded releases are available.
 - **Selective File / Episode Download Support in Torrent Engine**:
   - Overhauled TV series torrent downloader flow to support all-in-one complete season torrents instead of disjointed individual episode swarms.
   - Pre-parsed episode file hierarchy from torrent release metadata.

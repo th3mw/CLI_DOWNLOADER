@@ -1023,7 +1023,156 @@ Examples:
 
         # 1. Fast Resolution Discovery (Probe 1 sample episode if resolution not predefined)
         target_ep_links = {}
-        if resolution_predef:
+
+        if is_season_pack_provider:
+            # -------------------------------------------------------------
+            # Complete Season Pack Selection UX (Two-Step: Resolution -> Release Pack)
+            # -------------------------------------------------------------
+            chosen_season = selected_eps.get('start', 1) if isinstance(selected_eps, dict) else 1
+            sample_ep = next((ep for ep in episodes if ep.get('season') == chosen_season), episodes[0])
+
+            colprint('header', f"\nProbing Available Complete Season {chosen_season} Packs...")
+            sample_links = client.fetch_episode_links([sample_ep], {'start': chosen_season, 'end': chosen_season, 'specific_no': [chosen_season]})
+            if sample_links:
+                target_ep_links.update(sample_links)
+
+            season_options = next(iter(sample_links.values()), {}) if sample_links else {}
+            if not season_options:
+                logger.error(f"No complete season packs found for Season {chosen_season}!")
+                raise ExitException(1)
+
+            # Group packs by resolution: {'1080p': [('1080p_1', opt), ...], '720p': [...]}
+            packs_by_res = {}
+            for opt_k, opt_d in season_options.items():
+                res_key = opt_d.get('resolution', '1080p').lower()
+                packs_by_res.setdefault(res_key, []).append((opt_k, opt_d))
+
+            res_order = ['1080p', '720p', '2160p', '480p']
+            avail_res = [r for r in res_order if r in packs_by_res] + [r for r in packs_by_res if r not in res_order]
+
+            # Step 1: Resolution selection
+            chosen_res = None
+            if resolution_predef:
+                raw_pre = str(resolution_predef).lower().replace('p', '') + 'p'
+                if raw_pre in packs_by_res:
+                    chosen_res = raw_pre
+                else:
+                    for r in avail_res:
+                        if r.replace('p', '') == str(resolution_predef).lower().replace('p', ''):
+                            chosen_res = r
+                            break
+                if chosen_res:
+                    colprint('predefined', f'\nUsing Predefined Input for resolution: {chosen_res.upper()}')
+
+            if not chosen_res:
+                if not args.quiet:
+                    clear_screen()
+                    prov_name = getattr(client, 'name', '') or str(series_type)
+                    render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), f"Season {chosen_season}", 'Select Resolution'])
+
+                res_lines = []
+                res_choice_map = {}
+                default_res_idx = "1"
+                for idx, r in enumerate(avail_res, start=1):
+                    idx_str = str(idx)
+                    r_packs = packs_by_res[r]
+                    top_seeds = max((p[1].get('seeds', 0) for p in r_packs), default=0)
+                    pack_count = len(r_packs)
+                    label = 'Full HD (Recommended)' if r == '1080p' else ('HD' if r == '720p' else ('4K UHD' if r == '2160p' else 'SD'))
+                    is_def = (r == '1080p') or (idx == 1 and '1080p' not in avail_res)
+                    def_tag = ' \033[38;5;39m[default]\033[0m' if is_def else ''
+                    if is_def:
+                        default_res_idx = idx_str
+
+                    res_choice_map[idx_str] = r
+                    res_choice_map[r] = r
+                    res_choice_map[r.replace('p', '')] = r
+
+                    count_str = f"{pack_count} pack" if pack_count == 1 else f"{pack_count} packs"
+                    res_lines.append(f"  \033[1m[{idx_str}]\033[0m  \033[1m{r.upper()}\033[0m  \033[38;5;244m•  {label} ({count_str}, top: {top_seeds} seeds)\033[0m{def_tag}")
+
+                print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+
+                while True:
+                    try:
+                        raw_input_val = input(f"\n  ➜ Select resolution [1-{len(res_lines)} or quality, default={default_res_idx}]: ").strip()
+                    except (EOFError, KeyboardInterrupt):
+                        print()
+                        raise ExitException(0)
+
+                    if not raw_input_val:
+                        chosen_res = res_choice_map[default_res_idx]
+                        break
+
+                    cleaned = raw_input_val.lower().strip()
+                    if cleaned in res_choice_map:
+                        chosen_res = res_choice_map[cleaned]
+                        break
+                    elif cleaned.replace('p', '') in res_choice_map:
+                        chosen_res = res_choice_map[cleaned.replace('p', '')]
+                        break
+                    else:
+                        print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(res_lines)}.\033[0m")
+
+            # Step 2: Release pack selection for chosen resolution
+            candidate_packs = packs_by_res.get(chosen_res, [])
+            if not candidate_packs:
+                chosen_res = avail_res[0]
+                candidate_packs = packs_by_res[chosen_res]
+
+            if len(candidate_packs) == 1 or args.quiet:
+                resolution = candidate_packs[0][0]
+            else:
+                if not args.quiet:
+                    clear_screen()
+                    prov_name = getattr(client, 'name', '') or str(series_type)
+                    render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), f"Season {chosen_season}", f"{chosen_res.upper()} Releases"])
+
+                pack_lines = []
+                pack_choice_map = {}
+                default_pack_idx = "1"
+
+                for idx, (opt_k, opt_d) in enumerate(candidate_packs, start=1):
+                    idx_str = str(idx)
+                    pack_choice_map[idx_str] = opt_k
+                    p_data = opt_d.get('pack_data', {})
+                    p_title = p_data.get('title') or opt_d.get('title') or opt_d.get('show_title', 'Season Pack')
+                    if len(p_title) > 60:
+                        p_title = p_title[:57] + '...'
+                    p_size = opt_d.get('size', 'Unknown')
+                    p_seeds = opt_d.get('seeds', 0)
+                    p_leeches = opt_d.get('leeches', 0)
+                    p_files = opt_d.get('files_count', 0)
+                    files_str = f" • {p_files} files" if p_files else ""
+                    def_tag = ' \033[38;5;39m[default]\033[0m' if idx == 1 else ''
+
+                    pack_lines.append(
+                        f"  \033[1m[{idx_str}]\033[0m  \033[1m\033[38;5;39m{p_size}\033[0m  \033[38;5;244m•\033[0m  "
+                        f"\033[38;5;82m▲ {p_seeds}\033[0m \033[38;5;244m/ ▼ {p_leeches}\033[0m{files_str}  \033[38;5;244m•\033[0m  "
+                        f"{p_title}{def_tag}"
+                    )
+
+                box_title = f"AVAILABLE SEASON PACKS ({chosen_res.upper()})"
+                print('\n' + render_box(box_title, pack_lines))
+
+                while True:
+                    try:
+                        raw_input_val = input(f"\n  ➜ Select season pack [1-{len(candidate_packs)}, default={default_pack_idx}]: ").strip()
+                    except (EOFError, KeyboardInterrupt):
+                        print()
+                        raise ExitException(0)
+
+                    if not raw_input_val:
+                        resolution = pack_choice_map[default_pack_idx]
+                        break
+
+                    if raw_input_val in pack_choice_map:
+                        resolution = pack_choice_map[raw_input_val]
+                        break
+                    else:
+                        print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(candidate_packs)}.\033[0m")
+
+        elif resolution_predef:
             resolution = resolution_predef
             colprint('predefined', f'\nUsing Predefined Input for resolution: {resolution_predef}')
         else:
@@ -1205,13 +1354,14 @@ Examples:
         logger.info(f'Selected download resolution: {resolution}')
 
         # 2. Fetch episode links for selected episodes
-        logger.info(f'Fetching episodes based on {selected_eps = }')
-        colprint('header', "\nFetching Episode links:")
-        all_fetched_links = client.fetch_episode_links(episodes, selected_eps)
-        if target_ep_links:
-            target_ep_links.update(all_fetched_links)
-        else:
-            target_ep_links = all_fetched_links
+        if not is_season_pack_provider:
+            logger.info(f'Fetching episodes based on {selected_eps = }')
+            colprint('header', "\nFetching Episode links:")
+            all_fetched_links = client.fetch_episode_links(episodes, selected_eps)
+            if target_ep_links:
+                target_ep_links.update(all_fetched_links)
+            else:
+                target_ep_links = all_fetched_links
 
         if len(target_ep_links) == 0:
             logger.error("No episodes are available for download!")

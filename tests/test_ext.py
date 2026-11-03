@@ -238,6 +238,31 @@ class TestExtClient(unittest.TestCase):
             self.assertEqual(p['seeds'], 71)
             self.assertEqual(p['leeches'], 63)
 
+    def test_render_table_formatting_and_wrapping(self):
+        from Core.commons import render_table, visible_len
+        cols = [
+            {'key': 'index', 'title': '#', 'width': 6, 'align': 'center'},
+            {'key': 'title', 'title': 'RELEASE NAME', 'wrap': True, 'align': 'left'},
+            {'key': 'size', 'title': 'SIZE', 'width': 10, 'align': 'center'},
+            {'key': 'seeds', 'title': 'SEEDS', 'width': 8, 'align': 'center'},
+        ]
+        rows = [
+            {
+                'index': '[1]',
+                'title': 'Very Long Release Name That Wraps Over Multiple Lines Inside Table Cell',
+                'size': '11 GB',
+                'seeds': '71',
+                'is_default': True
+            }
+        ]
+        footer = [{'index': '[0]', 'title': 'Back', 'size': '', 'seeds': ''}]
+        rendered = render_table('TEST TABLE', cols, rows, max_width=80, footer_rows=footer)
+        self.assertIn('TEST TABLE', rendered)
+        self.assertIn('[1]', rendered)
+        self.assertIn('[0]', rendered)
+        self.assertIn('11 GB', rendered)
+        self.assertIn('RELEASE NAME', rendered)
+
 
 if __name__ == '__main__':
     unittest.main()

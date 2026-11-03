@@ -5,6 +5,7 @@ import requests
 import shutil
 import subprocess
 import sys
+import textwrap
 import yaml
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -135,6 +136,144 @@ def render_box(title, lines, max_width=84, indent=2, center=False, pad_x=(1, 3))
             out.append(f'{pad_left}{c_border}│{c_reset}{pl}{line_str}{pr}{c_border}│{c_reset}')
 
     out.append(f'{pad_left}{c_border}╰' + ('─' * inner_space) + f'╯{c_reset}')
+    return '\n'.join(out)
+
+def render_table(title, columns, rows, max_width=130, indent=2, footer_rows=None):
+    '''
+    Render a clean, aligned Unicode bordered table with dynamic column wrapping.
+    Columns format: [{'key': 'k', 'title': 'NAME', 'width': 10, 'wrap': False, 'align': 'left'|'center'|'right'}]
+    '''
+    try:
+        term_cols = shutil.get_terminal_size((80, 24)).columns
+    except Exception:
+        term_cols = 80
+
+    box_w = min(max_width, max(80, term_cols - (indent * 2)))
+
+    # Compute column widths
+    fixed_widths = sum(c.get('width', 10) for c in columns if not c.get('wrap'))
+    num_cols = len(columns)
+    total_separators = num_cols + 1
+
+    wrap_col = next((c for c in columns if c.get('wrap')), None)
+    if wrap_col:
+        w_wrap = max(20, box_w - fixed_widths - total_separators)
+        wrap_col['computed_width'] = w_wrap
+
+    for c in columns:
+        if not c.get('wrap'):
+            c['computed_width'] = c.get('width', 10)
+
+    total_table_w = sum(c['computed_width'] for c in columns) + total_separators
+
+    pad_left = ' ' * indent
+    c_border = PRINT_THEMES['primary'] if DISPLAY_COLORS else ''
+    c_hdr = (PRINT_THEMES['user_input']) if DISPLAY_COLORS else ''
+    c_reset = PRINT_THEMES['reset'] if DISPLAY_COLORS else ''
+    c_title = (PRINT_THEMES['secondary'] + PRINT_THEMES['bold']) if DISPLAY_COLORS else ''
+
+    # Top border
+    title_str = f' {c_title}{title}{c_reset}{c_border} ' if title else ''
+    dash_count = max(2, total_table_w - visible_len(title_str) - 3)
+    top_border = f'{pad_left}{c_border}╭──{title_str}' + ('─' * dash_count) + f'╮{c_reset}'
+
+    # Header line
+    hdr_cells = []
+    for c in columns:
+        w = c['computed_width']
+        t = c.get('title', '')
+        align = c.get('align', 'center')
+        v_len = visible_len(t)
+        if align == 'center':
+            pl = (w - v_len) // 2
+            pr = w - v_len - pl
+            cell = (' ' * max(0, pl)) + t + (' ' * max(0, pr))
+        elif align == 'right':
+            cell = (' ' * max(0, w - v_len - 1)) + t + ' '
+        else:
+            cell = ' ' + t + (' ' * max(0, w - v_len - 1))
+        hdr_cells.append(cell)
+    hdr_line = f'{pad_left}{c_border}│' + f'│'.join(f'{c_hdr}{cell}{c_reset}{c_border}' for cell in hdr_cells) + f'│{c_reset}'
+
+    # Double-line header separator
+    sep_head = f'{pad_left}{c_border}╞' + '╪'.join('═' * c['computed_width'] for c in columns) + f'╡{c_reset}'
+
+    # Full row separator
+    sep_row = f'{pad_left}{c_border}├' + '┼'.join('─' * c['computed_width'] for c in columns) + f'┤{c_reset}'
+
+    # Bottom border
+    bot_border = f'{pad_left}{c_border}╰' + '┴'.join('─' * c['computed_width'] for c in columns) + f'╯{c_reset}'
+
+    out = [top_border, hdr_line, sep_head]
+
+    all_rows = list(rows)
+    for r_idx, r in enumerate(all_rows):
+        row_lines = {}
+        max_lines_in_row = 1
+        for c in columns:
+            k = c['key']
+            val = str(r.get(k, ''))
+            w = c['computed_width']
+            if c.get('wrap'):
+                wrap_limit = max(10, w - 2)
+                lines = textwrap.wrap(val, width=wrap_limit, break_long_words=True) or ['']
+                if r.get('is_default'):
+                    def_tag = f" {PRINT_THEMES['primary']}[default]{PRINT_THEMES['reset']}" if DISPLAY_COLORS else " [default]"
+                    if visible_len(lines[-1]) + len(' [default]') <= wrap_limit:
+                        lines[-1] += def_tag
+                    else:
+                        lines.append('  ' + def_tag.strip())
+                row_lines[k] = lines
+                max_lines_in_row = max(max_lines_in_row, len(lines))
+            else:
+                row_lines[k] = [val]
+
+        for line_i in range(max_lines_in_row):
+            line_cells = []
+            for c in columns:
+                k = c['key']
+                w = c['computed_width']
+                align = c.get('align', 'left')
+                lines = row_lines[k]
+                cell_val = lines[line_i] if line_i < len(lines) else ''
+                v_len = visible_len(cell_val)
+                if align == 'center':
+                    pl = (w - v_len) // 2
+                    pr = w - v_len - pl
+                    cell = (' ' * max(0, pl)) + cell_val + (' ' * max(0, pr))
+                elif align == 'right':
+                    cell = (' ' * max(0, w - v_len - 1)) + cell_val + ' '
+                else:
+                    cell = ' ' + cell_val + (' ' * max(0, w - v_len - 1))
+                line_cells.append(cell)
+            row_str = f'{pad_left}{c_border}│{c_reset}' + f'{c_border}│{c_reset}'.join(line_cells) + f'{c_border}│{c_reset}'
+            out.append(row_str)
+
+        if r_idx < len(all_rows) - 1:
+            out.append(sep_row)
+
+    if footer_rows:
+        out.append(sep_row)
+        for fr in footer_rows:
+            f_cells = []
+            for c in columns:
+                k = c['key']
+                w = c['computed_width']
+                align = c.get('align', 'left')
+                val = str(fr.get(k, ''))
+                v_len = visible_len(val)
+                if align == 'center':
+                    pl = (w - v_len) // 2
+                    pr = w - v_len - pl
+                    cell = (' ' * max(0, pl)) + val + (' ' * max(0, pr))
+                elif align == 'right':
+                    cell = (' ' * max(0, w - v_len - 1)) + val + ' '
+                else:
+                    cell = ' ' + val + (' ' * max(0, w - v_len - 1))
+                f_cells.append(cell)
+            out.append(f'{pad_left}{c_border}│{c_reset}' + f'{c_border}│{c_reset}'.join(f_cells) + f'{c_border}│{c_reset}')
+
+    out.append(bot_border)
     return '\n'.join(out)
 
 def clear_screen(disable_clear=False):

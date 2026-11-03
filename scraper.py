@@ -21,7 +21,7 @@ from time import time
 import traceback
 
 # Note: For optimization, custom modules are imported as required
-from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box, clear_screen, render_step_header
+from Core.commons import colprint_init, colprint, PRINT_THEMES, ExitException, render_box, render_table, clear_screen, render_step_header
 from Core.commons import create_logger, load_yaml, pretty_time, strip_ansi, threaded, delete_old_logs
 from Core.provider_factory import CATEGORIES, CATEGORY_PROVIDERS, get_providers_for_category, create_client, get_downloader
 from Core import history_manager, compressor
@@ -1052,7 +1052,7 @@ Examples:
             res_order = ['1080p', '720p', '2160p', '480p']
             avail_res = [r for r in res_order if r in packs_by_res] + [r for r in packs_by_res if r not in res_order]
 
-            # Step 1: Resolution selection
+            # Navigation Loop: allows pressing 0 at Release Pack screen to go back to Select Resolution screen
             chosen_res = None
             if resolution_predef:
                 raw_pre = str(resolution_predef).lower().replace('p', '') + 'p'
@@ -1063,83 +1063,86 @@ Examples:
                         if r.replace('p', '') == str(resolution_predef).lower().replace('p', ''):
                             chosen_res = r
                             break
-                if chosen_res:
-                    colprint('predefined', f'\nUsing Predefined Input for resolution: {chosen_res.upper()}')
 
-            if not chosen_res:
-                if not args.quiet:
-                    clear_screen()
-                    prov_name = getattr(client, 'name', '') or str(series_type)
-                    render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), f"Season {chosen_season}", 'Select Resolution'])
+            while True:
+                # Step 1: Resolution selection
+                if not chosen_res:
+                    if not args.quiet:
+                        clear_screen()
+                        prov_name = getattr(client, 'name', '') or str(series_type)
+                        render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), f"Season {chosen_season}", 'Select Resolution'])
 
-                res_lines = []
-                res_choice_map = {}
-                default_res_idx = "1"
-                for idx, r in enumerate(avail_res, start=1):
-                    idx_str = str(idx)
-                    r_packs = packs_by_res[r]
-                    top_seeds = max((p[1].get('seeds', 0) for p in r_packs), default=0)
-                    pack_count = len(r_packs)
-                    label = 'Full HD (Recommended)' if r == '1080p' else ('HD' if r == '720p' else ('4K UHD' if r == '2160p' else 'SD'))
-                    is_def = (r == '1080p') or (idx == 1 and '1080p' not in avail_res)
-                    def_tag = ' \033[38;5;39m[default]\033[0m' if is_def else ''
-                    if is_def:
-                        default_res_idx = idx_str
+                    res_lines = []
+                    res_choice_map = {}
+                    default_res_idx = "1"
+                    for idx, r in enumerate(avail_res, start=1):
+                        idx_str = str(idx)
+                        r_packs = packs_by_res[r]
+                        top_seeds = max((p[1].get('seeds', 0) for p in r_packs), default=0)
+                        pack_count = len(r_packs)
+                        label = 'Full HD (Recommended)' if r == '1080p' else ('HD' if r == '720p' else ('4K UHD' if r == '2160p' else 'SD'))
+                        is_def = (r == '1080p') or (idx == 1 and '1080p' not in avail_res)
+                        def_tag = ' \033[38;5;39m[default]\033[0m' if is_def else ''
+                        if is_def:
+                            default_res_idx = idx_str
 
-                    res_choice_map[idx_str] = r
-                    res_choice_map[r] = r
-                    res_choice_map[r.replace('p', '')] = r
+                        res_choice_map[idx_str] = r
+                        res_choice_map[r] = r
+                        res_choice_map[r.replace('p', '')] = r
 
-                    count_str = f"{pack_count} pack" if pack_count == 1 else f"{pack_count} packs"
-                    res_lines.append(f"  \033[1m[{idx_str}]\033[0m  \033[1m{r.upper()}\033[0m  \033[38;5;244m•  {label} ({count_str}, top: {top_seeds} seeds)\033[0m{def_tag}")
+                        count_str = f"{pack_count} pack" if pack_count == 1 else f"{pack_count} packs"
+                        res_lines.append(f"  \033[1m[{idx_str}]\033[0m  \033[1m{r.upper()}\033[0m  \033[38;5;244m•  {label} ({count_str}, top: {top_seeds} seeds)\033[0m{def_tag}")
 
-                print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
+                    print('\n' + render_box('AVAILABLE RESOLUTIONS', res_lines))
 
-                while True:
-                    try:
-                        raw_input_val = input(f"\n  ➜ Select resolution [1-{len(res_lines)} or quality, default={default_res_idx}]: ").strip()
-                    except (EOFError, KeyboardInterrupt):
-                        print()
-                        raise ExitException(0)
+                    while True:
+                        try:
+                            raw_input_val = input(f"\n  ➜ Select resolution [1-{len(res_lines)} or quality, default={default_res_idx}]: ").strip()
+                        except (EOFError, KeyboardInterrupt):
+                            print()
+                            raise ExitException(0)
 
-                    if not raw_input_val:
-                        chosen_res = res_choice_map[default_res_idx]
-                        break
+                        if not raw_input_val:
+                            chosen_res = res_choice_map[default_res_idx]
+                            break
 
-                    cleaned = raw_input_val.lower().strip()
-                    if cleaned in res_choice_map:
-                        chosen_res = res_choice_map[cleaned]
-                        break
-                    elif cleaned.replace('p', '') in res_choice_map:
-                        chosen_res = res_choice_map[cleaned.replace('p', '')]
-                        break
-                    else:
-                        print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(res_lines)}.\033[0m")
+                        cleaned = raw_input_val.lower().strip()
+                        if cleaned in res_choice_map:
+                            chosen_res = res_choice_map[cleaned]
+                            break
+                        elif cleaned.replace('p', '') in res_choice_map:
+                            chosen_res = res_choice_map[cleaned.replace('p', '')]
+                            break
+                        else:
+                            print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(res_lines)}.\033[0m")
 
-            # Step 2: Release pack selection for chosen resolution
-            candidate_packs = packs_by_res.get(chosen_res, [])
-            if not candidate_packs:
-                chosen_res = avail_res[0]
-                candidate_packs = packs_by_res[chosen_res]
+                # Step 2: Release pack selection table for chosen resolution
+                candidate_packs = packs_by_res.get(chosen_res, [])
+                if not candidate_packs:
+                    chosen_res = avail_res[0]
+                    candidate_packs = packs_by_res[chosen_res]
 
-            if len(candidate_packs) == 1 or args.quiet:
-                resolution = candidate_packs[0][0]
-            else:
+                if len(candidate_packs) == 1 and not resolution_predef and args.quiet:
+                    resolution = candidate_packs[0][0]
+                    break
+
                 if not args.quiet:
                     clear_screen()
                     prov_name = getattr(client, 'name', '') or str(series_type)
                     render_step_header(breadcrumbs=[str(series_type), prov_name, target_series.get('title', 'Unknown'), f"Season {chosen_season}", f"{chosen_res.upper()} Releases"])
 
-                pack_lines = []
+                table_cols = [
+                    {'key': 'index', 'title': '#', 'width': 6, 'align': 'center'},
+                    {'key': 'title', 'title': 'RELEASE NAME', 'wrap': True, 'align': 'left'},
+                    {'key': 'size', 'title': 'SIZE', 'width': 11, 'align': 'center'},
+                    {'key': 'files', 'title': 'FILES', 'width': 8, 'align': 'center'},
+                    {'key': 'seeds', 'title': 'SEEDS', 'width': 8, 'align': 'center'},
+                    {'key': 'peers', 'title': 'PEERS', 'width': 8, 'align': 'center'},
+                ]
+
+                table_rows = []
                 pack_choice_map = {}
                 default_pack_idx = "1"
-
-                try:
-                    term_cols = shutil.get_terminal_size((80, 24)).columns
-                except Exception:
-                    term_cols = 80
-                max_box_w = min(130, max(80, term_cols - 4))
-                title_wrap_w = max(30, min(term_cols - 4, max_box_w) - 14)
 
                 for idx, (opt_k, opt_d) in enumerate(candidate_packs, start=1):
                     idx_str = str(idx)
@@ -1149,29 +1152,35 @@ Examples:
                     p_size = opt_d.get('size', 'Unknown')
                     p_seeds = opt_d.get('seeds', 0)
                     p_leeches = opt_d.get('leeches', 0)
-                    p_files = opt_d.get('files_count', 0)
-                    files_str = f" • {p_files} files" if p_files else ""
-                    def_tag = ' \033[38;5;39m[default]\033[0m' if idx == 1 else ''
+                    p_files = opt_d.get('files_count', '-')
 
-                    if pack_lines:
-                        pack_lines.append("")
+                    table_rows.append({
+                        'index': f"\033[1m[{idx_str}]\033[0m",
+                        'title': p_title,
+                        'size': f"\033[1m\033[38;5;39m{p_size}\033[0m",
+                        'files': str(p_files) if p_files else '-',
+                        'seeds': f"\033[38;5;82m▲ {p_seeds}\033[0m",
+                        'peers': f"\033[38;5;244m▼ {p_leeches}\033[0m",
+                        'is_default': (idx == 1)
+                    })
 
-                    meta_line = (
-                        f"  \033[1m[{idx_str}]\033[0m  \033[1m\033[38;5;39m{p_size}\033[0m  \033[38;5;244m•\033[0m  "
-                        f"\033[38;5;82m▲ {p_seeds}\033[0m \033[38;5;244m/ ▼ {p_leeches}\033[0m{files_str}{def_tag}"
-                    )
-                    pack_lines.append(meta_line)
-
-                    wrapped_title = textwrap.wrap(p_title, width=title_wrap_w)
-                    for t_line in wrapped_title:
-                        pack_lines.append(f"      \033[38;5;253m{t_line}\033[0m")
+                table_footer = [
+                    {
+                        'index': "\033[1m[0]\033[0m",
+                        'title': "\033[38;5;244m↩ Back to Resolution Selection\033[0m",
+                        'size': '',
+                        'files': '',
+                        'seeds': '',
+                        'peers': ''
+                    }
+                ]
 
                 box_title = f"AVAILABLE SEASON PACKS ({chosen_res.upper()})"
-                print('\n' + render_box(box_title, pack_lines, max_width=max_box_w))
+                print('\n' + render_table(box_title, table_cols, table_rows, max_width=130, footer_rows=table_footer))
 
                 while True:
                     try:
-                        raw_input_val = input(f"\n  ➜ Select season pack [1-{len(candidate_packs)}, default={default_pack_idx}]: ").strip()
+                        raw_input_val = input(f"\n  ➜ Select season pack [1-{len(candidate_packs)}, 0=Back, default={default_pack_idx}]: ").strip()
                     except (EOFError, KeyboardInterrupt):
                         print()
                         raise ExitException(0)
@@ -1180,11 +1189,20 @@ Examples:
                         resolution = pack_choice_map[default_pack_idx]
                         break
 
+                    if raw_input_val == '0':
+                        chosen_res = None
+                        break
+
                     if raw_input_val in pack_choice_map:
                         resolution = pack_choice_map[raw_input_val]
                         break
                     else:
-                        print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(candidate_packs)}.\033[0m")
+                        print(f"\033[38;5;196m  ❌ Invalid selection '{raw_input_val}'. Please choose from 1-{len(candidate_packs)} or 0 to go back.\033[0m")
+
+                if raw_input_val == '0':
+                    continue
+                else:
+                    break
 
         elif resolution_predef:
             resolution = resolution_predef
